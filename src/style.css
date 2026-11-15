@@ -563,18 +563,22 @@ body {
   font-size: 22px;
   line-height: 1;
 }
-.hearts-seat .score {
-  font: 700 17px/1 var(--display);
-}
 .hearts-seat .pts {
   color: #ff8c9b;
-  font: 700 12px/1 system-ui, sans-serif;
+  font: 700 13px/1 system-ui, sans-serif;
+}
+.hearts-seat.clean .pts {
+  display: none;
+}
+.hearts-seat.clean {
+  padding-right: 6px;
 }
 .hearts-seat.you .emo {
   display: none;
 }
 .hearts-seat.you::before {
   content: 'You';
+  margin-right: 2px;
   font: 700 13px/1 system-ui, sans-serif;
   opacity: 0.8;
 }

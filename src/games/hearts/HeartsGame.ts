@@ -96,7 +96,8 @@ export class HeartsGame implements GameController {
       const b = document.createElement('div');
       b.className = 'hearts-seat';
       b.dataset.seat = String(seat);
-      b.innerHTML = `<span class="emo">${PLAYERS[seat].emoji}</span><b class="score">0</b><small class="pts"></small>`;
+      // Totals live in the toolbar; badges only show what each player has taken this hand.
+      b.innerHTML = `<span class="emo">${PLAYERS[seat].emoji}</span><small class="pts"></small>`;
       root.appendChild(b);
       this.badges.push(b);
     }
@@ -106,7 +107,7 @@ export class HeartsGame implements GameController {
     this.passBar = this.el('hearts-pass', '<span class="pass-text"></span><button type="button" class="btn primary pass-btn" disabled>Pass</button>');
     this.passText = this.passBar.querySelector('.pass-text')!;
     this.passBtn = this.passBar.querySelector('.pass-btn')!;
-    this.passBtn.addEventListener('click', () => (this.review ? this.endReview() : this.confirmPass()));
+    this.passBtn.addEventListener('click', () => this.confirmPass());
 
     this.dialog = document.createElement('dialog');
     this.dialog.className = 'sheet center hearts-round';
@@ -322,16 +323,19 @@ export class HeartsGame implements GameController {
     for (const seat of [1, 2, 3] as Seat[]) choosePass(s, seat, choosePassCards(s.hands[seat], Math.random));
     choosePass(s, 0, mine);
     this.selected.clear();
-    // Hold here: the cards that arrived stay lifted until the player taps OK.
+    // Hold a moment: the cards that arrived stay lifted so the player sees what they got.
     this.review = true;
     sfx.deal(0);
     sfx.deal(0.08);
     sfx.deal(0.16);
     this.save();
     this.render();
+    this.timer = window.setTimeout(() => this.endReview(), 3000);
   }
 
   private endReview() {
+    if (!this.review) return;
+    clearTimeout(this.timer);
     this.review = false;
     this.render();
     this.step();
@@ -524,13 +528,13 @@ export class HeartsGame implements GameController {
     if (this.review) {
       const from = SEATS.find((seat) => seat !== 0 && (seat + PASS_TO[s.passDir]) % 4 === 0) ?? 0;
       this.passBar.hidden = false;
+      this.passBtn.hidden = true;
       this.passText.textContent = `From ${PLAYERS[from].emoji}`;
-      this.passBtn.disabled = false;
-      this.passBtn.textContent = 'OK';
       return;
     }
     const show = s.phase === 'pass' && !this.paused;
     this.passBar.hidden = !show;
+    this.passBtn.hidden = false;
     if (!show) return;
     const to = PASS_TO[s.passDir];
     const arrow = PASS_ARROW[s.passDir];
@@ -681,13 +685,14 @@ export class HeartsGame implements GameController {
         });
     });
 
-    // Seat badges: score, points taken this hand, whose turn.
+    // Seat badges: points taken this hand and whose turn.
     SEATS.forEach((seat) => {
       const b = this.badges[seat];
-      b.querySelector('.score')!.textContent = String(s.scores[seat]);
       const pts = trickPoints(s.taken[seat]);
       const q = s.taken[seat].some(isQueenOfSpades);
-      b.querySelector('.pts')!.textContent = pts ? `${q ? '♠Q ' : ''}♥${pts - (q ? 13 : 0)}` : '';
+      const hearts = pts - (q ? 13 : 0);
+      b.querySelector('.pts')!.textContent = [q ? 'Q♠' : '', hearts ? `♥${hearts}` : ''].filter(Boolean).join(' ');
+      b.classList.toggle('clean', !pts);
       b.classList.toggle('turn', s.phase === 'play' && s.turn === seat && !this.sweeping && !this.review && !this.announcing);
       b.classList.toggle('you', seat === 0);
     });
