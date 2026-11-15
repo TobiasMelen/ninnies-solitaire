@@ -68,6 +68,11 @@ export class HeartsGame implements GameController {
   /** A finished trick held on the table for a moment before it is swept to the winner. */
   private sweeping: Play[] | null = null;
   private timer = 0;
+  /**
+   * Short pauses (looking at passed cards, the opening 2♣) run on their own timer: `step()`
+   * clears `timer`, and cancelling a pause's end would leave the game waiting forever.
+   */
+  private beatTimer = 0;
   private paused = true;
   private cascade: Cascade | null = null;
   private receivedUntil = 0;
@@ -169,6 +174,16 @@ export class HeartsGame implements GameController {
   pause() {
     this.paused = true;
     clearTimeout(this.timer);
+    // Finish any pause now so returning to the game can't find it half-done.
+    if (this.review) {
+      clearTimeout(this.beatTimer);
+      this.review = false;
+    }
+    if (this.announcing) {
+      clearTimeout(this.beatTimer);
+      this.announcing = false;
+      this.showing = null;
+    }
     this.save();
   }
 
@@ -332,12 +347,13 @@ export class HeartsGame implements GameController {
     sfx.deal(0.16);
     this.save();
     this.render();
-    this.timer = window.setTimeout(() => this.endReview(), 1800);
+    clearTimeout(this.beatTimer);
+    this.beatTimer = window.setTimeout(() => this.endReview(), 1800);
   }
 
   private endReview() {
     if (!this.review) return;
-    clearTimeout(this.timer);
+    clearTimeout(this.beatTimer);
     this.review = false;
     this.render();
     this.step();
@@ -353,11 +369,16 @@ export class HeartsGame implements GameController {
     this.showing = two?.id ?? null;
     if (s.turn === 0) this.raised = this.showing;
     this.render();
-    this.timer = window.setTimeout(() => {
-      this.announcing = false;
-      this.showing = null;
-      this.step();
-    }, 1000);
+    clearTimeout(this.beatTimer);
+    this.beatTimer = window.setTimeout(() => this.endAnnounce(), 1000);
+  }
+
+  private endAnnounce() {
+    if (!this.announcing) return;
+    clearTimeout(this.beatTimer);
+    this.announcing = false;
+    this.showing = null;
+    this.step();
   }
 
   private heartsBroken() {
@@ -439,6 +460,9 @@ export class HeartsGame implements GameController {
   }
 
   private resetHandUi() {
+    clearTimeout(this.beatTimer);
+    this.announcing = false;
+    this.showing = null;
     this.selected.clear();
     this.raised = null;
     this.sweeping = null;
@@ -481,6 +505,7 @@ export class HeartsGame implements GameController {
     e.preventDefault();
 
     if (this.review) return this.endReview();
+    if (this.announcing) this.endAnnounce();
     if (s.phase === 'pass') {
       if (this.selected.has(card.id)) this.selected.delete(card.id);
       else if (this.selected.size < 3) this.selected.add(card.id);
