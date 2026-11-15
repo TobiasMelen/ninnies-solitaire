@@ -1194,6 +1194,21 @@ dialog.center form {
   font-size: 54px;
   animation: pop 600ms var(--ease-out);
 }
+/* The win result sits low and doesn't darken the table, so the cascade's trails stay on show. */
+#dlg-win {
+  margin: auto auto max(16px, env(safe-area-inset-bottom));
+  border-radius: 22px;
+  max-width: calc(100vw - 24px);
+}
+#dlg-win::backdrop {
+  background: rgba(0, 0, 0, 0.12);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+#dlg-win .trophy {
+  font-size: 40px;
+}
+
 @keyframes pop {
   from {
     scale: 0.3;

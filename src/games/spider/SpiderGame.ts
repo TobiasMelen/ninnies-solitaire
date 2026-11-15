@@ -628,7 +628,7 @@ export class SpiderGame {
 
   private onDown(e: PointerEvent) {
     unlockAudio();
-    if (this.celebrating) return this.cascade!.stop();
+    if (this.celebrating) return this.cascade!.skip();
     if (this.drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
     const target = e.target as HTMLElement;
 
@@ -812,7 +812,7 @@ export class SpiderGame {
   /** Classic cascade: Kings first, one from each foundation in turn, then Queens, and so on. */
   private celebrate(onDone: () => void) {
     this.stopCelebration();
-    if (this.fast) return onDone();
+    // Played even with Reduce Motion on: it's the payoff for winning, and it can be skipped.
     const piles = this.state.foundations;
     const order: CascadeCard[] = [];
     for (let rank = 13; rank >= 1; rank--) {

@@ -12,8 +12,8 @@ export interface CascadeCard {
 }
 
 export interface Cascade {
-  /** Stop launching and moving cards; the trails stay on screen. */
-  stop(): void;
+  /** Player tapped: end early, unless it only just started (the winning tap shouldn't skip it). */
+  skip(): void;
   /** Remove the canvas entirely. */
   clear(): void;
   readonly running: boolean;
@@ -21,7 +21,8 @@ export interface Cascade {
 
 const COURT_NAME: Record<number, string> = { 11: 'jack', 12: 'queen', 13: 'king' };
 const LAUNCH_MS = 140;
-const MAX_MS = 16000;
+const MAX_MS = 24000;
+const SKIP_AFTER_MS = 1500;
 
 export function runCascade(
   board: HTMLElement,
@@ -112,8 +113,9 @@ export function runCascade(
   raf = requestAnimationFrame(frame);
 
   return {
-    stop() {
-      // Skipping: everything still waiting simply leaves the table.
+    skip() {
+      if (performance.now() - t0 < SKIP_AFTER_MS) return;
+      // Everything still waiting simply leaves the table.
       for (const b of bodies) hideCard(board, b.card.id);
       finish();
     },
