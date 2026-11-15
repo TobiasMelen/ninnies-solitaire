@@ -670,18 +670,6 @@ body {
   content: ' ★';
 }
 
-.hearts-seat.leading {
-  animation: seat-lead 500ms ease-in-out 3;
-}
-@keyframes seat-lead {
-  50% {
-    scale: 1.25;
-    box-shadow:
-      0 0 0 3px var(--accent),
-      0 0 26px var(--accent-glow);
-  }
-}
-
 /* Hearts broken: the heart cracks with a red flash, and the table jolts. */
 .hearts-broken.crack {
   animation: heart-crack 900ms var(--ease-out);

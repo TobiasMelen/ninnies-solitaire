@@ -76,6 +76,8 @@ export class HeartsGame implements GameController {
   /** Who leads has been shown for this hand. */
   private announced = false;
   private announcing = false;
+  /** A card in an opponent's hand turned face up for a moment (the opening 2♣). */
+  private showing: number | null = null;
   /** A jump-scare is on screen; play waits for it. */
   private scaring = false;
 
@@ -330,7 +332,7 @@ export class HeartsGame implements GameController {
     sfx.deal(0.16);
     this.save();
     this.render();
-    this.timer = window.setTimeout(() => this.endReview(), 3000);
+    this.timer = window.setTimeout(() => this.endReview(), 1800);
   }
 
   private endReview() {
@@ -341,26 +343,21 @@ export class HeartsGame implements GameController {
     this.step();
   }
 
-  /** "🦊 leads": a beat before the first trick so the player sees who starts. */
+  /** A beat before the first trick: the 2♣ turns face up in the starting player's hand. */
   private announceLeader() {
     const s = this.state;
     this.announced = true;
     this.announcing = true;
-    const lead = s.turn;
-    this.passBar.hidden = false;
-    this.passBtn.hidden = true;
-    this.passText.textContent = lead === 0 ? 'You lead · 2♣' : `${PLAYERS[lead].emoji} leads · 2♣`;
-    flash(this.badges[lead], 'leading', 1600);
-    if (lead === 0) {
-      this.raised = s.hands[0].find((c) => c.suit === 'C' && c.rank === 2)?.id ?? null;
-    }
+    this.passBar.hidden = true;
+    const two = s.hands[s.turn].find((c) => c.suit === 'C' && c.rank === 2);
+    this.showing = two?.id ?? null;
+    if (s.turn === 0) this.raised = this.showing;
     this.render();
     this.timer = window.setTimeout(() => {
       this.announcing = false;
-      this.passBtn.hidden = false;
-      this.updatePassBar();
+      this.showing = null;
       this.step();
-    }, 1500);
+    }, 1000);
   }
 
   private heartsBroken() {
@@ -662,7 +659,8 @@ export class HeartsGame implements GameController {
     for (const seat of [1, 2, 3] as Seat[]) {
       const o = L.opp[seat];
       s.hands[seat].forEach((c, i) => {
-        put(c, { x: o.x + i * o.dx, y: o.y + i * o.dy, z: 100 + i, faceUp: false, scale: L.oppScale });
+        const shown = c.id === this.showing;
+        put(c, { x: o.x + i * o.dx, y: o.y + i * o.dy, z: shown ? 300 : 100 + i, faceUp: shown, scale: L.oppScale });
         this.clearMarks(c.id);
       });
     }

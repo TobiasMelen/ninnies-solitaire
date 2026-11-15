@@ -248,25 +248,8 @@ function brass(freq: number, dur: number, gain: number, when = 0) {
   }
 }
 
-/** A glass shard: a ringing partial that sags slightly in pitch as it settles. */
-function shard(freq: number, dur: number, gain: number, when = 0) {
-  const a = ready();
-  if (!a || !bright) return;
-  const t = a.currentTime + when;
-  const osc = a.createOscillator();
-  osc.frequency.setValueAtTime(freq, t);
-  osc.frequency.exponentialRampToValueAtTime(freq * 0.97, t + dur);
-  const g = a.createGain();
-  g.gain.setValueAtTime(0.0001, t);
-  g.gain.linearRampToValueAtTime(gain, t + 0.003);
-  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  osc.connect(g).connect(bright);
-  osc.start(t);
-  osc.stop(t + dur + 0.02);
-}
-
-/** Band-limited noise tick: one small piece of glass skittering. */
-function crackle(freq: number, dur: number, gain: number, when = 0) {
+/** Band-limited noise tick: a piece of glass skittering (higher `q` rings more, like a tink). */
+function crackle(freq: number, dur: number, gain: number, when = 0, q = 2.5) {
   const a = ready();
   if (!a || !noise || !bright) return;
   const t = a.currentTime + when;
@@ -274,7 +257,7 @@ function crackle(freq: number, dur: number, gain: number, when = 0) {
   const bp = a.createBiquadFilter();
   bp.type = 'bandpass';
   bp.frequency.value = freq;
-  bp.Q.value = 2.5;
+  bp.Q.value = q;
   const g = a.createGain();
   g.gain.setValueAtTime(0.0001, t);
   g.gain.linearRampToValueAtTime(gain, t + 0.002);
@@ -407,14 +390,14 @@ export const sfx = {
   },
   /** Hearts broken: the classic smash of glass. */
   heartsBreak: () => {
-    // The break: a dull knock and a short, mid-range crack (real glass is lower than you'd think).
+    // All noise, no pure tones (those sound electronic): a dull knock and a mid-range crack,
+    // then pieces landing (narrow, resonant noise "tinks") and skittering, thinning out over ~0.8 s.
     thump(0.14);
     burst(900, 0.12, 0.14);
-    crackle(2200, 0.09, 0.18, 0.005);
-    // Shards ringing as they fall, then small pieces skittering, thinning out over ~0.8 s.
-    for (let i = 0; i < 12; i++) {
-      const when = 0.015 + Math.pow(Math.random(), 1.8) * 0.55;
-      shard(1300 + Math.random() * 2600, 0.08 + Math.random() * 0.22, 0.012 + Math.random() * 0.022, when);
+    crackle(2200, 0.09, 0.18, 0.005, 2.5);
+    for (let i = 0; i < 10; i++) {
+      const when = 0.015 + Math.pow(Math.random(), 1.8) * 0.5;
+      crackle(1400 + Math.random() * 2400, 0.05 + Math.random() * 0.1, 0.05 + Math.random() * 0.05, when, 9 + Math.random() * 6);
     }
     for (let i = 0; i < 16; i++) {
       const when = 0.04 + Math.pow(Math.random(), 1.4) * 0.8;
