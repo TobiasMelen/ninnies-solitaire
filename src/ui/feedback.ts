@@ -149,13 +149,13 @@ function swoosh(dur: number, gain: number, when = 0, from = 450, to = 1300) {
 }
 
 /** Low, soft body of a card settling on felt. */
-function thump(gain: number, when = 0) {
+function thump(gain: number, when = 0, pitch = 1) {
   const a = ready();
   if (!a || !out) return;
   const t = a.currentTime + when;
   const osc = a.createOscillator();
-  osc.frequency.setValueAtTime(130, t);
-  osc.frequency.exponentialRampToValueAtTime(65, t + 0.08);
+  osc.frequency.setValueAtTime(130 * pitch, t);
+  osc.frequency.exponentialRampToValueAtTime(65 * pitch, t + 0.08);
   const g = a.createGain();
   g.gain.setValueAtTime(0.0001, t);
   g.gain.linearRampToValueAtTime(gain, t + 0.008);
@@ -322,9 +322,11 @@ function organ(freqs: number[], dur: number, gain: number, when = 0) {
 }
 
 /** A card settling on the table. */
+/** A card settling on the table; slightly different every time so repeats don't drone. */
 const land = (when = 0, gain = 1) => {
-  tap(1400, 0.07, 0.12 * gain, when);
-  thump(0.14 * gain, when);
+  const vary = () => 0.88 + Math.random() * 0.24;
+  tap(1400 * vary(), 0.06 + Math.random() * 0.025, 0.12 * gain * vary(), when);
+  thump(0.14 * gain * vary(), when, vary());
 };
 
 export const sfx = {
@@ -346,6 +348,13 @@ export const sfx = {
   flip: (when = 0) => {
     tap(2000, 0.04, 0.06, when);
     tap(1500, 0.05, 0.05, when + 0.045);
+  },
+  /** Drawing cards into a hand: a quick riffle of soft slides, one per card. */
+  draw: (cards: number, when = 0) => {
+    for (let i = 0; i < cards; i++) {
+      const at = when + i * (0.07 + Math.random() * 0.03);
+      if (!sample(0.28 + Math.random() * 0.1, at, 1.15 + Math.random() * 0.15, { length: 0.12, lowpass: 2400 })) swoosh(0.12, 0.05, at, 700, 1500);
+    }
   },
   /** One card flying off the stock. */
   deal: (when = 0) => {

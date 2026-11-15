@@ -324,6 +324,7 @@ export class SpiteGame implements GameController {
     if (m.t === 'pass') return this.perform(p, m);
     const src: Source = m.t === 'build' ? m.source : { from: 'hand', index: m.index };
     this.foeLift = sourceCard(s, p, src)?.id ?? null;
+    sfx.pick();
     this.render();
     this.timer = window.setTimeout(() => {
       this.foeLift = null;
@@ -338,14 +339,20 @@ export class SpiteGame implements GameController {
     const goalBefore = s.seats[p].goal.length;
     const pileCards = m.t === 'build' ? [...s.builds[m.pile]] : [];
     const moving = m.t === 'build' ? sourceCard(s, p, m.source) : undefined;
+    const hands = s.seats.map((x) => x.hand.length);
+    const fromHand = m.t === 'discard' || (m.t === 'build' && m.source.from === 'hand');
     const { cleared, goal } = apply(s, p, m);
     this.selected = null;
+    // Cards drawn by this move: a refill after playing out the hand, or the next player's draw.
+    const drawer = s.turn;
+    const drawn = s.seats[drawer].hand.length - hands[drawer] + (drawer === p && fromHand ? 1 : 0);
+    if (drawn > 0) sfx.draw(drawn, m.t === 'build' ? 0.3 : 0.35);
     if (m.t === 'build') {
       if (p === 0) {
         sfx.move(1, 0.12);
         haptic(8);
       } else {
-        sfx.drop();
+        sfx.move(1, 0.14);
       }
       if (goal) {
         if (p === 0) this.hooks.event?.('complete', this.fraction(this.L.centerX[m.pile + 1]));
@@ -370,7 +377,6 @@ export class SpiteGame implements GameController {
       }
     } else if (m.t === 'discard') {
       sfx.drop();
-      window.setTimeout(() => sfx.deal(0), 200);
     }
     this.save();
     this.step();
@@ -464,7 +470,11 @@ export class SpiteGame implements GameController {
     const card = sourceCard(s, 0, src)!;
     const pos = this.layer.pos(card.id) ?? { x: 0, y: 0 };
     this.drag = { pointerId: e.pointerId, src, id: card.id, startX: e.clientX, startY: e.clientY, base: { x: pos.x, y: pos.y }, moved: false, target: null };
-    this.root.setPointerCapture(e.pointerId);
+    try {
+      this.root.setPointerCapture(e.pointerId);
+    } catch {
+      /* the pointer is already gone; the tap still works without capture */
+    }
   }
 
   private onMove(e: PointerEvent) {
