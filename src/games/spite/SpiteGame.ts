@@ -58,6 +58,8 @@ interface Layout {
  */
 interface SeatGeo {
   scale: number;
+  /** Side seats turn their cards to face where they sit (degrees). */
+  rotate: number;
   /** Top-left of column `i` (0 = goal pile). */
   col: { x: number; y: number }[];
   fan: { dx: number; dy: number };
@@ -614,6 +616,7 @@ export class SpiteGame implements GameController {
         const w = cw * scale;
         seats[p] = {
           scale,
+          rotate: 0,
           col: Array.from({ length: 5 }, (_, i) => ({ x: x0 + col(i) * scale, y: top })),
           fan: { dx: 0, dy: ch * scale * 0.16 },
           badge: { x: x0, y: pad, right: false },
@@ -623,21 +626,27 @@ export class SpiteGame implements GameController {
           lift: { x: Math.min(W - w * 1.2 - 6, x0 + five * scale + 6), y: top },
         };
       } else {
-        // A column down the side: goal on top, piles below, fanning in toward the middle.
+        // A column down the side, cards turned to face the seat (tops toward the middle):
+        // goal on top, piles below, fanning in toward the middle.
         const avail = bottom - top;
-        const scale = Math.min(0.52, avail / (5 * ch + 4 * gap + sep));
-        const w = cw * scale;
-        const x = where === 'west' ? pad : W - pad - w;
-        const dir = where === 'west' ? 1 : -1;
+        const scale = Math.min(0.55, avail / (5 * cw + 4 * gap + sep));
+        const vw = ch * scale; // on-screen width of a turned card
+        const vh = cw * scale; // …and height
+        const west = where === 'west';
+        const dir = west ? 1 : -1;
+        const left = west ? pad : W - pad - vw;
+        // Cards rotate around their centre, so place the unrotated box centred on the turned one.
+        const at = (vx: number, vy: number) => ({ x: vx + (vw - cw * scale) / 2, y: vy + (vh - ch * scale) / 2 });
         seats[p] = {
           scale,
-          col: Array.from({ length: 5 }, (_, i) => ({ x, y: top + (i * (ch + gap) + (i > 0 ? sep : 0)) * scale })),
-          fan: { dx: dir * w * 0.22, dy: 0 },
-          badge: { x: where === 'west' ? pad : W - pad, y: pad, right: where === 'east' },
-          arrow: { x: where === 'west' ? x + w * 2.2 : x - w * 1.2, y: top + ch * scale * 0.4, glyph: where === 'west' ? '◀' : '▶' },
+          rotate: west ? 90 : -90,
+          col: Array.from({ length: 5 }, (_, i) => at(left, top + i * (vh + gap * scale) + (i > 0 ? sep * scale : 0))),
+          fan: { dx: dir * vw * 0.2, dy: 0 },
+          badge: { x: west ? pad : W - pad, y: pad, right: !west },
+          arrow: { x: west ? left + vw * 1.9 : left - vw * 0.9, y: top + vh * 0.2, glyph: west ? '◀' : '▶' },
           // Hand: a tight fan of backs beside the goal pile, toward the middle.
-          hand: { x: where === 'west' ? x + w * 1.25 : x - w * 0.25 - w * 0.55, y: top + ch * scale * 0.15, dx: dir * w * 0.12, scale: scale * 0.55 },
-          lift: { x: where === 'west' ? x + w * 1.6 : x - w * 1.3, y: top + ch * scale * 1.1 },
+          hand: { ...at(west ? left + vw * 1.05 : left - vw * 0.75, top), dx: dir * vw * 0.06, scale: scale * 0.6 },
+          lift: at(west ? left + vw * 1.15 : left - vw * 1.15, top + vh * 1.3),
         };
       }
     };
@@ -657,7 +666,7 @@ export class SpiteGame implements GameController {
       const north = order.indexOf('north');
       if (north >= 0) northBottom = top + ch * seats[north + 1].scale * 1.45;
       const side = order.indexOf('west');
-      if (side >= 0) sideW = cw * seats[side + 1].scale * 1.9 + gap;
+      if (side >= 0) sideW = ch * seats[side + 1].scale * 1.75 + gap;
     }
 
     // The shared row sits in the middle of what's left, scaled to fit between side seats.
@@ -674,8 +683,9 @@ export class SpiteGame implements GameController {
     // The Hint Bunny peeks over your piles (portrait) or sits in the free corner (landscape).
     this.root.parentElement?.style.setProperty('--bunny-lift', wide ? '0px' : `${Math.round(H - playerY - 2)}px`);
 
-    const at = (el: HTMLElement, x: number, y: number, sc = 1) => {
-      el.style.transform = `translate(${x}px, ${y}px)${sc !== 1 ? ` scale(${sc})` : ''}`;
+    const at = (el: HTMLElement, x: number, y: number, sc = 1, rot = 0) => {
+      const turn = rot ? ` translate(${cw / 2}px, ${ch / 2}px) rotate(${rot}deg) translate(${-cw / 2}px, ${-ch / 2}px)` : '';
+      el.style.transform = `translate(${x}px, ${y}px)${sc !== 1 ? ` scale(${sc})` : ''}${turn}`;
       el.dataset.x = String(x);
       el.hidden = false;
     };
@@ -694,8 +704,8 @@ export class SpiteGame implements GameController {
       }
       at(els.badge, g.badge.x, g.badge.y);
       els.badge.classList.toggle('right', g.badge.right);
-      at(els.goal, g.col[0].x, g.col[0].y, g.scale);
-      els.discards.forEach((el, d) => at(el, g.col[d + 1].x, g.col[d + 1].y, g.scale));
+      at(els.goal, g.col[0].x, g.col[0].y, g.scale, g.rotate);
+      els.discards.forEach((el, d) => at(el, g.col[d + 1].x, g.col[d + 1].y, g.scale, g.rotate));
     }
     at(this.helpEl, wide ? handX + handW / 2 : W / 2, playerY - gap - 2);
     if (this.state && !this.cascade) this.render(false);
@@ -759,24 +769,25 @@ export class SpiteGame implements GameController {
     s.seats.forEach((seat, p) => {
       const g = L.seats[p];
       if (p === 0 || !g) return;
-      seat.goal.forEach((c, i, a) => put(c, { at: 'goal', player: p }, { x: g.col[0].x, y: g.col[0].y, z: 200 + i, faceUp: i === a.length - 1, scale: g.scale }));
+      const rotate = g.rotate || undefined;
+      seat.goal.forEach((c, i, a) => put(c, { at: 'goal', player: p }, { x: g.col[0].x, y: g.col[0].y, z: 200 + i, faceUp: i === a.length - 1, scale: g.scale, rotate }));
       seat.discards.forEach((pile, d) => {
         // Squeeze long piles so they stay inside their miniature.
         const k = Math.min(1, 4 / Math.max(1, pile.length - 1));
         pile.forEach((c, i) =>
-          put(c, { at: 'discard', player: p, pile: d }, { x: g.col[d + 1].x + i * g.fan.dx * k, y: g.col[d + 1].y + i * g.fan.dy * k, z: 300 + i, faceUp: true, scale: g.scale }),
+          put(c, { at: 'discard', player: p, pile: d }, { x: g.col[d + 1].x + i * g.fan.dx * k, y: g.col[d + 1].y + i * g.fan.dy * k, z: 300 + i, faceUp: true, scale: g.scale, rotate }),
         );
       });
       seat.hand.forEach((c) => {
         if (c.id === this.foeLift) {
           // The hand card it's about to play, shown face up by its seat for a moment.
-          put(c, { at: 'stock' }, { x: g.lift.x, y: g.lift.y, z: 2000, faceUp: true, scale: g.scale * 1.2 });
+          put(c, { at: 'stock' }, { x: g.lift.x, y: g.lift.y, z: 2000, faceUp: true, scale: g.scale * 1.2, rotate });
         }
       });
       // The rest of their hand: a tight fan of backs by their seat.
       seat.hand
         .filter((c) => c.id !== this.foeLift)
-        .forEach((c, i) => put(c, { at: 'stock' }, { x: g.hand.x + i * g.hand.dx, y: g.hand.y, z: 1100 + i, faceUp: false, scale: g.hand.scale }));
+        .forEach((c, i) => put(c, { at: 'stock' }, { x: g.hand.x + i * g.hand.dx, y: g.hand.y, z: 1100 + i, faceUp: false, scale: g.hand.scale, rotate }));
       const badge = this.seatEls[p].badge;
       badge.querySelector('.goal')!.textContent = String(seat.goal.length);
       badge.classList.toggle('turn', s.turn === p && !this.starting);
