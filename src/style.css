@@ -313,12 +313,23 @@ body {
 }
 
 /* Face-up cards above the movable run are shaded, so the bright cards are the ones you can take. */
+.card.locked .front::before,
 .card.locked .front::after {
   content: '';
   position: absolute;
   inset: 0;
-  background: rgba(40, 30, 10, 0.13);
   pointer-events: none;
+  z-index: 1;
+}
+/* Drain most of the colour (grey in 'saturation' blend keeps lightness, removes chroma)… */
+.card.locked .front::before {
+  background: #808080;
+  mix-blend-mode: saturation;
+  opacity: 0.75;
+}
+/* …and dim a little, so the bright, coloured cards are clearly the movable ones. */
+.card.locked .front::after {
+  background: rgba(30, 32, 40, 0.18);
 }
 
 /* Lift & drag feel */
