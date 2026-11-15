@@ -22,7 +22,7 @@ const BATSU = `<svg viewBox="0 0 100 100"><path d="M22 22 78 78M78 22 22 78" str
 
 type Pop = { icon: string; big?: boolean; burst?: boolean };
 
-const POPS: Record<BunnyEvent | 'tap' | 'idle' | 'hint' | 'hintTarget' | 'hintDeal', Pop[]> = {
+const POPS: Record<BunnyEvent | 'tap' | 'hint' | 'hintTarget' | 'hintDeal', Pop[]> = {
   start: [{ icon: '✨' }, { icon: '🎵' }],
   move: [{ icon: '🎵' }, { icon: '👍' }],
   reveal: [{ icon: '❗' }, { icon: '👀' }],
@@ -34,7 +34,6 @@ const POPS: Record<BunnyEvent | 'tap' | 'idle' | 'hint' | 'hintTarget' | 'hintDe
   stuck: [{ icon: '💧' }],
   win: [{ icon: '👑', big: true, burst: true }],
   tap: [{ icon: '💖' }],
-  idle: [{ icon: '💡' }],
   hint: [{ icon: '💡' }],
   hintTarget: [{ icon: MARU }],
   hintDeal: [{ icon: '👆' }],
@@ -262,13 +261,11 @@ export class Bunny {
 
   private resetIdle() {
     clearTimeout(this.idleTimer);
-    this.el.classList.remove('waiting');
+    // Never offers hints on its own: while the player thinks it just fidgets quietly.
     this.idleTimer = window.setTimeout(() => {
       if (!this.enabled || document.hidden) return;
-      // A glowing bulb invites a tap for a hint.
-      this.el.classList.add('waiting');
-      this.gesture('perk', 900);
-      this.pop('idle');
+      this.gesture('twitch', 900);
+      this.resetIdle();
     }, IDLE_MS);
   }
 
