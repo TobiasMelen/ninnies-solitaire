@@ -4,11 +4,13 @@ import { settings } from './settings';
 let ctx: AudioContext | null = null;
 let out: AudioNode | null = null;
 let noise: AudioBuffer | null = null;
-let unlocked = false;
 
 export function unlockAudio() {
   if (!settings.sound) return;
   try {
+    // Without this, iOS mutes web audio whenever the ringer switch is on silent.
+    const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+    if (session && session.type !== 'playback') session.type = 'playback';
     if (!ctx) {
       ctx = new AudioContext();
       // A gentle compressor glues the layered sounds together and keeps stacked deals from clipping.
@@ -23,19 +25,21 @@ export function unlockAudio() {
       const d = noise.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     }
-    if (ctx.state === 'suspended') void ctx.resume();
-    if (!unlocked) {
-      // iOS only unlocks audio once something is actually played inside a user gesture.
+    // iOS uses 'interrupted' as well as 'suspended', and only unlocks once something is
+    // played inside a gesture it trusts (touchend/click, not touch pointerdown), so keep trying.
+    if (ctx.state !== 'running') {
+      ctx.resume().catch(() => {});
       const src = ctx.createBufferSource();
       src.buffer = ctx.createBuffer(1, 1, 22050);
       src.connect(ctx.destination);
       src.start();
-      unlocked = true;
     }
   } catch {
     ctx = null;
   }
 }
+
+export const audioState = () => ctx?.state ?? 'none';
 
 function ready(): AudioContext | null {
   if (!settings.sound) return null;

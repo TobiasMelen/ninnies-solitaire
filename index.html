@@ -1,8 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" translate="no">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="google" content="notranslate" />
     <meta name="theme-color" content="#0c3b26" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -18,9 +19,9 @@
     <div id="app">
       <main id="board" aria-label="Spider Solitaire table"></main>
       <nav id="toolbar" aria-label="Game controls">
-        <button id="btn-new" class="tool" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="12" height="16" rx="2" /><path d="M8 21h10a2 2 0 0 0 2-2V7" /></svg>
-          <span>New</span>
+        <button id="btn-home" class="tool" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+          <span>Menu</span>
         </button>
         <button id="btn-settings" class="tool" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
@@ -42,23 +43,54 @@
       </nav>
     </div>
 
-    <div id="toast" role="status" aria-live="polite"></div>
+    <section id="home" aria-label="Start">
+      <div class="home-inner">
+        <header class="home-head">
+          <img src="icon.svg" alt="" class="home-logo" />
+          <h1>Ninnies Solitaire</h1>
+          <button id="home-settings" class="home-gear" type="button" aria-label="Settings">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+          </button>
+        </header>
 
-    <dialog id="dlg-new" class="sheet">
-      <form method="dialog">
-        <h2>New game</h2>
-        <p class="muted">How many suits?</p>
-        <div class="choice-row" id="suit-choices">
-          <button type="button" class="choice" data-suits="1"><span class="suits">♠&#xFE0E;</span><b>1 suit</b><small>Relaxed</small></button>
-          <button type="button" class="choice" data-suits="2"><span class="suits"><i class="r">♥&#xFE0E;</i>♠&#xFE0E;</span><b>2 suits</b><small>Medium</small></button>
-          <button type="button" class="choice" data-suits="4"><span class="suits">♠&#xFE0E;<i class="r">♥&#xFE0E;♦&#xFE0E;</i>♣&#xFE0E;</span><b>4 suits</b><small>Hard</small></button>
+        <div id="home-resume" hidden>
+          <button id="home-continue" class="continue" type="button">
+            <span><b>Continue</b><small id="home-continue-sub"></small></span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z" /></svg>
+          </button>
+          <button id="home-restart" class="link-btn" type="button">Restart this deal</button>
         </div>
-        <div class="actions">
-          <button type="button" id="btn-restart" class="btn ghost">Restart this deal</button>
-          <button value="cancel" class="btn ghost">Cancel</button>
+
+        <h2 class="home-label">New game</h2>
+        <div class="games">
+          <article class="game-tile" data-game="spider">
+            <div class="tile-art mini-deck" id="spider-art">
+              <span class="mini-card" data-suit="S"><b>K</b><i>♠&#xFE0E;</i></span>
+              <span class="mini-card" data-suit="S"><b>Q</b><i>♠&#xFE0E;</i></span>
+              <span class="mini-card" data-suit="H"><b>J</b><i>♥&#xFE0E;</i></span>
+              <span class="mini-card" data-suit="H"><b>10</b><i>♥&#xFE0E;</i></span>
+            </div>
+            <div class="tile-body">
+              <h3>Spider</h3>
+              <p>Build runs from King to Ace in a single suit.</p>
+              <div class="suit-pick">
+                <button type="button" data-suits="1"><b>1 suit</b><small>Relaxed</small></button>
+                <button type="button" data-suits="2"><b>2 suits</b><small>Medium</small></button>
+                <button type="button" data-suits="4"><b>4 suits</b><small>Hard</small></button>
+              </div>
+            </div>
+          </article>
+          <article class="game-tile soon" aria-disabled="true">
+            <div class="tile-body"><h3>Klondike</h3><p>Coming soon</p></div>
+          </article>
+          <article class="game-tile soon" aria-disabled="true">
+            <div class="tile-body"><h3>FreeCell</h3><p>Coming soon</p></div>
+          </article>
         </div>
-      </form>
-    </dialog>
+      </div>
+    </section>
+
+    <div id="toast" role="status" aria-live="polite"></div>
 
     <dialog id="dlg-settings" class="sheet">
       <form method="dialog">
@@ -86,6 +118,7 @@
         <div class="win-stats" id="win-stats"></div>
         <div class="actions">
           <button value="new" class="btn primary">Deal again</button>
+          <button value="home" class="btn">Menu</button>
           <button value="close" class="btn ghost">Admire the table</button>
         </div>
       </form>

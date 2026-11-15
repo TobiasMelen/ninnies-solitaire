@@ -126,6 +126,7 @@ export class SpiderGame {
   private hintIndex = 0;
   private hintTimer = 0;
   private celebrating: number | null = null;
+  private paused = false;
 
   private colSlots: HTMLElement[] = [];
   private markers: HTMLElement[] = [];
@@ -154,19 +155,54 @@ export class SpiderGame {
       if (document.hidden) {
         this.stopClock();
         this.save();
-      } else if (this.actions.length && !isWon(this.state)) {
+      } else if (!this.paused && this.state && this.actions.length && !isWon(this.state)) {
         this.startClock();
       }
     });
     setInterval(() => this.emitHud(), 1000);
+  }
 
-    if (!this.restore()) this.newGame(4);
+  /** The saved, unfinished game if there is one. */
+  static saved(): { suitCount: SuitCount; moves: number; ms: number } | null {
+    const data = store.get<Save>(SAVE_KEY);
+    if (!data || !data.actions.length) return null;
+    try {
+      const s = replay(data.seed, data.suitCount, data.actions);
+      return isWon(s) ? null : { suitCount: s.suitCount, moves: s.moves, ms: data.ms };
+    } catch {
+      return null;
+    }
   }
 
   // ───────────────────────── public API ─────────────────────────
 
   get suitCount() {
     return this.state.suitCount;
+  }
+
+  get active() {
+    return Boolean(this.state);
+  }
+
+  /** Load the saved game. Returns false if there is none to continue. */
+  resume(): boolean {
+    return this.restore();
+  }
+
+  /** Stop the clock while the player is away from the table (menus). */
+  pause() {
+    if (!this.state) return;
+    this.paused = true;
+    this.flush();
+    this.cancelDrag();
+    this.stopClock();
+    this.save();
+  }
+
+  unpause() {
+    this.paused = false;
+    if (this.state && this.actions.length && !isWon(this.state)) this.startClock();
+    this.emitHud();
   }
 
   newGame(suitCount: SuitCount, seed = randomSeed()) {
@@ -251,6 +287,7 @@ export class SpiderGame {
 
   /** Called when settings change. */
   refresh() {
+    if (!this.state) return;
     this.render({ animate: false });
     this.checkStuck();
   }
@@ -409,7 +446,6 @@ export class SpiderGame {
     this.msBefore = data.ms;
     this.relayout();
     this.emitHud();
-    if (this.actions.length) this.startClock();
     window.setTimeout(() => this.checkStuck(), 600);
     return true;
   }

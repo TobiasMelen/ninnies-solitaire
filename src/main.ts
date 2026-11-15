@@ -1,14 +1,14 @@
 import './style.css';
-import { SpiderGame } from './games/spider/SpiderGame';
+import { type GameHooks, SpiderGame } from './games/spider/SpiderGame';
 import type { SuitCount } from './games/spider/rules';
-import { canVibrate, unlockAudio } from './ui/feedback';
+import { canVibrate, sfx, unlockAudio } from './ui/feedback';
 import { BACKS, DECKS, TABLES, type Settings, onSettings, updateSettings } from './ui/settings';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
 const board = $('#board');
+const home = $('#home');
 const toastEl = $('#toast');
-const dlgNew = $<HTMLDialogElement>('#dlg-new');
 const dlgSettings = $<HTMLDialogElement>('#dlg-settings');
 const dlgWin = $<HTMLDialogElement>('#dlg-win');
 const dlgStuck = $<HTMLDialogElement>('#dlg-stuck');
@@ -34,13 +34,25 @@ function open(d: HTMLDialogElement) {
 }
 
 // Tapping the dimmed backdrop closes a sheet.
-for (const d of [dlgNew, dlgSettings, dlgWin, dlgStuck]) {
+for (const d of [dlgSettings, dlgWin, dlgStuck]) {
   d.addEventListener('click', (e) => {
     if (e.target === d) d.close('close');
   });
 }
 
-const game = new SpiderGame(board, {
+// iOS only lets audio start from certain gestures, so try on every kind of tap.
+for (const type of ['pointerdown', 'touchend', 'click', 'keydown']) {
+  document.addEventListener(type, unlockAudio, { capture: true });
+}
+
+// iOS Safari ignores user-scalable=no; block pinch and double-tap zoom explicitly.
+for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
+  document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+}
+
+// ───────── game ─────────
+
+const hooks: GameHooks = {
   hud(h) {
     $('#stat-score').textContent = String(h.score);
     $('#stat-moves').textContent = String(h.moves);
@@ -61,60 +73,92 @@ const game = new SpiderGame(board, {
   stuck() {
     open(dlgStuck);
   },
+};
+
+// Created on first play so the table stays empty behind the start screen.
+let game: SpiderGame | null = null;
+const ensureGame = () => (game ??= new SpiderGame(board, hooks));
+
+// ───────── start screen ─────────
+
+const homeOpen = () => !home.classList.contains('hidden');
+
+function showHome() {
+  game?.pause();
+  const saved = SpiderGame.saved();
+  $('#home-resume').hidden = !saved;
+  if (saved) {
+    $('#home-continue-sub').textContent =
+      `Spider · ${saved.suitCount} suit${saved.suitCount > 1 ? 's' : ''} · ${saved.moves} moves · ${fmtTime(saved.ms)}`;
+  }
+  const last = saved?.suitCount ?? (game?.active ? game.suitCount : null);
+  home.querySelectorAll<HTMLElement>('[data-suits]').forEach((b) =>
+    b.classList.toggle('current', Number(b.dataset.suits) === last),
+  );
+  home.classList.remove('hidden');
+  home.scrollTop = 0;
+}
+
+function hideHome() {
+  home.classList.add('hidden');
+}
+
+/** Bring the saved game onto the table if it isn't there already. */
+function loadSaved(): boolean {
+  const g = ensureGame();
+  return g.active || g.resume();
+}
+
+$('#home-continue').addEventListener('click', () => {
+  if (!loadSaved()) return showHome();
+  hideHome();
+  game!.unpause();
 });
+$('#home-restart').addEventListener('click', () => {
+  if (!loadSaved()) return showHome();
+  hideHome();
+  game!.restart();
+  game!.unpause();
+});
+home.querySelectorAll<HTMLElement>('[data-suits]').forEach((btn) =>
+  btn.addEventListener('click', () => {
+    const g = ensureGame();
+    hideHome();
+    g.newGame(Number(btn.dataset.suits) as SuitCount);
+    g.unpause();
+  }),
+);
+$('#home-settings').addEventListener('click', () => open(dlgSettings));
 
 // ───────── toolbar ─────────
 
-$('#btn-undo').addEventListener('click', () => game.undo());
-$('#btn-hint').addEventListener('click', () => game.hint());
+$('#btn-undo').addEventListener('click', () => game?.undo());
+$('#btn-hint').addEventListener('click', () => game?.hint());
 $('#btn-settings').addEventListener('click', () => open(dlgSettings));
-$('#btn-new').addEventListener('click', () => {
-  dlgNew.querySelectorAll<HTMLElement>('[data-suits]').forEach((b) =>
-    b.classList.toggle('current', Number(b.dataset.suits) === game.suitCount),
-  );
-  open(dlgNew);
-});
-// iOS only lets audio start from certain gestures, so try on every kind of tap.
-for (const type of ['pointerdown', 'touchend', 'click', 'keydown']) {
-  document.addEventListener(type, unlockAudio, { capture: true });
-}
-
-// iOS Safari ignores user-scalable=no; block pinch and double-tap zoom explicitly.
-for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
-  document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
-}
-
-
-dlgNew.querySelectorAll<HTMLElement>('[data-suits]').forEach((btn) =>
-  btn.addEventListener('click', () => {
-    dlgNew.close();
-    game.newGame(Number(btn.dataset.suits) as SuitCount);
-  }),
-);
-$('#btn-restart').addEventListener('click', () => {
-  dlgNew.close();
-  game.restart();
-});
+$('#btn-home').addEventListener('click', showHome);
 
 dlgWin.addEventListener('close', () => {
-  if (dlgWin.returnValue === 'new') game.newGame(game.suitCount);
+  if (dlgWin.returnValue === 'new' && game) game.newGame(game.suitCount);
+  if (dlgWin.returnValue === 'home') showHome();
 });
 dlgStuck.addEventListener('close', () => {
-  if (dlgStuck.returnValue === 'undo') game.undo();
-  if (dlgStuck.returnValue === 'new') $('#btn-new').click();
+  if (dlgStuck.returnValue === 'undo') game?.undo();
+  if (dlgStuck.returnValue === 'new') showHome();
 });
 
 document.addEventListener('keydown', (e) => {
-  if (document.querySelector('dialog[open]')) return;
+  if (document.querySelector('dialog[open]') || homeOpen() || !game) return;
   if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
     e.preventDefault();
     game.undo();
   } else if (!e.metaKey && !e.ctrlKey) {
     if (e.key === 'h') game.hint();
     if (e.key === 'd' || e.key === ' ') game.deal();
-    if (e.key === 'n') $('#btn-new').click();
+    if (e.key === 'n' || e.key === 'Escape') showHome();
   }
 });
+
+showHome();
 
 // ───────── settings sheet ─────────
 
@@ -167,6 +211,8 @@ $('#opt-toggles').innerHTML = TOGGLES.filter((t) => !t.show || t.show())
 $('#opt-toggles').addEventListener('change', (e) => {
   const input = e.target as HTMLInputElement;
   updateSettings({ [input.dataset.k!]: input.checked } as Partial<Settings>);
+  // Audible confirmation that sound works (this runs inside the tap, so iOS allows it).
+  if (input.dataset.k === 'sound' && input.checked) sfx.move();
 });
 
 const TABLE_COLOR: Record<string, string> = {
@@ -181,6 +227,7 @@ onSettings((s) => {
   document.body.dataset.table = s.table;
   board.dataset.deck = s.deck;
   board.dataset.back = s.back;
+  $('#spider-art').dataset.deck = s.deck;
   document.querySelector('meta[name=theme-color]')!.setAttribute('content', TABLE_COLOR[s.table]);
   for (const key of ['deck', 'back', 'table'] as const) {
     $(`#opt-${key}`)
@@ -191,7 +238,7 @@ onSettings((s) => {
     .querySelectorAll<HTMLInputElement>('input')
     .forEach((i) => (i.checked = Boolean(s[i.dataset.k as keyof Settings])));
 });
-onSettings(() => game.refresh());
+onSettings(() => game?.refresh());
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
