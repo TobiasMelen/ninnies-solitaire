@@ -221,7 +221,7 @@ export class SpiderGame {
     }
     const ids = this.commit({ t: 'deal' });
     const step = this.fast ? 20 : 55;
-    this.render({ delay: (id) => ids.indexOf(id) * step });
+    this.render({ delay: (id) => Math.max(0, ids.indexOf(id)) * step });
     ids.forEach((_, i) => sfx.deal((i * step) / 1000));
     haptic(10);
     this.settleLater(ids.length * step + 260);
@@ -500,7 +500,8 @@ export class SpiderGame {
   private render(opts: { animate?: boolean; delay?: (id: number) => number } = {}) {
     if (!this.L) this.relayout();
     if (!this.L) return;
-    const animate = (opts.animate ?? true) && !this.fast;
+    // Reduced motion still animates (cards must visibly travel), just quicker; see style.css.
+    const animate = opts.animate ?? true;
     const s = this.state;
     const L = this.L;
     this.computeFans();
@@ -549,7 +550,7 @@ export class SpiderGame {
       this.layer.place(card.id, { x: this.L.stockX, y: this.L.topY, z: 10, faceUp: false }, false);
     }
     void this.board.offsetWidth;
-    const step = this.fast ? 0 : 22;
+    const step = this.fast ? 8 : 22;
     const order = new Map<number, number>();
     s.columns.forEach((col, c) => col.forEach((card, r) => order.set(card.id, (r * COLUMNS + c) * step)));
     this.render({ delay: (id) => order.get(id) ?? 0 });
