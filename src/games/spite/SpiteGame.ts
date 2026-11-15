@@ -1,8 +1,9 @@
 import { randomSeed } from '../../core/cards';
-import { type GameController, type GameHooks, type HudStat, store } from '../../core/game';
+import { type GameHooks, type HudStat, store } from '../../core/game';
+import { TableGame } from '../../core/tableGame';
 import { CardLayer, type Placement } from '../../ui/cardLayer';
-import { type Cascade, runCascade } from '../../ui/cascade';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
+import { flash } from '../../ui/fx';
 import { settings } from '../../ui/settings';
 import { ADVISOR, type Level, SKILL, bestPileFor, chooseBuild, chooseDiscard } from './ai';
 import {
@@ -90,20 +91,16 @@ interface Drag {
 
 const goalSize = () => (settings.spiteShort ? 13 : 20);
 
-export class SpiteGame implements GameController {
+export class SpiteGame extends TableGame<SpiteState> {
   readonly id = 'spite' as const;
   readonly restartLabel = 'Restart this game';
 
-  private state!: SpiteState;
   private layer: CardLayer;
   private L!: Layout;
   private where = new Map<number, Spot>();
   private selected: Source | null = null;
   private drag: Drag | null = null;
   private lastTap = { id: -1, at: 0 };
-  private timer = 0;
-  private paused = true;
-  private cascade: Cascade | null = null;
   /** The opening deal is still on screen: no taps, and opponents wait. */
   private starting = false;
   /** One-off per-card delays for the next render (the opening deal). */
@@ -122,10 +119,8 @@ export class SpiteGame implements GameController {
   private arrow: HTMLElement;
   private helpEl: HTMLElement;
 
-  constructor(
-    private root: HTMLElement,
-    private hooks: GameHooks,
-  ) {
+  constructor(root: HTMLElement, hooks: GameHooks) {
+    super(root, hooks, SAVE_KEY);
     root.classList.add('spite-root');
     this.layer = new CardLayer(root, { numbered: true });
     for (let i = 0; i < BUILD_PILES; i++) this.buildSlots.push(this.el('slot spite-build', { build: i }));
@@ -149,15 +144,9 @@ export class SpiteGame implements GameController {
     root.addEventListener('pointermove', (e) => this.onMove(e));
     root.addEventListener('pointerup', (e) => this.onUp(e));
     root.addEventListener('pointercancel', () => this.cancelDrag());
-    new ResizeObserver(() => this.relayout()).observe(root);
-    document.addEventListener('visibilitychange', () => (document.hidden ? this.save() : null));
   }
 
   // ───────────────────────── controller ─────────────────────────
-
-  get active() {
-    return Boolean(this.state);
-  }
 
   get level(): Level {
     return this.state?.level ?? 'easy';
@@ -185,7 +174,7 @@ export class SpiteGame implements GameController {
 
   newGame(level: Level = this.level, seed = randomSeed()) {
     this.stopCascade();
-    clearTimeout(this.timer);
+    this.cancelAll();
     this.state = newGame(seed, { goalSize: goalSize() });
     this.state.level = level;
     this.resetUi();
@@ -201,31 +190,6 @@ export class SpiteGame implements GameController {
 
   again() {
     this.newGame(this.level);
-  }
-
-  resume(): boolean {
-    const s = store.get<SpiteState>(SAVE_KEY);
-    if (!s || s.winner !== null || s.stalemate) return false;
-    this.state = s;
-    this.resetUi();
-    this.relayout();
-    return true;
-  }
-
-  pause() {
-    this.paused = true;
-    clearTimeout(this.timer);
-    this.cancelDrag();
-    // Finish a held pile now so coming back can't find it half-done.
-    this.completing = null;
-    this.foeLift = null;
-    this.save();
-  }
-
-  unpause() {
-    this.paused = false;
-    this.emitHud();
-    this.step();
   }
 
   refresh() {
@@ -253,12 +217,6 @@ export class SpiteGame implements GameController {
     return false;
   }
 
-  setVisible(on: boolean) {
-    this.root.hidden = !on;
-    if (on) this.relayout();
-    else this.root.parentElement?.style.removeProperty('--bunny-lift');
-  }
-
   hint() {
     const s = this.state;
     if (!s || s.turn !== 0 || s.winner !== null || this.cascade || this.starting) {
@@ -279,25 +237,6 @@ export class SpiteGame implements GameController {
     this.hooks.hint?.({ from: this.fraction(this.layer.pos(card.id)?.x ?? 0), to: this.fraction(parseFloat(target.dataset.x ?? '0')) }, 'move');
   }
 
-  previewWin() {
-    if (!this.state || this.cascade) return;
-    this.pause();
-    sfx.win();
-    this.hooks.event?.('win');
-    this.celebrate(() => {
-      this.hooks.toast('Tap to return to your game');
-      this.root.addEventListener(
-        'pointerdown',
-        () => {
-          this.stopCascade();
-          this.render(false);
-          this.unpause();
-        },
-        { once: true, capture: true },
-      );
-    });
-  }
-
   // ───────────────────────── flow ─────────────────────────
 
   /** Pause between opponent actions; slow enough to follow every card. */
@@ -305,14 +244,30 @@ export class SpiteGame implements GameController {
     return settings.spiteFast ? 450 : 850;
   }
 
-  private step() {
-    clearTimeout(this.timer);
+  protected isFinished(s: SpiteState) {
+    return s.winner !== null || s.stalemate;
+  }
+
+  protected onResume() {
+    this.resetUi();
+  }
+
+  /** Pausing mid-moment: finish it now so the game resumes cleanly from the state alone. */
+  protected settle() {
+    this.cancelDrag();
+    this.completing = null; // the rules already cleared the finished pile
+    this.foeLift = null; // the opponent re-decides on resume
+    this.starting = false;
+  }
+
+  protected step() {
+    this.cancel('next');
     const s = this.state;
     if (!s || this.paused || this.cascade || this.starting || this.completing) return;
     this.emitHud();
     this.render();
     if (s.winner !== null || s.stalemate) return this.finish();
-    if (s.turn !== 0) this.timer = window.setTimeout(() => this.foeMove(), this.speed());
+    if (s.turn !== 0) this.after('next', this.speed(), () => this.foeMove());
   }
 
   /** One opponent action at a time: lift the card, then play it. */
@@ -326,10 +281,10 @@ export class SpiteGame implements GameController {
     this.foeLift = sourceCard(s, p, src)?.id ?? null;
     sfx.pick();
     this.render();
-    this.timer = window.setTimeout(() => {
+    this.after('next', 420, () => {
       this.foeLift = null;
       this.perform(p, m);
-    }, 420);
+    });
   }
 
   private perform(p: Player, m: Move) {
@@ -366,13 +321,13 @@ export class SpiteGame implements GameController {
         this.save();
         this.emitHud();
         this.render();
-        window.setTimeout(() => sfx.complete(), 250);
-        this.timer = window.setTimeout(() => {
+        this.after('chime', 250, () => sfx.complete());
+        this.after('hold', 1100, () => {
           this.completing = null;
           sfx.undo();
           this.render();
-          this.timer = window.setTimeout(() => this.step(), 450);
-        }, 1100);
+          this.after('next', 450, () => this.step());
+        });
         return;
       }
     } else if (m.t === 'discard') {
@@ -384,7 +339,7 @@ export class SpiteGame implements GameController {
 
   private finish() {
     const s = this.state;
-    store.set(SAVE_KEY, null);
+    this.clearSave();
     const won = s.winner === 0;
     const result = {
       title: s.stalemate ? 'Stalemate' : won ? 'You won!' : `${this.foe.emoji} ${this.foe.name} wins`,
@@ -410,11 +365,7 @@ export class SpiteGame implements GameController {
     this.drag = null;
   }
 
-  private save() {
-    if (this.state) store.set(SAVE_KEY, this.state);
-  }
-
-  private emitHud() {
+  protected emitHud() {
     const s = this.state;
     if (!s) return;
     const stats: HudStat[] = s.seats.map((seat, i) => ({
@@ -585,7 +536,7 @@ export class SpiteGame implements GameController {
 
   // ───────────────────────── layout & render ─────────────────────────
 
-  private relayout() {
+  protected relayout() {
     const W = this.root.clientWidth;
     const H = this.root.clientHeight;
     if (!W || !H) return;
@@ -676,7 +627,7 @@ export class SpiteGame implements GameController {
     if (this.state && !this.cascade) this.render(false);
   }
 
-  private render(animate = true) {
+  protected render(animate = true) {
     const s = this.state;
     if (!s) return;
     if (!this.L) this.relayout();
@@ -855,26 +806,28 @@ export class SpiteGame implements GameController {
     this.starting = true;
     this.delays = delays;
     this.render();
-    window.setTimeout(() => {
+    this.after('deal', t + 700, () => {
       this.starting = false;
       this.step();
-    }, t + 700);
+    });
   }
 
-  private celebrate(onDone: () => void) {
-    this.stopCascade();
+  protected cascadeCards() {
     const s = this.state;
     const cards = [...s.builds.flat(), ...s.seats.flatMap((x) => [...x.goal, ...x.discards.flat(), ...x.hand]), ...s.spent];
-    const order = cards.map((card) => {
+    return cards.map((card) => {
       const p = this.layer.pos(card.id) ?? { x: this.L.centerX[2], y: this.L.centerY };
-      return { card: { ...card, rank: card.star ? 13 : card.rank }, x: p.x, y: p.y };
+      return { card, x: p.x, y: p.y };
     });
-    this.cascade = runCascade(this.root, order, { cw: this.L.cw, ch: this.L.ch }, 'letters', onDone);
   }
 
-  private stopCascade() {
-    this.cascade?.clear();
-    this.cascade = null;
+  protected cardSize() {
+    return { cw: this.L.cw, ch: this.L.ch };
+  }
+
+  /** The cascade draws this game's own numbered deck. */
+  protected cascadeCourts() {
+    return 'numbered';
   }
 
   private fraction(x: number) {
@@ -893,9 +846,3 @@ export class SpiteGame implements GameController {
 const sameSource = (a: Source | null, b: Source) =>
   !!a && a.from === b.from && (a.from === 'hand' ? a.index === (b as typeof a).index : a.from === 'discard' ? a.pile === (b as typeof a).pile : true);
 
-function flash(el: HTMLElement, cls: string, ms: number) {
-  el.classList.remove(cls);
-  void el.offsetWidth;
-  el.classList.add(cls);
-  window.setTimeout(() => el.classList.remove(cls), ms);
-}

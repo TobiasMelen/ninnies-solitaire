@@ -53,7 +53,7 @@ export function runCascade(
     return s;
   };
   // Warm the court images so they're decoded before their card flies.
-  if (courts !== 'letters') {
+  if (courts !== 'letters' && courts !== 'numbered') {
     for (const { card } of cards) {
       if (card.rank > 10) figure(courts, card);
     }
@@ -147,8 +147,46 @@ function figure(courts: string, card: Card) {
   return img;
 }
 
+const BAND = { low: '#1b5fd0', mid: '#189447', high: '#dd2330' };
+
+/** The custom numbered deck (Spite & Malice): a big number in its colour band, or a ★. */
+function drawNumbered(card: Card & { star?: boolean }, cw: number, ch: number, dpr: number) {
+  const c = document.createElement('canvas');
+  c.width = Math.round(cw * dpr);
+  c.height = Math.round(ch * dpr);
+  const x = c.getContext('2d')!;
+  x.scale(dpr, dpr);
+  x.beginPath();
+  x.roundRect(0.5, 0.5, cw - 1, ch - 1, cw * 0.09);
+  if (card.star) {
+    const g = x.createRadialGradient(cw / 2, ch * 0.45, 0, cw / 2, ch * 0.45, ch * 0.6);
+    g.addColorStop(0, '#ffcf3f');
+    g.addColorStop(0.6, '#f7930a');
+    g.addColorStop(1, '#d9600a');
+    x.fillStyle = g;
+  } else {
+    x.fillStyle = '#fffdf7';
+  }
+  x.fill();
+  x.strokeStyle = 'rgba(0,0,0,0.3)';
+  x.stroke();
+  const band = card.star ? '#ffffff' : card.rank <= 4 ? BAND.low : card.rank <= 8 ? BAND.mid : BAND.high;
+  x.strokeStyle = band;
+  x.lineWidth = cw * 0.035;
+  x.beginPath();
+  x.roundRect(cw * 0.07, cw * 0.07, cw * 0.86, ch - cw * 0.14, cw * 0.07);
+  x.stroke();
+  x.fillStyle = band;
+  x.textAlign = 'center';
+  x.textBaseline = 'middle';
+  x.font = `900 ${cw * (card.star ? 0.7 : 0.6)}px system-ui, -apple-system, sans-serif`;
+  x.fillText(card.star ? '★' : String(card.rank), cw / 2, ch / 2);
+  return c;
+}
+
 /** Paint a card face in the current deck style, read from the board's CSS variables. */
 function drawCard(board: HTMLElement, card: Card, cw: number, ch: number, dpr: number, courts: string) {
+  if (courts === 'numbered') return drawNumbered(card, cw, ch, dpr);
   const css = getComputedStyle(board);
   const v = (name: string, fallback: string) => css.getPropertyValue(name).trim() || fallback;
   const c = document.createElement('canvas');

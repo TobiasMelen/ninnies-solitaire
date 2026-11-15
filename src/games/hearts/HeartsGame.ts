@@ -1,8 +1,9 @@
 import { type Card, randomSeed } from '../../core/cards';
-import { type GameController, type GameHooks, type HudStat, store } from '../../core/game';
+import { type GameHooks, type HudStat, store } from '../../core/game';
+import { TableGame } from '../../core/tableGame';
 import { CardLayer, type Placement, courtUrl } from '../../ui/cardLayer';
-import { type Cascade, runCascade } from '../../ui/cascade';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
+import { flash } from '../../ui/fx';
 import { settings } from '../../ui/settings';
 import { ADVISOR, OPPONENT, chooseCard, choosePassCards } from './ai';
 import {
@@ -56,25 +57,16 @@ const options = (): HeartsOptions => ({
   moonSubtracts: settings.heartsMoonSubtract,
 });
 
-export class HeartsGame implements GameController {
+export class HeartsGame extends TableGame<HeartsState> {
   readonly id = 'hearts' as const;
   readonly restartLabel = 'Restart this game';
 
-  private state!: HeartsState;
   private layer: CardLayer;
   private L!: Layout;
   private selected = new Set<number>();
   private raised: number | null = null;
   /** A finished trick held on the table for a moment before it is swept to the winner. */
   private sweeping: Play[] | null = null;
-  private timer = 0;
-  /**
-   * Short pauses (looking at passed cards, the opening 2♣) run on their own timer: `step()`
-   * clears `timer`, and cancelling a pause's end would leave the game waiting forever.
-   */
-  private beatTimer = 0;
-  private paused = true;
-  private cascade: Cascade | null = null;
   private receivedUntil = 0;
   /** After passing: the player looks over the cards they got before play starts. */
   private review = false;
@@ -85,6 +77,7 @@ export class HeartsGame implements GameController {
   private showing: number | null = null;
   /** A jump-scare is on screen; play waits for it. */
   private scaring = false;
+  private scareEl: HTMLElement | null = null;
 
   private badges: HTMLElement[] = [];
   private passBar: HTMLElement;
@@ -93,10 +86,8 @@ export class HeartsGame implements GameController {
   private brokenEl: HTMLElement;
   private dialog: HTMLDialogElement;
 
-  constructor(
-    private root: HTMLElement,
-    private hooks: GameHooks,
-  ) {
+  constructor(root: HTMLElement, hooks: GameHooks) {
+    super(root, hooks, SAVE_KEY);
     root.classList.add('hearts-root');
     this.layer = new CardLayer(root);
     for (const seat of SEATS) {
@@ -122,15 +113,9 @@ export class HeartsGame implements GameController {
     this.dialog.addEventListener('close', () => this.afterRound());
 
     root.addEventListener('pointerdown', (e) => this.onDown(e));
-    new ResizeObserver(() => this.relayout()).observe(root);
-    document.addEventListener('visibilitychange', () => (document.hidden ? this.save() : null));
   }
 
   // ───────────────────────── controller ─────────────────────────
-
-  get active() {
-    return Boolean(this.state);
-  }
 
   static saved(): string | null {
     const s = store.get<HeartsState>(SAVE_KEY);
@@ -145,7 +130,7 @@ export class HeartsGame implements GameController {
 
   newGame(seed = randomSeed()) {
     this.stopCascade();
-    clearTimeout(this.timer);
+    this.cancelAll();
     this.state = newGame(seed, options());
     this.resetHandUi();
     this.save();
@@ -160,37 +145,6 @@ export class HeartsGame implements GameController {
 
   again() {
     this.newGame();
-  }
-
-  resume(): boolean {
-    const s = store.get<HeartsState>(SAVE_KEY);
-    if (!s || s.phase === 'gameOver') return false;
-    this.state = s;
-    this.resetHandUi();
-    this.relayout();
-    return true;
-  }
-
-  pause() {
-    this.paused = true;
-    clearTimeout(this.timer);
-    // Finish any pause now so returning to the game can't find it half-done.
-    if (this.review) {
-      clearTimeout(this.beatTimer);
-      this.review = false;
-    }
-    if (this.announcing) {
-      clearTimeout(this.beatTimer);
-      this.announcing = false;
-      this.showing = null;
-    }
-    this.save();
-  }
-
-  unpause() {
-    this.paused = false;
-    this.emitHud();
-    this.step();
   }
 
   refresh() {
@@ -211,12 +165,6 @@ export class HeartsGame implements GameController {
       return true;
     }
     return false;
-  }
-
-  setVisible(on: boolean) {
-    this.root.hidden = !on;
-    if (on) this.relayout();
-    else this.root.parentElement?.style.removeProperty('--bunny-lift');
   }
 
   hint() {
@@ -242,31 +190,32 @@ export class HeartsGame implements GameController {
     this.hooks.hint?.({ from: this.handFraction(card.id), to: 0.5 }, 'move');
   }
 
-  previewWin() {
-    if (!this.state || this.cascade) return;
-    this.pause();
-    sfx.win();
-    this.hooks.event?.('win');
-    this.celebrate(() => {
-      this.hooks.toast('Tap to return to your game');
-      const back = () => {
-        this.stopCascade();
-        this.render(false);
-        this.unpause();
-      };
-      this.root.addEventListener('pointerdown', back, { once: true, capture: true });
-    });
-  }
-
   // ───────────────────────── flow ─────────────────────────
 
   private speed() {
     return settings.heartsFast ? 280 : 620;
   }
 
+  protected isFinished(s: HeartsState) {
+    return s.phase === 'gameOver';
+  }
+
+  protected onResume() {
+    this.resetHandUi();
+  }
+
+  /** Pausing mid-moment: finish it now so the game resumes cleanly from the state alone. */
+  protected settle() {
+    this.review = false;
+    this.announcing = false;
+    this.showing = null;
+    this.sweeping = null; // the rules already moved the trick to its winner
+    this.endScare();
+  }
+
   /** Decide what happens next: wait for the player, let an opponent play, or finish the hand. */
-  private step() {
-    clearTimeout(this.timer);
+  protected step() {
+    this.cancel('next');
     const s = this.state;
     if (!s || this.paused || this.sweeping || this.cascade || this.review || this.announcing || this.scaring) return;
     if (s.phase === 'play' && !this.announced) {
@@ -276,12 +225,12 @@ export class HeartsGame implements GameController {
     this.updatePassBar();
     this.emitHud();
     if (s.phase === 'play' && s.turn !== 0) {
-      this.timer = window.setTimeout(() => {
+      this.after('next', this.speed() * (0.8 + Math.random() * 0.5), () => {
         const seat = s.turn;
         this.play(seat, chooseCard(s, seat, Math.random, OPPONENT));
-      }, this.speed() * (0.8 + Math.random() * 0.5));
+      });
     } else if (s.phase === 'handOver' || s.phase === 'gameOver') {
-      this.timer = window.setTimeout(() => this.showRound(), 300);
+      this.after('next', 300, () => this.showRound());
     }
     this.render();
   }
@@ -312,7 +261,7 @@ export class HeartsGame implements GameController {
     this.render();
     this.emitHud();
     const wait = this.speed() + 450 + (this.scaring ? 1500 : 0);
-    this.timer = window.setTimeout(() => this.sweep(winner, before), wait);
+    this.after('sweep', wait, () => this.sweep(winner, before));
   }
 
   private sweep(winner: Seat, trick: Play[]) {
@@ -330,7 +279,7 @@ export class HeartsGame implements GameController {
     }
     this.save();
     this.render();
-    this.timer = window.setTimeout(() => this.step(), 380);
+    this.after('next', 380, () => this.step());
   }
 
   private confirmPass() {
@@ -347,13 +296,12 @@ export class HeartsGame implements GameController {
     sfx.deal(0.16);
     this.save();
     this.render();
-    clearTimeout(this.beatTimer);
-    this.beatTimer = window.setTimeout(() => this.endReview(), 1800);
+    this.after('beat', 1800, () => this.endReview());
   }
 
   private endReview() {
     if (!this.review) return;
-    clearTimeout(this.beatTimer);
+    this.cancel('beat');
     this.review = false;
     this.render();
     this.step();
@@ -369,13 +317,12 @@ export class HeartsGame implements GameController {
     this.showing = two?.id ?? null;
     if (s.turn === 0) this.raised = this.showing;
     this.render();
-    clearTimeout(this.beatTimer);
-    this.beatTimer = window.setTimeout(() => this.endAnnounce(), 1000);
+    this.after('beat', 1000, () => this.endAnnounce());
   }
 
   private endAnnounce() {
     if (!this.announcing) return;
-    clearTimeout(this.beatTimer);
+    this.cancel('beat');
     this.announcing = false;
     this.showing = null;
     this.step();
@@ -399,11 +346,17 @@ export class HeartsGame implements GameController {
     el.className = 'queen-scare';
     el.innerHTML = `<div class="scare-card" data-suit="S"><span class="scare-idx">Q<i>♠\uFE0E</i></span>${fig}<span class="scare-q">${fig ? '' : 'Q'}</span></div>`;
     this.root.parentElement!.appendChild(el);
-    window.setTimeout(() => {
-      el.remove();
-      this.scaring = false;
+    this.scareEl = el;
+    this.after('scare', 1500, () => {
+      this.endScare();
       this.step();
-    }, 1500);
+    });
+  }
+
+  private endScare() {
+    this.scareEl?.remove();
+    this.scareEl = null;
+    this.scaring = false;
   }
 
   private showRound() {
@@ -447,7 +400,7 @@ export class HeartsGame implements GameController {
       stats: SEATS.map((i) => ({ label: PLAYERS[i].emoji, value: String(s.scores[i]) })),
       celebrate: youWon,
     };
-    store.set(SAVE_KEY, null);
+    this.clearSave();
     if (youWon) {
       sfx.win();
       this.hooks.event?.('win');
@@ -460,7 +413,7 @@ export class HeartsGame implements GameController {
   }
 
   private resetHandUi() {
-    clearTimeout(this.beatTimer);
+    this.cancel('beat');
     this.announcing = false;
     this.showing = null;
     this.selected.clear();
@@ -472,11 +425,7 @@ export class HeartsGame implements GameController {
     this.announced = !!s && (s.trickNo > 0 || s.trick.length > 0);
   }
 
-  private save() {
-    if (this.state) store.set(SAVE_KEY, this.state);
-  }
-
-  private emitHud() {
+  protected emitHud() {
     const s = this.state;
     if (!s) return;
     const stats: HudStat[] = SEATS.map((i) => ({
@@ -568,7 +517,7 @@ export class HeartsGame implements GameController {
 
   // ───────────────────────── layout & render ─────────────────────────
 
-  private relayout() {
+  protected relayout() {
     const W = this.root.clientWidth;
     const H = this.root.clientHeight;
     if (!W || !H) return;
@@ -656,7 +605,7 @@ export class HeartsGame implements GameController {
     return spots;
   }
 
-  private render(animate = true) {
+  protected render(animate = true) {
     const s = this.state;
     if (!s) return;
     if (!this.L) this.relayout();
@@ -759,19 +708,20 @@ export class HeartsGame implements GameController {
     for (let i = 0; i < 52; i += 4) sfx.deal((i * 18) / 1000);
   }
 
-  private celebrate(onDone: () => void) {
-    this.stopCascade();
+  protected cascadeCards() {
     const cards = [...this.state.hands.flat(), ...this.state.taken.flat(), ...this.state.trick.map((p) => p.card)];
-    const order = cards.map((card) => {
+    return cards.map((card) => {
       const p = this.layer.pos(card.id) ?? { x: this.L.center.x, y: this.L.center.y };
       return { card, x: p.x, y: p.y };
     });
-    this.cascade = runCascade(this.root, order, { cw: this.L.cw, ch: this.L.ch }, settings.courts, onDone);
   }
 
-  private stopCascade() {
-    this.cascade?.clear();
-    this.cascade = null;
+  protected cardSize() {
+    return { cw: this.L.cw, ch: this.L.ch };
+  }
+
+  protected cascadeCourts() {
+    return settings.courts;
   }
 
   private handFraction(id: number) {
@@ -794,9 +744,3 @@ export class HeartsGame implements GameController {
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-function flash(el: HTMLElement, cls: string, ms: number) {
-  el.classList.remove(cls);
-  void el.offsetWidth;
-  el.classList.add(cls);
-  window.setTimeout(() => el.classList.remove(cls), ms);
-}

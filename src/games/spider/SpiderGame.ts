@@ -3,6 +3,7 @@ import { type GameController, type GameHooks, fmtTime, store } from '../../core/
 import { CardLayer, type Placement } from '../../ui/cardLayer';
 import { type Cascade, type CascadeCard, runCascade } from '../../ui/cascade';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
+import { flash } from '../../ui/fx';
 import { settings } from '../../ui/settings';
 import {
   type Action,
@@ -951,11 +952,4 @@ function lockedCards(columns: Card[][]): Set<number> {
     for (let i = 0; i < start; i++) if (col[i].faceUp) ids.add(col[i].id);
   }
   return ids;
-}
-
-function flash(el: HTMLElement, cls: string, ms = 1600) {
-  el.classList.remove(cls);
-  void el.offsetWidth;
-  el.classList.add(cls);
-  window.setTimeout(() => el.classList.remove(cls), ms);
 }
