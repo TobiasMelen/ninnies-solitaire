@@ -4,6 +4,8 @@ import { onSettings, settings } from './settings';
 // Everything is synthesised with WebAudio so there are no audio assets to load.
 let ctx: AudioContext | null = null;
 let out: AudioNode | null = null;
+/** Full-range output that skips the soft high-cut, for sounds that must sparkle (breaking glass). */
+let bright: AudioNode | null = null;
 let noise: AudioBuffer | null = null;
 /** Recorded card slide (see assets/sounds/CREDITS.txt); synthesised fallback until it's decoded. */
 let cardTake: AudioBuffer | null = null;
@@ -35,6 +37,10 @@ export function unlockAudio() {
       warm.Q.value = 0.5;
       master.connect(warm).connect(comp).connect(ctx.destination);
       out = master;
+      const open = ctx.createGain();
+      open.gain.value = 0.55;
+      open.connect(comp);
+      bright = open;
       const a = ctx;
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) void a.suspend();
@@ -242,6 +248,77 @@ function brass(freq: number, dur: number, gain: number, when = 0) {
   }
 }
 
+/** Short, hard-edged sine "ting" (glass shard, bell strike). */
+function ping(freq: number, dur: number, gain: number, when = 0, dest: 'out' | 'bright' = 'bright') {
+  const a = ready();
+  const node = dest === 'bright' ? bright : out;
+  if (!a || !node) return;
+  const t = a.currentTime + when;
+  const osc = a.createOscillator();
+  osc.frequency.value = freq;
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain, t + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g).connect(node);
+  osc.start(t);
+  osc.stop(t + dur + 0.02);
+}
+
+/** Bright noise burst through a high-pass: the crack of glass or a cymbal-ish hit. */
+function burst(cutoff: number, dur: number, gain: number, when = 0) {
+  const a = ready();
+  if (!a || !noise || !bright) return;
+  const t = a.currentTime + when;
+  const src = noiseSource(a);
+  const hp = a.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = cutoff;
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(hp).connect(g).connect(bright);
+  src.start(t, Math.random() * 0.5);
+  src.stop(t + dur + 0.02);
+}
+
+/** Detuned sawtooth chord through a low-pass: a theatre-organ stab. */
+function organ(freqs: number[], dur: number, gain: number, when = 0) {
+  const a = ready();
+  if (!a || !out) return;
+  const t = a.currentTime + when;
+  const lp = a.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(2400, t);
+  lp.frequency.exponentialRampToValueAtTime(700, t + dur);
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain, t + 0.015);
+  g.gain.setValueAtTime(gain * 0.85, t + dur * 0.6);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  lp.connect(g).connect(out);
+  for (const f of freqs) {
+    for (const detune of [-9, 0, 9]) {
+      const osc = a.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = f;
+      osc.detune.value = detune;
+      // Old-cinema wobble.
+      const lfo = a.createOscillator();
+      const depth = a.createGain();
+      lfo.frequency.value = 5.5;
+      depth.gain.value = 6;
+      lfo.connect(depth).connect(osc.detune);
+      osc.connect(lp);
+      osc.start(t);
+      lfo.start(t);
+      osc.stop(t + dur + 0.05);
+      lfo.stop(t + dur + 0.05);
+    }
+  }
+}
+
 /** A card settling on the table. */
 const land = (when = 0, gain = 1) => {
   tap(1400, 0.07, 0.12 * gain, when);
@@ -308,6 +385,39 @@ export const sfx = {
     thump(0.22, 0);
     thump(0.25, end);
     [1047, 1319, 1568, 2093].forEach((f, i) => bell(f, 1.1, 0.035, end + 0.1 + i * 0.09));
+  },
+  /** Hearts broken: the classic smash of glass. */
+  heartsBreak: () => {
+    burst(1800, 0.32, 0.5);
+    burst(4200, 0.18, 0.35, 0.01);
+    thump(0.25);
+    // A shower of shards, dense at first and thinning out.
+    for (let i = 0; i < 22; i++) {
+      const when = 0.02 + Math.pow(Math.random(), 1.7) * 0.75;
+      ping(2600 + Math.random() * 4200, 0.05 + Math.random() * 0.12, 0.05 + Math.random() * 0.06, when);
+    }
+  },
+  /** The Queen of Spades: a silent-movie organ stab, timpani and a screech. */
+  queenScare: () => {
+    thump(0.5);
+    thump(0.35, 0.09);
+    organ([146.8, 174.6, 207.7, 246.9], 1.3, 0.12); // D diminished seventh
+    organ([73.4], 1.3, 0.08);
+    const a = ready();
+    if (!a || !out) return;
+    // Violin-ish screech sliding up.
+    const t = a.currentTime + 0.05;
+    const osc = a.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1200, t);
+    osc.frequency.exponentialRampToValueAtTime(2300, t + 0.5);
+    const g = a.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.035, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+    osc.connect(g).connect(out);
+    osc.start(t);
+    osc.stop(t + 0.75);
   },
   undo: () => {
     swoosh(0.2, 0.08, 0, 1200, 500);

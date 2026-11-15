@@ -618,6 +618,7 @@ body {
   display: none;
 }
 .hearts-pass .pass-text {
+  white-space: nowrap;
   color: #fff;
   font: 700 22px/1.2 var(--display);
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
@@ -663,6 +664,155 @@ body {
 }
 .round-table tr.lead td:first-child::after {
   content: ' ★';
+}
+
+.hearts-seat.leading {
+  animation: seat-lead 500ms ease-in-out 3;
+}
+@keyframes seat-lead {
+  50% {
+    scale: 1.25;
+    box-shadow:
+      0 0 0 3px var(--accent),
+      0 0 26px var(--accent-glow);
+  }
+}
+
+/* Hearts broken: the heart cracks with a red flash, and the table jolts. */
+.hearts-broken.crack {
+  animation: heart-crack 900ms var(--ease-out);
+}
+@keyframes heart-crack {
+  0% {
+    scale: 3.2;
+    rotate: -18deg;
+    text-shadow: 0 0 30px #ff2b4a;
+  }
+  25% {
+    rotate: 14deg;
+  }
+  45% {
+    rotate: -8deg;
+  }
+  100% {
+    scale: 1.15;
+    rotate: 0deg;
+  }
+}
+.hearts-root.shake {
+  animation: table-shake 400ms ease;
+}
+@keyframes table-shake {
+  20% {
+    translate: -6px 2px;
+  }
+  40% {
+    translate: 5px -3px;
+  }
+  60% {
+    translate: -3px 2px;
+  }
+  80% {
+    translate: 2px -1px;
+  }
+}
+
+/* The Queen of Spades: a flickering sepia silent-movie jump scare. */
+.queen-scare {
+  position: absolute;
+  inset: 0;
+  z-index: 3500;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    var(--noise),
+    repeating-linear-gradient(90deg, transparent 0 37%, rgba(255, 255, 255, 0.18) 37% 37.3%, transparent 37.3% 71%, rgba(0, 0, 0, 0.35) 71% 71.25%, transparent 71.25%),
+    radial-gradient(ellipse at center, rgba(70, 52, 30, 0.82) 0%, rgba(10, 6, 2, 0.98) 72%);
+  filter: sepia(1) contrast(1.35) brightness(0.95);
+  animation:
+    scare-in 1.5s steps(1) forwards,
+    scare-flicker 0.11s steps(2) infinite;
+}
+.queen-scare .scare-card {
+  position: relative;
+  width: min(64vw, 46vh);
+  aspect-ratio: 5 / 7;
+  border-radius: 6%;
+  background: #f4ecd8;
+  box-shadow:
+    0 0 0 6px #1b1209,
+    0 0 80px rgba(0, 0, 0, 0.9);
+  color: #120c06;
+  animation: scare-lunge 1.5s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+}
+.scare-idx {
+  position: absolute;
+  top: 4%;
+  left: 7%;
+  font: 700 clamp(28px, 9vmin, 64px) / 1 var(--display);
+}
+.scare-idx i {
+  font-style: normal;
+  font-size: 0.8em;
+  margin-left: 0.05em;
+}
+.scare-fig {
+  position: absolute;
+  inset: 20% 8% 4% 8%;
+  background: center top / 100% auto no-repeat;
+}
+.scare-q {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 700 clamp(90px, 30vmin, 220px) / 1 var(--display);
+}
+@keyframes scare-lunge {
+  0% {
+    scale: 0.15;
+    rotate: -8deg;
+    opacity: 1;
+  }
+  12% {
+    scale: 1.25;
+    rotate: 3deg;
+  }
+  18% {
+    scale: 1.1;
+    rotate: -2deg;
+  }
+  24%,
+  80% {
+    scale: 1.16;
+    rotate: 0deg;
+    opacity: 1;
+  }
+  100% {
+    scale: 1.6;
+    opacity: 0;
+  }
+}
+@keyframes scare-flicker {
+  50% {
+    opacity: 0.86;
+  }
+}
+@keyframes scare-in {
+  0% {
+    background-color: #fff;
+  }
+  4% {
+    background-color: transparent;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 #stats .hot b {
@@ -1678,7 +1828,7 @@ dialog.center form {
     --move-ms: 170ms;
     --ease-out: ease-out;
   }
-  *:not(.card),
+  *:not(.card):not(.queen-scare):not(.queen-scare *),
   *::before,
   *::after {
     animation-duration: 1ms !important;

@@ -1,6 +1,6 @@
 import { type Card, randomSeed } from '../../core/cards';
 import { type GameController, type GameHooks, type HudStat, store } from '../../core/game';
-import { CardLayer, type Placement } from '../../ui/cardLayer';
+import { CardLayer, type Placement, courtUrl } from '../../ui/cardLayer';
 import { type Cascade, runCascade } from '../../ui/cascade';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
@@ -71,6 +71,13 @@ export class HeartsGame implements GameController {
   private paused = true;
   private cascade: Cascade | null = null;
   private receivedUntil = 0;
+  /** After passing: the player looks over the cards they got before play starts. */
+  private review = false;
+  /** Who leads has been shown for this hand. */
+  private announced = false;
+  private announcing = false;
+  /** A jump-scare is on screen; play waits for it. */
+  private scaring = false;
 
   private badges: HTMLElement[] = [];
   private passBar: HTMLElement;
@@ -99,7 +106,7 @@ export class HeartsGame implements GameController {
     this.passBar = this.el('hearts-pass', '<span class="pass-text"></span><button type="button" class="btn primary pass-btn" disabled>Pass</button>');
     this.passText = this.passBar.querySelector('.pass-text')!;
     this.passBtn = this.passBar.querySelector('.pass-btn')!;
-    this.passBtn.addEventListener('click', () => this.confirmPass());
+    this.passBtn.addEventListener('click', () => (this.review ? this.endReview() : this.confirmPass()));
 
     this.dialog = document.createElement('dialog');
     this.dialog.className = 'sheet center hearts-round';
@@ -243,7 +250,11 @@ export class HeartsGame implements GameController {
   private step() {
     clearTimeout(this.timer);
     const s = this.state;
-    if (!s || this.paused || this.sweeping || this.cascade) return;
+    if (!s || this.paused || this.sweeping || this.cascade || this.review || this.announcing || this.scaring) return;
+    if (s.phase === 'play' && !this.announced) {
+      this.announceLeader();
+      return;
+    }
     this.updatePassBar();
     this.emitHud();
     if (s.phase === 'play' && s.turn !== 0) {
@@ -260,7 +271,10 @@ export class HeartsGame implements GameController {
   private play(seat: Seat, card: Card) {
     const s = this.state;
     const before = [...s.trick, { seat, card }];
+    const breaking = card.suit === 'H' && !s.heartsBroken;
     const winner = playCard(s, seat, card);
+    if (breaking) this.heartsBroken();
+    if (isQueenOfSpades(card)) this.queenScare();
     this.raised = null;
     if (seat === 0) {
       sfx.move(1, 0.12);
@@ -270,14 +284,17 @@ export class HeartsGame implements GameController {
     }
     if (winner === null) {
       this.save();
-      this.step();
+      this.render();
+      // A scare holds play until it's over (it calls step itself).
+      if (!this.scaring) this.step();
       return;
     }
     // Leave the full trick on the table for a beat, then sweep it to the winner.
     this.sweeping = before;
     this.render();
     this.emitHud();
-    this.timer = window.setTimeout(() => this.sweep(winner, before), this.speed() + 450);
+    const wait = this.speed() + 450 + (this.scaring ? 1500 : 0);
+    this.timer = window.setTimeout(() => this.sweep(winner, before), wait);
   }
 
   private sweep(winner: Seat, trick: Play[]) {
@@ -305,14 +322,66 @@ export class HeartsGame implements GameController {
     for (const seat of [1, 2, 3] as Seat[]) choosePass(s, seat, choosePassCards(s.hands[seat], Math.random));
     choosePass(s, 0, mine);
     this.selected.clear();
-    this.receivedUntil = performance.now() + 2600;
+    // Hold here: the cards that arrived stay lifted until the player taps OK.
+    this.review = true;
     sfx.deal(0);
     sfx.deal(0.08);
     sfx.deal(0.16);
     this.save();
     this.render();
-    this.timer = window.setTimeout(() => this.render(), 2700);
+  }
+
+  private endReview() {
+    this.review = false;
+    this.render();
     this.step();
+  }
+
+  /** "🦊 leads": a beat before the first trick so the player sees who starts. */
+  private announceLeader() {
+    const s = this.state;
+    this.announced = true;
+    this.announcing = true;
+    const lead = s.turn;
+    this.passBar.hidden = false;
+    this.passBtn.hidden = true;
+    this.passText.textContent = lead === 0 ? 'You lead · 2♣' : `${PLAYERS[lead].emoji} leads · 2♣`;
+    flash(this.badges[lead], 'leading', 1600);
+    if (lead === 0) {
+      this.raised = s.hands[0].find((c) => c.suit === 'C' && c.rank === 2)?.id ?? null;
+    }
+    this.render();
+    this.timer = window.setTimeout(() => {
+      this.announcing = false;
+      this.passBtn.hidden = false;
+      this.updatePassBar();
+      this.step();
+    }, 1500);
+  }
+
+  private heartsBroken() {
+    sfx.heartsBreak();
+    haptic([30, 30, 60]);
+    flash(this.brokenEl, 'crack', 900);
+    flash(this.root, 'shake', 400);
+  }
+
+  /** The Queen of Spades: a flickering, sepia silent-movie jump scare. */
+  private queenScare() {
+    if (this.scaring) return;
+    this.scaring = true;
+    sfx.queenScare();
+    haptic([60, 40, 120]);
+    const fig = settings.courts === 'letters' ? '' : `<span class="scare-fig" style="background-image:url(${courtUrl(settings.courts, 'queen_spades')})"></span>`;
+    const el = document.createElement('div');
+    el.className = 'queen-scare';
+    el.innerHTML = `<div class="scare-card" data-suit="S"><span class="scare-idx">Q<i>♠\uFE0E</i></span>${fig}<span class="scare-q">${fig ? '' : 'Q'}</span></div>`;
+    this.root.parentElement!.appendChild(el);
+    window.setTimeout(() => {
+      el.remove();
+      this.scaring = false;
+      this.step();
+    }, 1500);
   }
 
   private showRound() {
@@ -372,6 +441,10 @@ export class HeartsGame implements GameController {
     this.selected.clear();
     this.raised = null;
     this.sweeping = null;
+    this.review = false;
+    // A restored game that's already under way doesn't need the "who leads" beat again.
+    const s = this.state;
+    this.announced = !!s && (s.trickNo > 0 || s.trick.length > 0);
   }
 
   private save() {
@@ -406,6 +479,7 @@ export class HeartsGame implements GameController {
     }
     e.preventDefault();
 
+    if (this.review) return this.endReview();
     if (s.phase === 'pass') {
       if (this.selected.has(card.id)) this.selected.delete(card.id);
       else if (this.selected.size < 3) this.selected.add(card.id);
@@ -446,6 +520,15 @@ export class HeartsGame implements GameController {
 
   private updatePassBar() {
     const s = this.state;
+    if (this.announcing) return;
+    if (this.review) {
+      const from = SEATS.find((seat) => seat !== 0 && (seat + PASS_TO[s.passDir]) % 4 === 0) ?? 0;
+      this.passBar.hidden = false;
+      this.passText.textContent = `From ${PLAYERS[from].emoji}`;
+      this.passBtn.disabled = false;
+      this.passBtn.textContent = 'OK';
+      return;
+    }
     const show = s.phase === 'pass' && !this.paused;
     this.passBar.hidden = !show;
     if (!show) return;
@@ -560,11 +643,11 @@ export class HeartsGame implements GameController {
 
     const myTurn = s.phase === 'play' && s.turn === 0 && !this.sweeping;
     const legal = new Set(myTurn ? legalPlays(s, 0).map((c) => c.id) : []);
-    const fresh = performance.now() < this.receivedUntil ? new Set(s.received) : new Set<number>();
+    const fresh = this.review || performance.now() < this.receivedUntil ? new Set(s.received) : new Set<number>();
     const spots = this.handSpots(s.hands[0]);
     for (const c of s.hands[0]) {
       const p = spots.get(c.id)!;
-      const up = this.selected.has(c.id) || this.raised === c.id;
+      const up = this.selected.has(c.id) || this.raised === c.id || (this.review && fresh.has(c.id));
       put(c, { x: p.x, y: p.y - (up ? L.raise : 0), z: p.z, faceUp: true });
       const el = this.layer.els.get(c.id)!;
       el.classList.toggle('locked', myTurn && settings.dimLocked && !legal.has(c.id));
@@ -605,7 +688,7 @@ export class HeartsGame implements GameController {
       const pts = trickPoints(s.taken[seat]);
       const q = s.taken[seat].some(isQueenOfSpades);
       b.querySelector('.pts')!.textContent = pts ? `${q ? '♠Q ' : ''}♥${pts - (q ? 13 : 0)}` : '';
-      b.classList.toggle('turn', s.phase === 'play' && s.turn === seat && !this.sweeping);
+      b.classList.toggle('turn', s.phase === 'play' && s.turn === seat && !this.sweeping && !this.review && !this.announcing);
       b.classList.toggle('you', seat === 0);
     });
     this.brokenEl.classList.toggle('on', s.heartsBroken);
