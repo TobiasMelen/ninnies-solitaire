@@ -872,22 +872,35 @@ body {
   z-index: 2700;
 }
 .bunny-body {
+  position: relative;
   transform-origin: 50% 100%;
   transition:
     translate 260ms var(--ease-out),
     scale 260ms var(--ease-out),
     rotate 260ms var(--ease-out);
 }
-.bunny-body img {
+/* Poses are stacked on the first one (all share one crop) and crossfade as the mood changes. */
+.bunny-pose {
   display: block;
   width: 100%;
   height: auto;
+  opacity: 0;
   -webkit-user-drag: none;
   user-select: none;
   filter: drop-shadow(0 -2px 8px rgba(0, 0, 0, 0.3));
-  transition: scale 200ms ease;
+  transition:
+    opacity 180ms ease,
+    scale 200ms ease;
 }
-.bunny.facing-right .bunny-body img {
+.bunny-pose + .bunny-pose {
+  position: absolute;
+  inset: 0;
+}
+.bunny-pose.shown {
+  opacity: 1;
+}
+/* Front-facing poses look the same either way; the side glance is shot looking left. */
+.bunny.facing-right .pose-aside {
   scale: -1 1;
 }
 
@@ -959,7 +972,7 @@ body {
   }
 }
 
-/* Game-show stamps: no words, just big punchy icons. */
+/* Pop-up stamps: no words, just big punchy icons. */
 .bunny-pop {
   position: absolute;
   left: 50%;
@@ -990,10 +1003,6 @@ body {
 }
 .bunny-pop.big .pop-icon {
   font-size: 70px;
-}
-.bunny-pop .pop-icon svg {
-  width: 100%;
-  height: 100%;
 }
 .bunny-pop.show {
   animation: pop-stamp 1.3s var(--ease-out) forwards;

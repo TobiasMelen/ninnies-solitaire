@@ -1,4 +1,7 @@
-bunny.webp — photo by lucycol, Pixabay (id 2649157), downscaled to WebP.
-https://pixabay.com/photos/rabbit-animal-nature-fur-ears-2649157/
-Pixabay Content License: free to use, no attribution required. This image is under the
-Pixabay Content License, not this repository's license, and may not be redistributed on its own.
+idle.webp, happy.webp — AI-generated for Ninnies Solitaire with Nano Banana 2.1 via Weave (Figma),
+from a text prompt describing the family's chocolate-and-white Holland Lop; happy.webp was generated
+with idle as its reference image so it is the same rabbit. Backgrounds were removed locally (canvas
+flood-fill of the plain studio backdrop), cropped to one shared box and downscaled to 360px WebP.
+
+More poses (sad, alert, aside, shock, love) are picked up automatically when added here as
+<pose>.webp at the same size; until then the bunny falls back to the nearest pose it has.
