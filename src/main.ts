@@ -2,6 +2,7 @@ import './style.css';
 import { type GameHooks, SpiderGame } from './games/spider/SpiderGame';
 import type { SuitCount } from './games/spider/rules';
 import { CUTOUT_COURTS, courtUrl } from './ui/cardLayer';
+import { Bunny } from './ui/bunny';
 import { canVibrate, sfx, unlockAudio } from './ui/feedback';
 import { BACKS, COURTS, DECKS, TABLES, type Settings, onSettings, updateSettings } from './ui/settings';
 
@@ -75,7 +76,10 @@ for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
 
 // ───────── game ─────────
 
+const bunny = new Bunny(board);
+
 const hooks: GameHooks = {
+  event: (e, x) => bunny.react(e, x),
   hud(h) {
     lastHud = h;
     $('#stat-score').textContent = String(h.score);
@@ -95,6 +99,7 @@ const hooks: GameHooks = {
     open(dlgWin);
   },
   stuck() {
+    bunny.react('stuck');
     open(dlgStuck);
   },
 };
@@ -294,6 +299,7 @@ const TOGGLES: Toggle[] = [
   { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging', group: 'play' },
   { key: 'sound', label: 'Sound', hint: '', group: 'feel' },
   { key: 'haptics', label: 'Vibration', hint: '', group: 'feel', show: canVibrate },
+  { key: 'bunny', label: 'Bunny companion', hint: 'A little friend who watches and cheers you on', group: 'feel' },
 ];
 
 const toggleRoots = [$('#opt-play'), $('#opt-feel')];
@@ -358,6 +364,7 @@ onSettings((s) => {
     });
 });
 onSettings(() => game?.refresh());
+onSettings((s) => bunny.setEnabled(s.bunny));
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

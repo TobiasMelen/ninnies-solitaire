@@ -1,5 +1,6 @@
 import { type Card, randomSeed } from '../../core/cards';
 import { CardLayer, type Placement } from '../../ui/cardLayer';
+import type { BunnyEvent } from '../../ui/bunny';
 import { type Cascade, type CascadeCard, runCascade } from '../../ui/cascade';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
@@ -40,6 +41,8 @@ export interface GameHooks {
   toast(msg: string): void;
   won(result: { score: number; moves: number; ms: number; suitCount: SuitCount; stats: Stats; best: boolean }): void;
   stuck(): void;
+  /** Something worth reacting to happened; `x` is where, 0–1 across the board. */
+  event?(e: BunnyEvent, x?: number): void;
 }
 
 interface Layout {
@@ -230,6 +233,7 @@ export class SpiderGame {
     this.hintIndex = 0;
     this.save();
     this.dealIn();
+    this.hooks.event?.('start');
     this.emitHud();
   }
 
@@ -250,6 +254,7 @@ export class SpiderGame {
     this.stuckNotified = -1;
     this.render();
     sfx.undo();
+    this.hooks.event?.('undo');
     haptic(6);
     this.save();
     this.emitHud();
@@ -268,10 +273,12 @@ export class SpiderGame {
       this.hooks.toast('Fill empty columns before dealing');
       sfx.invalid();
       haptic([18, 50, 18]);
+      this.hooks.event?.('invalid', 1);
       this.colSlots.forEach((s, i) => !this.state.columns[i].length && flash(s, 'attention'));
       return;
     }
     const ids = this.commit({ t: 'deal' });
+    this.hooks.event?.('deal', 1);
     const step = this.fast ? 20 : 55;
     ids.forEach((_, i) => sfx.deal((i * step) / 1000));
     haptic(10);
@@ -346,6 +353,8 @@ export class SpiderGame {
 
   private move(from: number, index: number, to: number, fromDrag: boolean) {
     const ids = this.state.columns[from].slice(index).map((c) => c.id);
+    const destTop = this.state.columns[to].at(-1);
+    const sameSuit = destTop?.suit === this.state.columns[from][index].suit;
     // Cards look settled at ~65% of the slide (the easing front-loads the motion).
     const landAt = ((this.fast ? 170 : 280) * 0.65) / 1000;
     if (fromDrag) sfx.drop();
@@ -354,6 +363,7 @@ export class SpiderGame {
     const flipped = this.commit({ t: 'move', from, index, to });
     if (flipped.length) sfx.flip(fromDrag ? 0.1 : landAt + 0.05);
     this.render({ delay: (id) => (fromDrag ? 0 : Math.max(0, ids.indexOf(id)) * 18) });
+    this.hooks.event?.(flipped.length ? 'reveal' : sameSuit ? 'suit' : 'move', this.colFraction(to));
     this.settleLater(fromDrag ? 200 : 260 + ids.length * 18);
   }
 
@@ -384,6 +394,7 @@ export class SpiderGame {
       done.forEach((d, k) => d.ids.forEach((id, i) => order.set(id, k * 400 + i * 35)));
       this.render({ delay: (id) => order.get(id) ?? 0 });
       sfx.complete();
+      this.hooks.event?.('complete', this.colFraction(done[0].col));
       haptic([10, 40, 10]);
       if (done.some((d) => d.flipped !== null)) sfx.flip(0.5);
       this.save();
@@ -427,6 +438,7 @@ export class SpiderGame {
     store.set(STATS_KEY, st);
     sfx.win();
     haptic([20, 60, 20, 60, 40]);
+    this.hooks.event?.('win');
     this.save();
     const result = { score: this.state.score, moves: this.state.moves, ms, suitCount: s, stats: st, best };
     this.celebrate(() => this.hooks.won(result));
@@ -787,6 +799,7 @@ export class SpiderGame {
       this.render();
       this.layer.wiggle(d.ids);
       sfx.invalid();
+      this.hooks.event?.('invalid', this.colFraction(d.from));
       haptic([15, 40, 15]);
       return;
     }
@@ -871,6 +884,7 @@ export class SpiderGame {
     this.state = fake;
     this.render({ animate: false });
     sfx.win();
+    this.hooks.event?.('win');
     this.celebrate(() => this.hooks.toast('Tap to return to your game'));
   }
 
@@ -890,6 +904,10 @@ export class SpiderGame {
   }
 
   // ───────────────────────── helpers ─────────────────────────
+
+  private colFraction(col: number) {
+    return (this.L.colX[col] + this.L.cw / 2) / this.L.W;
+  }
 
   private el(className: string) {
     const el = document.createElement('div');

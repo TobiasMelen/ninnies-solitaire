@@ -522,6 +522,127 @@ body {
   }
 }
 
+/* ───────────────────────── bunny companion ───────────────────────── */
+
+.bunny {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  bottom: 0;
+  z-index: 1900;
+  width: clamp(56px, 11vmin, 96px);
+  translate: 0 105%;
+  transition:
+    translate 600ms var(--ease-out),
+    opacity 200ms ease;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.bunny.on {
+  translate: 0 14%;
+}
+/* Out of the way while cards are being dragged. */
+#board.is-dragging .bunny {
+  opacity: 0.3;
+}
+/* Above the win cascade so it can celebrate with you. */
+.bunny.party {
+  z-index: 2700;
+}
+.bunny-body svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 -2px 6px rgba(0, 0, 0, 0.25));
+}
+.bunny .ear {
+  transform-box: fill-box;
+  transform-origin: 50% 95%;
+  transition: transform 300ms var(--ease-out);
+}
+.bunny .ear-l {
+  transform: rotate(-6deg);
+}
+.bunny .ear-r {
+  transform: rotate(7deg);
+}
+.bunny .eyes {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transition: transform 90ms ease;
+}
+.bunny .gaze {
+  transition: transform 260ms ease;
+}
+.bunny.blink .eyes {
+  transform: scaleY(0.12);
+}
+.bunny.twitch .ear-r {
+  animation: ear-twitch 450ms ease;
+}
+.bunny.hop .bunny-body,
+.bunny.party .bunny-body {
+  animation: bunny-hop 520ms var(--ease-out);
+}
+.bunny.party .bunny-body {
+  animation-iteration-count: infinite;
+}
+.bunny.party .ear-l,
+.bunny.hop .ear-l {
+  animation: ear-twitch 520ms ease infinite reverse;
+}
+.bunny.sad .ear-l {
+  transform: rotate(-38deg);
+}
+.bunny.sad .ear-r {
+  transform: rotate(40deg);
+}
+.bunny.sad .eyes {
+  transform: scaleY(0.65);
+}
+@keyframes bunny-hop {
+  40% {
+    translate: 0 -22%;
+  }
+  70% {
+    translate: 0 2%;
+  }
+}
+@keyframes ear-twitch {
+  35% {
+    transform: rotate(22deg);
+  }
+  70% {
+    transform: rotate(-4deg);
+  }
+}
+
+.bunny-bubble {
+  position: absolute;
+  left: 4px;
+  bottom: calc(100% - 4px);
+  padding: 8px 13px;
+  border-radius: 16px 16px 16px 4px;
+  background: #f8f1e3;
+  color: #33281c;
+  font: 700 15px/1.2 var(--display);
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  translate: 0 8px;
+  scale: 0.9;
+  transform-origin: 10% 100%;
+  pointer-events: none;
+  transition:
+    opacity 180ms ease,
+    translate 260ms var(--ease-out),
+    scale 260ms var(--ease-out);
+}
+.bunny-bubble.show {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+}
+
 /* ───────────────────────── toolbar ───────────────────────── */
 
 #toolbar {

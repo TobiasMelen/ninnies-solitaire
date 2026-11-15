@@ -40,6 +40,7 @@ export interface Settings {
   dealWithEmpty: boolean;
   sound: boolean;
   haptics: boolean;
+  bunny: boolean;
 }
 
 const KEY = 'ninnies.settings.v1';
@@ -57,6 +58,7 @@ const DEFAULTS: Settings = {
   dealWithEmpty: false,
   sound: true,
   haptics: true,
+  bunny: true,
 };
 
 type Listener = (s: Settings) => void;
