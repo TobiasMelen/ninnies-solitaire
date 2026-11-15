@@ -1,6 +1,6 @@
 import type { BunnyEvent } from '../ui/bunny';
 
-export type GameId = 'spider' | 'hearts';
+export type GameId = 'spider' | 'hearts' | 'spite';
 
 export interface HudStat {
   label: string;

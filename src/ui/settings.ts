@@ -47,6 +47,8 @@ export interface Settings {
   heartsMoonSubtract: boolean;
   heartsFast: boolean;
   heartsOneTap: boolean;
+  spiteShort: boolean;
+  spiteFast: boolean;
 }
 
 const KEY = 'ninnies.settings.v1';
@@ -70,6 +72,8 @@ const DEFAULTS: Settings = {
   heartsMoonSubtract: false,
   heartsFast: false,
   heartsOneTap: false,
+  spiteShort: false,
+  spiteFast: false,
 };
 
 type Listener = (s: Settings) => void;

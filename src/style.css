@@ -838,6 +838,214 @@ body {
   grid-template-columns: 1fr;
 }
 
+/* ───────────────────────── spite & malice ───────────────────────── */
+
+/* The custom numbered deck: big numbers in colour bands (1–4 blue, 5–8 green, 9–12 red),
+   and a wild ★ Star in warm orange. */
+.card.numbered[data-band='low'] {
+  --band: #1b5fd0;
+}
+.card.numbered[data-band='mid'] {
+  --band: #189447;
+}
+.card.numbered[data-band='high'] {
+  --band: #dd2330;
+}
+.card.numbered .front {
+  background: #fffdf7;
+  color: var(--band);
+}
+.card.numbered .front::before {
+  content: '';
+  position: absolute;
+  inset: calc(var(--cw) * 0.07);
+  border: calc(var(--cw) * 0.035) solid var(--band);
+  border-radius: calc(var(--cw) * 0.07);
+  opacity: 0.9;
+}
+.n-big {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font: 900 calc(var(--cw) * 0.62) / 1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  letter-spacing: -0.05em;
+  text-shadow:
+    0 calc(var(--cw) * 0.02) 0 rgba(0, 0, 0, 0.18),
+    0 0 calc(var(--cw) * 0.05) #fff;
+}
+.n-corner {
+  position: absolute;
+  top: calc(var(--cw) * 0.13);
+  left: calc(var(--cw) * 0.15);
+  font: 800 calc(var(--cw) * 0.24) / 1 system-ui, -apple-system, sans-serif;
+}
+.n-flip {
+  top: auto;
+  left: auto;
+  bottom: calc(var(--cw) * 0.13);
+  right: calc(var(--cw) * 0.15);
+  rotate: 180deg;
+}
+.card.numbered[data-band='star'] .front {
+  background:
+    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.55), transparent 45%),
+    radial-gradient(circle at 50% 45%, #ffcf3f 0%, #f7930a 58%, #d9600a 100%);
+  color: #fff;
+}
+.card.numbered[data-band='star'] .front::before {
+  border-color: rgba(255, 255, 255, 0.85);
+}
+.card.numbered[data-band='star'] .n-big {
+  font-size: calc(var(--cw) * 0.78);
+  text-shadow:
+    0 calc(var(--cw) * 0.03) 0 #b4480a,
+    0 0 calc(var(--cw) * 0.12) rgba(255, 240, 160, 0.9);
+}
+/* A Star on a centre pile shows the number it stands for. */
+.spite-root .card[data-as]::after {
+  content: attr(data-as);
+  position: absolute;
+  top: calc(var(--cw) * -0.08);
+  right: calc(var(--cw) * -0.08);
+  min-width: calc(var(--cw) * 0.34);
+  padding: 2px 4px;
+  border-radius: 999px;
+  background: #33281c;
+  color: #fff;
+  font: 800 calc(var(--cw) * 0.2) / 1.2 system-ui, sans-serif;
+  text-align: center;
+  box-shadow: 0 0 0 2px #fffdf7;
+}
+
+.spite-root .card,
+.spite-root .slot {
+  transform-origin: 0 0;
+}
+.spite-root .card {
+  cursor: pointer;
+}
+.spite-root .card.picked .face {
+  box-shadow:
+    0 0 0 3px var(--accent),
+    0 calc(var(--cw) * 0.1) calc(var(--cw) * 0.3) rgba(0, 0, 0, 0.45);
+}
+.spite-root .card.can-play .face {
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.85),
+    0 0 calc(var(--cw) * 0.18) rgba(255, 255, 255, 0.5);
+}
+.spite-root .slot {
+  cursor: pointer;
+}
+.spite-build.target {
+  border: 2.5px solid var(--accent);
+  background: rgba(255, 213, 74, 0.2);
+  box-shadow: 0 0 20px var(--accent-glow);
+  z-index: 900;
+}
+.spite-discard.target-discard {
+  border: 2px dashed rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.1);
+}
+.spite-root .slot.hint {
+  animation: stockhint 600ms ease-in-out 3;
+}
+.spite-count {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1200;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 11px;
+  background: rgba(0, 0, 0, 0.75);
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.85);
+  color: #fff;
+  font: 700 13px/22px var(--display);
+  text-align: center;
+  pointer-events: none;
+}
+.spite-count.bump {
+  animation: pop 600ms var(--ease-out);
+}
+.spite-foe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.spite-foe .emo {
+  font-size: 20px;
+}
+.spite-foe small {
+  font: 600 12px system-ui, sans-serif;
+  opacity: 0.85;
+}
+.spite-foe.turn {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 18px var(--accent-glow);
+}
+.spite-status {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1200;
+  translate: -50% -100%;
+  color: rgba(255, 255, 255, 0.75);
+  font: 700 15px/1.2 var(--display);
+  white-space: nowrap;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+}
+.spite-status.mine {
+  color: var(--accent);
+}
+
+/* Start-screen art for the custom deck. */
+.mini-num {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 42px;
+  margin-left: -12px;
+  border-radius: 4px;
+  background: #fffdf7;
+  box-shadow:
+    inset 0 0 0 2px var(--band),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+  color: var(--band);
+  font: 900 17px/1 system-ui, sans-serif;
+}
+.mini-num:first-child {
+  margin-left: 0;
+}
+.mini-num[data-band='low'] {
+  --band: #1b5fd0;
+}
+.mini-num[data-band='mid'] {
+  --band: #189447;
+}
+.mini-num[data-band='high'] {
+  --band: #dd2330;
+}
+.mini-num[data-band='star'] {
+  --band: #fff;
+  background: radial-gradient(circle at 50% 45%, #ffcf3f, #f7930a 60%, #d9600a);
+  font-size: 20px;
+}
+
 /* ───────────────────────── hint bunny ───────────────────────── */
 
 .bunny {
@@ -860,7 +1068,8 @@ body {
   translate: 0 40%;
 }
 /* In Hearts it sits behind the player's hand, peeking over it. */
-#board:has(.hearts-root:not([hidden])) .bunny {
+#board:has(.hearts-root:not([hidden])) .bunny,
+#board:has(.spite-root:not([hidden])) .bunny {
   z-index: 500;
 }
 /* Out of the way while cards are being dragged. */

@@ -2,6 +2,7 @@ import './style.css';
 import { type GameHooks, type GameId, type Hud, type Result, fmtTime, store } from './core/game';
 import { HeartsGame } from './games/hearts/HeartsGame';
 import { SpiderGame } from './games/spider/SpiderGame';
+import { SpiteGame } from './games/spite/SpiteGame';
 import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
@@ -101,7 +102,8 @@ for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
 
 // ───────── games ─────────
 
-type AnyGame = SpiderGame | HeartsGame;
+type AnyGame = SpiderGame | HeartsGame | SpiteGame;
+type GameOf<T extends GameId> = T extends 'spider' ? SpiderGame : T extends 'hearts' ? HeartsGame : SpiteGame;
 const LAST_KEY = 'ninnies.lastGame';
 
 const bunny = new Bunny(board);
@@ -151,14 +153,15 @@ function getGame(id: GameId): AnyGame {
     const layer = document.createElement('div');
     layer.className = 'game-root';
     board.prepend(layer);
-    g = id === 'spider' ? new SpiderGame(layer, hooksFor(id)) : new HeartsGame(layer, hooksFor(id));
+    const hooks = hooksFor(id);
+    g = id === 'spider' ? new SpiderGame(layer, hooks) : id === 'hearts' ? new HeartsGame(layer, hooks) : new SpiteGame(layer, hooks);
     games[id] = g;
   }
   return g;
 }
 
 /** Put a game on the table (creating it on first use) and hide the other. */
-function switchTo<T extends GameId>(id: T): T extends 'spider' ? SpiderGame : HeartsGame {
+function switchTo<T extends GameId>(id: T): GameOf<T> {
   const g = getGame(id);
   if (game && game !== g) {
     game.pause();
@@ -168,7 +171,7 @@ function switchTo<T extends GameId>(id: T): T extends 'spider' ? SpiderGame : He
   g.setVisible(true);
   store.set(LAST_KEY, id);
   syncPlaySettings();
-  return g as T extends 'spider' ? SpiderGame : HeartsGame;
+  return g as GameOf<T>;
 }
 
 const lastGame = (): GameId => store.get<GameId>(LAST_KEY) ?? 'spider';
@@ -182,6 +185,7 @@ const homeOpen = () => !home.classList.contains('hidden');
 
 function savedSummary(id: GameId): string | null {
   if (id === 'hearts') return HeartsGame.saved();
+  if (id === 'spite') return SpiteGame.saved();
   const s = SpiderGame.saved();
   return s ? `Spider · ${s.suitCount} suit${s.suitCount > 1 ? 's' : ''} · ${s.moves} moves · ${fmtTime(s.ms)}` : null;
 }
@@ -232,6 +236,12 @@ home.querySelectorAll<HTMLElement>('[data-suits]').forEach((btn) =>
 );
 $('#hearts-play').addEventListener('click', () => {
   const g = switchTo('hearts');
+  hideHome();
+  g.newGame();
+  g.unpause();
+});
+$('#spite-play').addEventListener('click', () => {
+  const g = switchTo('spite');
   hideHome();
   g.newGame();
   g.unpause();
@@ -385,6 +395,8 @@ const TOGGLES: Toggle[] = [
   { key: 'heartsShort', label: 'Short game', hint: 'Play to 50 points instead of 100 (from the next game)', group: 'play', games: ['hearts'] },
   { key: 'heartsMoonSubtract', label: 'Moon subtracts 26', hint: 'Shooting the moon takes 26 off your score instead of adding 26 to everyone else', group: 'play', games: ['hearts'] },
   { key: 'heartsFast', label: 'Quick opponents', hint: 'Fox, Owl and Bear play faster', group: 'play', games: ['hearts'] },
+  { key: 'spiteShort', label: 'Short game', hint: '13-card goal piles instead of 20 (from the next game)', group: 'play', games: ['spite'] },
+  { key: 'spiteFast', label: 'Quick opponent', hint: 'Fox plays faster', group: 'play', games: ['spite'] },
   { key: 'sound', label: 'Sound', hint: '', group: 'feel' },
   { key: 'haptics', label: 'Vibration', hint: '', group: 'feel', show: canVibrate },
   { key: 'bunny', label: 'Hint Bunny', hint: 'Cheers you on with gestures; tap it for a hint', group: 'feel' },
@@ -465,7 +477,7 @@ function syncPlaySettings(fromHome = homeOpen()) {
       any ||= on;
     });
   $('#play-group').hidden = !any;
-  $('#play-title').textContent = id === 'hearts' ? 'Hearts' : 'Spider';
+  $('#play-title').textContent = id === 'hearts' ? 'Hearts' : id === 'spite' ? 'Spite & Malice' : 'Spider';
 }
 onSettings((s) => bunny.setEnabled(s.bunny));
 

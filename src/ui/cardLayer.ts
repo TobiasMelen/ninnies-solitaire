@@ -31,9 +31,16 @@ export class CardLayer {
   /** Folder under public/courts with J/Q/K figures, or 'letters' for plain letters. */
   private courts = 'letters';
 
-  constructor(private root: HTMLElement) {}
+  /**
+   * `numbered`: a custom deck with big numbers instead of suits (Spite and Malice), coloured in
+   * bands of four, and wild ★ Star cards for anything flagged `star`.
+   */
+  constructor(
+    private root: HTMLElement,
+    private opts: { numbered?: boolean } = {},
+  ) {}
 
-  sync(card: Card): HTMLElement {
+  sync(card: Card & { star?: boolean }): HTMLElement {
     let el = this.els.get(card.id);
     if (!el) {
       el = document.createElement('div');
@@ -43,6 +50,7 @@ export class CardLayer {
       this.root.appendChild(el);
       this.els.set(card.id, el);
     }
+    if (this.opts.numbered) return this.syncNumbered(el, card);
     const key = `${card.suit}${card.rank}`;
     if (el.dataset.key !== key) {
       el.dataset.key = key;
@@ -56,6 +64,20 @@ export class CardLayer {
       this.applyFigure(el);
     }
     el.setAttribute('aria-label', card.faceUp ? cardName(card) : 'Face-down card');
+    return el;
+  }
+
+  private syncNumbered(el: HTMLElement, card: Card & { star?: boolean }) {
+    const key = card.star ? 'star' : String(card.rank);
+    if (el.dataset.key !== key) {
+      el.dataset.key = key;
+      el.classList.add('numbered');
+      el.dataset.band = card.star ? 'star' : card.rank <= 4 ? 'low' : card.rank <= 8 ? 'mid' : 'high';
+      const n = card.star ? '★' : String(card.rank);
+      el.querySelector('.front')!.innerHTML =
+        `<span class="n-corner">${n}</span><span class="n-big">${n}</span><span class="n-corner n-flip">${n}</span>`;
+    }
+    el.setAttribute('aria-label', card.faceUp ? (card.star ? 'Star (wild)' : String(card.rank)) : 'Face-down card');
     return el;
   }
 
