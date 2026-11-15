@@ -95,6 +95,7 @@ interface Save {
 const SAVE_KEY = 'ninnies.spider.save.v1';
 const STATS_KEY = 'ninnies.spider.stats.v1';
 const DRAG_SLOP = 7;
+const DOUBLE_TAP_MS = 380;
 
 const store = {
   get<T>(key: string): T | null {
@@ -135,6 +136,7 @@ export class SpiderGame {
   /** While previewing the win cascade, the real game is parked here. */
   private preview: { real: SpiderState } | null = null;
   private stuckTimer = 0;
+  private lastTap: { id: number; at: number } | null = null;
 
   private colSlots: HTMLElement[] = [];
   private markers: HTMLElement[] = [];
@@ -765,8 +767,19 @@ export class SpiderGame {
       this.render(); // snap back
       return;
     }
-    // A tap: send the run to its best spot.
+    // A tap: send the run to its best spot. By default that takes a double tap on the same card.
     if (!settings.tapToMove) return this.render();
+    const tapped = d.ids[0];
+    const now = performance.now();
+    const second = this.lastTap?.id === tapped && now - this.lastTap.at < DOUBLE_TAP_MS;
+    if (!settings.singleTap && !second) {
+      this.lastTap = { id: tapped, at: now };
+      this.render();
+      // A short glow says "tap again to send it".
+      for (const id of d.ids) flash(this.layer.els.get(id)!, 'tapped', DOUBLE_TAP_MS);
+      return;
+    }
+    this.lastTap = null;
     const to = bestTarget(this.state, d.from, d.index);
     if (to === null) {
       this.render();
@@ -894,9 +907,9 @@ function lockedCards(columns: Card[][]): Set<number> {
   return ids;
 }
 
-function flash(el: HTMLElement, cls: string) {
+function flash(el: HTMLElement, cls: string, ms = 1600) {
   el.classList.remove(cls);
   void el.offsetWidth;
   el.classList.add(cls);
-  window.setTimeout(() => el.classList.remove(cls), 1600);
+  window.setTimeout(() => el.classList.remove(cls), ms);
 }

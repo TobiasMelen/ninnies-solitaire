@@ -236,8 +236,8 @@ export const sfx = {
   /** Card sweeping across the table, landing when the animation does. */
   move: (cards = 1) => {
     // Same recording as the deal (that one sounds right), then a soft version of the drop.
-    if (!sample(0.65, 0, 1.05, { lowpass: 3000 })) swoosh(0.24, 0.11);
-    land(0.26, Math.min(0.9, 0.6 + cards * 0.03));
+    if (!sample(0.42, 0, 1, { lowpass: 1900 })) swoosh(0.24, 0.08);
+    land(0.26, Math.min(0.7, 0.45 + cards * 0.03));
   },
   /** A face-down card turning over: a soft double flick. */
   flip: (when = 0) => {

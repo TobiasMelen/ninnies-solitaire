@@ -225,9 +225,10 @@ swatches('courts', COURTS, (id) =>
 swatches('back', BACKS, (id) => `<span class="mini-back" data-back="${id}"></span>`);
 swatches('table', TABLES, (id) => `<span class="mini-table" data-table="${id}"></span>`);
 
-const TOGGLES: { key: keyof Settings; label: string; hint: string; show?: () => boolean }[] = [
+const TOGGLES: { key: keyof Settings; label: string; hint: string; show?: () => boolean; needs?: keyof Settings }[] = [
   { key: 'noMovesAlert', label: 'Tell me when I’m stuck', hint: 'Only when nothing can be moved or dealt; use Hint otherwise' },
-  { key: 'tapToMove', label: 'Tap to move', hint: 'Tap a card to send it to the best spot' },
+  { key: 'tapToMove', label: 'Tap to move', hint: 'Double-tap a card to send it to the best spot' },
+  { key: 'singleTap', label: 'Single tap is enough', hint: 'Move with one tap instead of two', needs: 'tapToMove' },
   { key: 'dimLocked', label: 'Shade cards that can’t move', hint: 'Only the movable run in each column stays bright white' },
   { key: 'dealWithEmpty', label: 'Deal with empty columns', hint: 'Off follows the classic rule: fill every column before dealing' },
   { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging' },
@@ -237,7 +238,7 @@ const TOGGLES: { key: keyof Settings; label: string; hint: string; show?: () => 
 
 $('#opt-toggles').innerHTML = TOGGLES.filter((t) => !t.show || t.show())
   .map(
-    (t) => `<label class="toggle">
+    (t) => `<label class="toggle${t.needs ? ' sub' : ''}" ${t.needs ? `data-needs="${t.needs}"` : ''}>
       <span><b>${t.label}</b>${t.hint ? `<small>${t.hint}</small>` : ''}</span>
       <input type="checkbox" role="switch" data-k="${t.key}" />
     </label>`,
@@ -272,6 +273,14 @@ onSettings((s) => {
   $('#opt-toggles')
     .querySelectorAll<HTMLInputElement>('input')
     .forEach((i) => (i.checked = Boolean(s[i.dataset.k as keyof Settings])));
+  // Sub-options only apply while their parent switch is on.
+  $('#opt-toggles')
+    .querySelectorAll<HTMLElement>('[data-needs]')
+    .forEach((row) => {
+      const on = Boolean(s[row.dataset.needs as keyof Settings]);
+      row.classList.toggle('disabled', !on);
+      row.querySelector('input')!.disabled = !on;
+    });
 });
 onSettings(() => game?.refresh());
 

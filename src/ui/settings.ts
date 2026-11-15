@@ -35,6 +35,7 @@ export interface Settings {
   courts: (typeof COURTS)[number]['id'];
   noMovesAlert: boolean;
   tapToMove: boolean;
+  singleTap: boolean;
   showTargets: boolean;
   dimLocked: boolean;
   dealWithEmpty: boolean;
@@ -51,6 +52,7 @@ const DEFAULTS: Settings = {
   courts: 'knoll',
   noMovesAlert: true,
   tapToMove: true,
+  singleTap: false,
   showTargets: true,
   dimLocked: true,
   dealWithEmpty: false,
