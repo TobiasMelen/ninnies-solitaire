@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0c3b26" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Solitaire" />
+    <meta name="description" content="Touch-first Spider Solitaire. No ads, no accounts, works offline." />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="icon-180.png" />
+    <title>Ninnies Solitaire</title>
+  </head>
+  <body>
+    <div id="app">
+      <main id="board" aria-label="Spider Solitaire table"></main>
+      <nav id="toolbar" aria-label="Game controls">
+        <button id="btn-new" class="tool" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="12" height="16" rx="2" /><path d="M8 21h10a2 2 0 0 0 2-2V7" /></svg>
+          <span>New</span>
+        </button>
+        <button id="btn-settings" class="tool" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+          <span>Settings</span>
+        </button>
+        <div id="stats" aria-live="off">
+          <div><b id="stat-score">500</b><small>Score</small></div>
+          <div><b id="stat-moves">0</b><small>Moves</small></div>
+          <div><b id="stat-time">0:00</b><small>Time</small></div>
+        </div>
+        <button id="btn-hint" class="tool" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z" /></svg>
+          <span>Hint</span>
+        </button>
+        <button id="btn-undo" class="tool" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>
+          <span>Undo</span>
+        </button>
+      </nav>
+    </div>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <dialog id="dlg-new" class="sheet">
+      <form method="dialog">
+        <h2>New game</h2>
+        <p class="muted">How many suits?</p>
+        <div class="choice-row" id="suit-choices">
+          <button type="button" class="choice" data-suits="1"><span class="suits">♠&#xFE0E;</span><b>1 suit</b><small>Relaxed</small></button>
+          <button type="button" class="choice" data-suits="2"><span class="suits"><i class="r">♥&#xFE0E;</i>♠&#xFE0E;</span><b>2 suits</b><small>Medium</small></button>
+          <button type="button" class="choice" data-suits="4"><span class="suits">♠&#xFE0E;<i class="r">♥&#xFE0E;♦&#xFE0E;</i>♣&#xFE0E;</span><b>4 suits</b><small>Hard</small></button>
+        </div>
+        <div class="actions">
+          <button type="button" id="btn-restart" class="btn ghost">Restart this deal</button>
+          <button value="cancel" class="btn ghost">Cancel</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="dlg-settings" class="sheet">
+      <form method="dialog">
+        <div class="sheet-head">
+          <h2>Settings</h2>
+          <button value="close" class="icon-btn" aria-label="Close">✕</button>
+        </div>
+        <h3>Cards</h3>
+        <div class="swatches" id="opt-deck"></div>
+        <h3>Card back</h3>
+        <div class="swatches" id="opt-back"></div>
+        <h3>Table</h3>
+        <div class="swatches" id="opt-table"></div>
+        <h3>Play</h3>
+        <div class="toggles" id="opt-toggles"></div>
+        <p class="muted foot">Your game is saved on this device automatically.</p>
+      </form>
+    </dialog>
+
+    <dialog id="dlg-win" class="sheet center">
+      <form method="dialog">
+        <div class="trophy" aria-hidden="true">🏆</div>
+        <h2>You won!</h2>
+        <p id="win-line" class="muted"></p>
+        <div class="win-stats" id="win-stats"></div>
+        <div class="actions">
+          <button value="new" class="btn primary">Deal again</button>
+          <button value="close" class="btn ghost">Admire the table</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="dlg-stuck" class="sheet center">
+      <form method="dialog">
+        <h2>No moves left</h2>
+        <p class="muted">There's nothing left to play on the table and the stock is empty.</p>
+        <div class="actions">
+          <button value="undo" class="btn primary">Undo last move</button>
+          <button value="new" class="btn">New game</button>
+          <button value="close" class="btn ghost">Keep looking</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
