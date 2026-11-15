@@ -36,7 +36,7 @@ export interface Settings {
   noMovesAlert: boolean;
   tapToMove: boolean;
   showTargets: boolean;
-  highlightRuns: boolean;
+  dimLocked: boolean;
   dealWithEmpty: boolean;
   sound: boolean;
   haptics: boolean;
@@ -52,7 +52,7 @@ const DEFAULTS: Settings = {
   noMovesAlert: true,
   tapToMove: true,
   showTargets: true,
-  highlightRuns: true,
+  dimLocked: true,
   dealWithEmpty: false,
   sound: true,
   haptics: true,

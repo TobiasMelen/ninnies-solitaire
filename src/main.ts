@@ -216,7 +216,7 @@ swatches('table', TABLES, (id) => `<span class="mini-table" data-table="${id}"><
 const TOGGLES: { key: keyof Settings; label: string; hint: string; show?: () => boolean }[] = [
   { key: 'noMovesAlert', label: 'Tell me when no moves are left', hint: 'Points to the stock, or offers undo when the game is stuck' },
   { key: 'tapToMove', label: 'Tap to move', hint: 'Tap a card to send it to the best spot' },
-  { key: 'highlightRuns', label: 'Highlight built runs', hint: 'Marks cards already in suit order with a gold edge' },
+  { key: 'dimLocked', label: 'Shade cards that can’t move', hint: 'Only the movable run in each column stays bright white' },
   { key: 'dealWithEmpty', label: 'Deal with empty columns', hint: 'Off follows the classic rule: fill every column before dealing' },
   { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging' },
   { key: 'sound', label: 'Sound', hint: '' },

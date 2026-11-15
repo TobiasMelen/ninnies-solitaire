@@ -17,6 +17,7 @@ import {
   isWon,
   newGame,
   replay,
+  runStart,
 } from './rules';
 
 export interface Hud {
@@ -76,6 +77,9 @@ interface Drag {
   trail: { x: number; y: number }[];
   base: { x: number; y: number }[];
   hover: number | null;
+  /** Columns this run may legally land on, worked out once at pick-up. */
+  legal: number[];
+  boardLeft: number;
   raf: number;
 }
 
@@ -561,8 +565,8 @@ export class SpiderGame {
       }),
     );
 
-    const inRun = settings.highlightRuns ? runCards(s.columns) : new Set<number>();
-    this.layer.els.forEach((el, id) => el.classList.toggle('run', inRun.has(id)));
+    const locked = settings.dimLocked ? lockedCards(s.columns) : new Set<number>();
+    this.layer.els.forEach((el, id) => el.classList.toggle('locked', locked.has(id)));
 
     s.columns.forEach((col, c) =>
       col.forEach((card, i) => {
@@ -655,6 +659,8 @@ export class SpiderGame {
       trail: base.map((p) => ({ ...p })),
       base,
       hover: null,
+      legal: Array.from({ length: COLUMNS }, (_, to) => to).filter((to) => canMove(this.state, now.col, now.index, to)),
+      boardLeft: this.board.getBoundingClientRect().left,
       raf: 0,
     };
     this.clearHint();
@@ -706,18 +712,21 @@ export class SpiderGame {
       this.layer.drag(id, t.x, t.y, 2000 + k);
     });
 
-    const cx = d.trail[0].x + this.L.cw / 2;
-    let hover = 0;
+    // Forgiving drop: snap to the nearest legal column within about a card's width of either
+    // the dragged card or the finger, so a near miss next to an illegal column still lands.
+    const cardX = d.trail[0].x + this.L.cw / 2;
+    const fingerX = d.startX + d.dx - d.boardLeft;
+    const reach = this.L.cw * 1.1;
+    let next: number | null = null;
     let best = Infinity;
-    this.L.colX.forEach((x, i) => {
-      const dist = Math.abs(x + this.L.cw / 2 - cx);
-      if (dist < best) {
+    for (const to of d.legal) {
+      const center = this.L.colX[to] + this.L.cw / 2;
+      const dist = Math.min(Math.abs(center - cardX), Math.abs(center - fingerX));
+      if (dist < reach && dist < best) {
         best = dist;
-        hover = i;
+        next = to;
       }
-    });
-    const valid = hover !== d.from && canMove(this.state, d.from, d.index, hover);
-    const next = valid ? hover : null;
+    }
     if (next !== d.hover) {
       if (d.hover !== null) this.markers[d.hover].classList.remove('hot');
       if (next !== null) {
@@ -847,18 +856,12 @@ export class SpiderGame {
   }
 }
 
-/** Ids of face-up cards that sit in a same-suit descending sequence of two or more. */
-function runCards(columns: Card[][]): Set<number> {
+/** Face-up cards that sit above the movable run of their column, so can't be picked up. */
+function lockedCards(columns: Card[][]): Set<number> {
   const ids = new Set<number>();
   for (const col of columns) {
-    for (let i = 1; i < col.length; i++) {
-      const a = col[i - 1];
-      const b = col[i];
-      if (a.faceUp && b.faceUp && a.suit === b.suit && a.rank === b.rank + 1) {
-        ids.add(a.id);
-        ids.add(b.id);
-      }
-    }
+    const start = runStart(col);
+    for (let i = 0; i < start; i++) if (col[i].faceUp) ids.add(col[i].id);
   }
   return ids;
 }
