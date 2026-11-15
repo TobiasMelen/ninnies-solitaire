@@ -405,15 +405,18 @@ export class SpiteGame implements GameController {
     const oppScale = 0.6;
     // Portrait stacks four rows (Fox, centre, your piles, hand); landscape puts the hand beside
     // your piles, so it fits ten cards across and three rows plus fans.
+    // The goal pile (and the draw pile above it) stand apart from the four piles beside them.
+    const SEP = 0.45;
     const cw = Math.floor(
       wide
-        ? Math.min((W - pad * 2 - gap * 10) / 10.6, (H - pad * 2 - gap * 4) / (3.8 * 1.4), 120)
-        : Math.min((W - pad * 2 - gap * 4) / 5, (H - pad * 2 - gap * 5) / (5.3 * 1.4), 120),
+        ? Math.min((W - pad * 2 - gap * 10) / (10.6 + SEP), (H - pad * 2 - gap * 4) / (3.8 * 1.4), 120)
+        : Math.min((W - pad * 2 - gap * 4) / (5 + SEP), (H - pad * 2 - gap * 5) / (5.3 * 1.4), 120),
     );
     const ch = Math.round(cw * 1.4);
-    const five = cw * 5 + gap * 4;
+    const sep = Math.round(cw * SEP);
+    const five = cw * 5 + gap * 4 + sep;
     const left = wide ? Math.round(pad + gap) : Math.round((W - five) / 2);
-    const colX = Array.from({ length: 5 }, (_, i) => left + i * (cw + gap));
+    const colX = Array.from({ length: 5 }, (_, i) => left + i * (cw + gap) + (i > 0 ? sep : 0));
     // Fox's piles hug the top edge, yours sit just above your hand, and the shared piles
     // (draw pile + centre piles) sit in the middle between the two.
     const oppRow = ch * oppScale * 1.75;
