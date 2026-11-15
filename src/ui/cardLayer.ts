@@ -14,6 +14,8 @@ export interface Placement {
   faceUp: boolean;
   /** ms before this card starts moving */
   delay?: number;
+  /** Draw smaller (e.g. opponents' hands); scales from the top-left corner. */
+  scale?: number;
 }
 
 const MOVE_MS = 280;
@@ -79,7 +81,7 @@ export class CardLayer {
 
     el.style.setProperty('--d', animate ? `${delay}ms` : '0ms');
     el.classList.toggle('no-anim', !animate);
-    el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)`;
+    el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)${p.scale && p.scale !== 1 ? ` scale(${p.scale})` : ''}`;
     el.classList.toggle('up', p.faceUp);
 
     // While travelling a card must stay above everything it passes over.

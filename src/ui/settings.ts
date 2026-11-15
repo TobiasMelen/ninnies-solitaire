@@ -42,6 +42,11 @@ export interface Settings {
   sound: boolean;
   haptics: boolean;
   bunny: boolean;
+  heartsPassing: boolean;
+  heartsShort: boolean;
+  heartsMoonSubtract: boolean;
+  heartsFast: boolean;
+  heartsOneTap: boolean;
 }
 
 const KEY = 'ninnies.settings.v1';
@@ -60,6 +65,11 @@ const DEFAULTS: Settings = {
   sound: true,
   haptics: true,
   bunny: true,
+  heartsPassing: true,
+  heartsShort: false,
+  heartsMoonSubtract: false,
+  heartsFast: false,
+  heartsOneTap: false,
 };
 
 type Listener = (s: Settings) => void;

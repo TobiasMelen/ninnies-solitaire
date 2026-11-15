@@ -1,6 +1,6 @@
 import { type Card, randomSeed } from '../../core/cards';
+import { type GameController, type GameHooks, fmtTime, store } from '../../core/game';
 import { CardLayer, type Placement } from '../../ui/cardLayer';
-import type { BunnyEvent } from '../../ui/bunny';
 import { type Cascade, type CascadeCard, runCascade } from '../../ui/cascade';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
@@ -22,29 +22,10 @@ import {
   runStart,
 } from './rules';
 
-export interface Hud {
-  score: number;
-  moves: number;
-  ms: number;
-  canUndo: boolean;
-  suitCount: SuitCount;
-}
-
 export interface Stats {
   played: Record<SuitCount, number>;
   won: Record<SuitCount, number>;
   bestMs: Partial<Record<SuitCount, number>>;
-}
-
-export interface GameHooks {
-  hud(h: Hud): void;
-  toast(msg: string): void;
-  won(result: { score: number; moves: number; ms: number; suitCount: SuitCount; stats: Stats; best: boolean }): void;
-  stuck(): void;
-  /** Something worth reacting to happened; `x` is where, 0–1 across the board. */
-  event?(e: BunnyEvent, x?: number): void;
-  /** A hint was asked for: where it points (0–1 across the board), for the Hint Bunny to act out. */
-  hint?(target: { from: number; to?: number } | null, kind: 'move' | 'deal' | 'none'): void;
 }
 
 interface Layout {
@@ -63,9 +44,13 @@ interface Layout {
 }
 
 interface Fan {
-  down: number;
-  up: number;
+  /** y offset of each card from the top of its column */
+  offs: number[];
+  /** spacing for the next card dropped on the column */
+  next: number;
 }
+
+type Gap = 'down' | 'locked' | 'run';
 
 type Where = { pile: 'col'; col: number; index: number } | { pile: 'stock' } | { pile: 'found' };
 
@@ -102,26 +87,13 @@ const STATS_KEY = 'ninnies.spider.stats.v1';
 const DRAG_SLOP = 7;
 const DOUBLE_TAP_MS = 380;
 
-const store = {
-  get<T>(key: string): T | null {
-    try {
-      return JSON.parse(localStorage.getItem(key) ?? 'null');
-    } catch {
-      return null;
-    }
-  },
-  set(key: string, value: unknown) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch {
-      /* storage full or unavailable */
-    }
-  },
-};
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
-export class SpiderGame {
+export class SpiderGame implements GameController {
+  readonly id = 'spider' as const;
+  readonly restartLabel = 'Restart this deal';
+
   private state!: SpiderState;
   private actions: Action[] = [];
   private counted = false;
@@ -198,6 +170,28 @@ export class SpiderGame {
 
   get active() {
     return Boolean(this.state);
+  }
+
+  again() {
+    this.newGame(this.state.suitCount);
+  }
+
+  status() {
+    const s = this.state.suitCount;
+    return `Spider · ${s} suit${s > 1 ? 's' : ''} · ${this.state.moves} moves · ${fmtTime(this.elapsed())}`;
+  }
+
+  key(e: KeyboardEvent) {
+    if (e.key === 'd' || e.key === ' ') {
+      this.deal();
+      return true;
+    }
+    return false;
+  }
+
+  setVisible(on: boolean) {
+    this.board.hidden = !on;
+    if (on) this.relayout();
   }
 
   /** Load the saved game. Returns false if there is none to continue. */
@@ -446,8 +440,17 @@ export class SpiderGame {
     haptic([20, 60, 20, 60, 40]);
     this.hooks.event?.('win');
     this.save();
-    const result = { score: this.state.score, moves: this.state.moves, ms, suitCount: s, stats: st, best };
-    this.celebrate(() => this.hooks.won(result));
+    const result = {
+      title: 'You won!',
+      line: `${s} suit${s > 1 ? 's' : ''} · ${this.state.moves} moves · ${fmtTime(ms)}${best ? ' · new best time!' : ''}`,
+      stats: [
+        { label: 'Score', value: String(this.state.score) },
+        { label: 'Won', value: `${st.won[s]}/${st.played[s]}` },
+        { label: 'Best', value: st.bestMs[s] !== undefined ? fmtTime(st.bestMs[s]!) : '–' },
+      ],
+      celebrate: true,
+    };
+    this.celebrate(() => this.hooks.finished(result));
   }
 
   // ───────────────────────── persistence & clock ─────────────────────────
@@ -498,11 +501,13 @@ export class SpiderGame {
   private emitHud() {
     if (!this.state) return;
     this.hooks.hud({
-      score: this.state.score,
-      moves: this.state.moves,
-      ms: this.elapsed(),
+      stats: [
+        { label: 'Score', value: String(this.state.score) },
+        { label: 'Moves', value: String(this.state.moves) },
+        { label: 'Time', value: fmtTime(this.elapsed()) },
+      ],
       canUndo: this.actions.length > 0 && !this.celebrating,
-      suitCount: this.state.suitCount,
+      hasUndo: true,
     });
   }
 
@@ -550,31 +555,46 @@ export class SpiderGame {
     }
   }
 
+  /**
+   * Spacing per column. When a column would run past the bottom, it collapses in order of
+   * importance: face-down cards first, then face-up cards that can't move (down to a sliver
+   * that still shows the rank), and only then the movable run the player is working with.
+   */
   private computeFans() {
     const { ch, tableTop, bottom } = this.L;
-    const baseDown = ch * 0.12;
-    const baseUp = ch * 0.3;
     const avail = bottom - tableTop - ch;
+    // [kind, minimum] in the order things give way.
+    const squeeze: [Gap, number][] = [
+      ['down', ch * 0.045],
+      ['locked', ch * 0.14],
+      ['run', ch * 0.2],
+      ['locked', ch * 0.07],
+      ['run', ch * 0.12],
+      ['down', ch * 0.015],
+      ['locked', ch * 0.03],
+      ['run', ch * 0.05],
+    ];
     this.fans = this.state.columns.map((col) => {
-      const d = col.filter((c) => !c.faceUp).length;
-      const u = col.length - d;
-      let down = baseDown;
-      let up = baseUp;
-      const need = d * down + Math.max(0, u - 1) * up;
-      if (need > avail) {
-        down = Math.max(ch * 0.05, down * (avail / need));
-        if (u > 1) up = Math.min(baseUp, Math.max(ch * 0.17, (avail - d * down) / (u - 1)));
+      const rs = runStart(col);
+      // The gap after card i depends on what card i is.
+      const kinds: Gap[] = col.slice(0, -1).map((c, i) => (!c.faceUp ? 'down' : i < rs ? 'locked' : 'run'));
+      const gap: Record<Gap, number> = { down: ch * 0.12, locked: ch * 0.3, run: ch * 0.3 };
+      const count = (k: Gap) => kinds.filter((x) => x === k).length;
+      const need = () => kinds.reduce((n, k) => n + gap[k], 0);
+      for (const [k, min] of squeeze) {
+        const over = need() - avail;
+        if (over <= 0) break;
+        const n = count(k);
+        if (n) gap[k] = Math.max(min, gap[k] - over / n);
       }
-      return { down, up };
+      const offs = [0];
+      kinds.forEach((k, i) => offs.push(offs[i] + gap[k]));
+      return { offs, next: Math.min(gap.run, ch * 0.3) };
     });
   }
 
   private cardY(col: number, index: number) {
-    const fan = this.fans[col];
-    const cards = this.state.columns[col];
-    let y = this.L.tableTop;
-    for (let i = 0; i < index; i++) y += cards[i].faceUp ? fan.up : fan.down;
-    return Math.round(y);
+    return Math.round(this.L.tableTop + (this.fans[col].offs[index] ?? 0));
   }
 
   private render(opts: { animate?: boolean; delay?: (id: number) => number } = {}) {
@@ -831,7 +851,7 @@ export class SpiderGame {
   private showMarker(col: number, kind: 'target' | 'hint') {
     const m = this.markers[col];
     const cards = this.state.columns[col];
-    const y = cards.length ? this.cardY(col, cards.length - 1) + this.fans[col].up : this.L.tableTop;
+    const y = cards.length ? this.cardY(col, cards.length - 1) + this.fans[col].next : this.L.tableTop;
     m.style.transform = `translate(${this.L.colX[col]}px, ${y}px)`;
     m.classList.add('show', kind);
   }

@@ -35,11 +35,7 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
           <span>Menu</span>
         </button>
-        <div id="stats" aria-live="off">
-          <div><b id="stat-score">500</b><small>Score</small></div>
-          <div><b id="stat-moves">0</b><small>Moves</small></div>
-          <div><b id="stat-time">0:00</b><small>Time</small></div>
-        </div>
+        <div id="stats" aria-live="off"></div>
         <button id="btn-hint" class="tool" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z" /></svg>
           <span>Hint</span>
@@ -88,11 +84,23 @@
               </div>
             </div>
           </article>
-          <article class="game-tile soon" aria-disabled="true">
-            <div class="tile-body"><h3>Klondike</h3><p>Coming soon</p></div>
+          <article class="game-tile" data-game="hearts">
+            <div class="tile-art mini-deck" data-deck="classic">
+              <span class="mini-card" data-suit="H"><b>A</b><i>♥&#xFE0E;</i></span>
+              <span class="mini-card" data-suit="S"><b>Q</b><i>♠&#xFE0E;</i></span>
+              <span class="mini-card" data-suit="H"><b>K</b><i>♥&#xFE0E;</i></span>
+              <span class="mini-card" data-suit="H"><b>7</b><i>♥&#xFE0E;</i></span>
+            </div>
+            <div class="tile-body">
+              <h3>Hearts</h3>
+              <p>Dodge the hearts and the Q♠ against 🦊 Fox, 🦉 Owl and 🐻 Bear.</p>
+              <div class="suit-pick one">
+                <button type="button" id="hearts-play"><b>Play</b><small>4 players</small></button>
+              </div>
+            </div>
           </article>
           <article class="game-tile soon" aria-disabled="true">
-            <div class="tile-body"><h3>FreeCell</h3><p>Coming soon</p></div>
+            <div class="tile-body"><h3>More games</h3><p>Coming soon</p></div>
           </article>
         </div>
 
@@ -126,8 +134,8 @@
           <div class="swatches" id="opt-table"></div>
         </section>
 
-        <section class="group">
-          <h3>Play</h3>
+        <section class="group" id="play-group">
+          <h3 id="play-title">Play</h3>
           <div class="toggles" id="opt-play"></div>
         </section>
 
@@ -148,7 +156,7 @@
         <p id="menu-line" class="muted"></p>
         <div class="menu-list">
           <button value="resume" class="btn primary">Keep playing</button>
-          <button value="restart" class="btn">Restart this deal</button>
+          <button value="restart" class="btn" id="menu-restart">Restart this deal</button>
           <button value="settings" class="btn">Settings</button>
           <button value="home" class="btn ghost">Main menu</button>
         </div>
@@ -157,8 +165,8 @@
 
     <dialog id="dlg-win" class="sheet center">
       <form method="dialog">
-        <div class="trophy" aria-hidden="true">🏆</div>
-        <h2>You won!</h2>
+        <div class="trophy" id="win-trophy" aria-hidden="true">🏆</div>
+        <h2 id="win-title">You won!</h2>
         <p id="win-line" class="muted"></p>
         <div class="win-stats" id="win-stats"></div>
         <div class="actions">

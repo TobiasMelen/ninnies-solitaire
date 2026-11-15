@@ -286,7 +286,9 @@ body {
 /* Figure sets: a cut-out portrait standing on the card face, fit to width, head and shoulders
    up top. Starts below the strip left visible when the card is fanned (30% of its height). */
 [data-courts]:not([data-courts='letters']) .court {
-  inset: 32% 4% 0 4%;
+  inset: 32% 9% 5% 9%;
+  -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 72%, transparent 100%);
   background: none;
   box-shadow: none;
   border-radius: 0;
@@ -511,12 +513,171 @@ body {
   }
 }
 
+/* Each game draws into its own layer on the table. */
+.game-root {
+  position: absolute;
+  inset: 0;
+}
+
+/* ───────────────────────── hearts ───────────────────────── */
+
+/* Opponents' hands and taken tricks are scaled cards; scale from the corner they're placed by. */
+.hearts-root .card {
+  transform-origin: 0 0;
+  cursor: pointer;
+}
+/* In an overlapping hand only the left strip shows, so keep rank and suit side by side. */
+.hearts-root .idx {
+  justify-content: flex-start;
+  gap: 0.08em;
+}
+.hearts-root .card.picked .face {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 calc(var(--cw) * 0.1) calc(var(--cw) * 0.3) rgba(0, 0, 0, 0.4);
+}
+.hearts-root .card.received .face {
+  animation: glow 900ms ease-in-out 3;
+}
+
+.hearts-seat {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #fff;
+  white-space: nowrap;
+  pointer-events: none;
+  transition: box-shadow 200ms ease, background-color 200ms ease;
+}
+.hearts-seat.side {
+  translate: -50% 0;
+}
+.hearts-seat .emo {
+  font-size: 22px;
+  line-height: 1;
+}
+.hearts-seat .score {
+  font: 700 17px/1 var(--display);
+}
+.hearts-seat .pts {
+  color: #ff8c9b;
+  font: 700 12px/1 system-ui, sans-serif;
+}
+.hearts-seat.you .emo {
+  display: none;
+}
+.hearts-seat.you::before {
+  content: 'You';
+  font: 700 13px/1 system-ui, sans-serif;
+  opacity: 0.8;
+}
+.hearts-seat.turn {
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 18px var(--accent-glow);
+}
+
+.hearts-broken {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  font-size: 20px;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  transition: color 300ms ease, text-shadow 300ms ease, scale 300ms var(--ease-out);
+}
+.hearts-broken.on {
+  color: #ff5d73;
+  text-shadow: 0 0 10px rgba(255, 93, 115, 0.7);
+  scale: 1.15;
+}
+
+.hearts-pass {
+  position: absolute;
+  left: 50%;
+  top: var(--pass-y, 40%);
+  z-index: 1300;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  translate: -50% -50%;
+  pointer-events: none;
+}
+.hearts-pass[hidden] {
+  display: none;
+}
+.hearts-pass .pass-text {
+  color: #fff;
+  font: 700 22px/1.2 var(--display);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+.hearts-pass .pass-btn {
+  min-width: 140px;
+  pointer-events: auto;
+  font-family: var(--display);
+  font-size: 19px;
+}
+.hearts-pass .pass-btn:disabled {
+  opacity: 0.55;
+}
+
+.hearts-round .moon {
+  margin: 0 0 10px;
+  font: 700 18px var(--display);
+}
+.round-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0 4px;
+  font-variant-numeric: tabular-nums;
+}
+.round-table th {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sheet-muted);
+  text-align: right;
+  padding: 4px 8px;
+}
+.round-table td {
+  padding: 8px;
+  text-align: right;
+  border-top: 1px solid var(--sheet-line);
+}
+.round-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+.round-table tr.lead td {
+  color: var(--primary);
+}
+.round-table tr.lead td:first-child::after {
+  content: ' ★';
+}
+
+#stats .hot b {
+  color: var(--accent);
+}
+.suit-pick.one {
+  grid-template-columns: 1fr;
+}
+
 /* ───────────────────────── hint bunny ───────────────────────── */
 
 .bunny {
   position: absolute;
   left: max(6px, env(safe-area-inset-left));
-  bottom: 0;
+  bottom: var(--bunny-lift, 0px);
   z-index: 1900;
   width: clamp(68px, 15vmin, 128px);
   translate: 0 105%;
@@ -532,8 +693,12 @@ body {
 .bunny.on {
   translate: 0 40%;
 }
+/* In Hearts it sits behind the player's hand, peeking over it. */
+#board:has(.hearts-root:not([hidden])) .bunny {
+  z-index: 500;
+}
 /* Out of the way while cards are being dragged. */
-#board.is-dragging .bunny {
+#board:has(.is-dragging) .bunny {
   opacity: 0.3;
 }
 /* Above the win cascade so it can celebrate with you. */

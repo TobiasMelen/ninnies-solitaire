@@ -1,5 +1,7 @@
 import './style.css';
-import { type GameHooks, SpiderGame } from './games/spider/SpiderGame';
+import { type GameHooks, type GameId, type Hud, type Result, fmtTime, store } from './core/game';
+import { HeartsGame } from './games/hearts/HeartsGame';
+import { SpiderGame } from './games/spider/SpiderGame';
 import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
@@ -16,13 +18,6 @@ const dlgWin = $<HTMLDialogElement>('#dlg-win');
 const dlgStuck = $<HTMLDialogElement>('#dlg-stuck');
 const dlgMenu = $<HTMLDialogElement>('#dlg-menu');
 
-const fmtTime = (ms: number) => {
-  const s = Math.floor(ms / 1000);
-  const h = Math.floor(s / 3600);
-  const mm = String(Math.floor((s % 3600) / 60));
-  const ss = String(s % 60).padStart(2, '0');
-  return h ? `${h}:${mm.padStart(2, '0')}:${ss}` : `${mm}:${ss}`;
-};
 
 let toastTimer = 0;
 function toast(msg: string) {
@@ -104,75 +99,115 @@ for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
   document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
 }
 
-// ───────── game ─────────
+// ───────── games ─────────
+
+type AnyGame = SpiderGame | HeartsGame;
+const LAST_KEY = 'ninnies.lastGame';
 
 const bunny = new Bunny(board);
 // Tapping the Hint Bunny asks it for a hint.
 bunny.onAskHint = () => game?.hint();
 
-const hooks: GameHooks = {
-  event: (e, x) => bunny.react(e, x),
-  hint: (target, kind) => bunny.hint(target, kind),
-  hud(h) {
-    lastHud = h;
-    $('#stat-score').textContent = String(h.score);
-    $('#stat-moves').textContent = String(h.moves);
-    $('#stat-time').textContent = fmtTime(h.ms);
-    $<HTMLButtonElement>('#btn-undo').disabled = !h.canUndo;
-  },
-  toast,
-  won(r) {
-    const s = r.suitCount;
-    $('#win-line').textContent =
-      `${s} suit${s > 1 ? 's' : ''} · ${r.moves} moves · ${fmtTime(r.ms)}${r.best ? ' · new best time!' : ''}`;
-    $('#win-stats').innerHTML = `
-      <div><b>${r.score}</b><small>Score</small></div>
-      <div><b>${r.stats.won[s]}/${r.stats.played[s]}</b><small>Won</small></div>
-      <div><b>${r.stats.bestMs[s] !== undefined ? fmtTime(r.stats.bestMs[s]!) : '–'}</b><small>Best</small></div>`;
-    open(dlgWin);
-  },
-  stuck() {
-    bunny.react('stuck');
-    open(dlgStuck);
-  },
-};
+const games: Partial<Record<GameId, AnyGame>> = {};
+let game: AnyGame | null = null;
 
-let lastHud: Parameters<GameHooks['hud']>[0] | null = null;
+function renderHud(h: Hud) {
+  $('#stats').innerHTML = h.stats
+    .map((s) => `<div class="${s.hot ? 'hot' : ''}"><b>${s.value}</b><small>${s.label}</small></div>`)
+    .join('');
+  const undo = $<HTMLButtonElement>('#btn-undo');
+  undo.hidden = !h.hasUndo;
+  undo.disabled = !h.canUndo;
+}
 
-// Created on first play so the table stays empty behind the start screen.
-let game: SpiderGame | null = null;
-const ensureGame = () => (game ??= new SpiderGame(board, hooks));
+function showResult(r: Result) {
+  $('#win-title').textContent = r.title;
+  $('#win-trophy').textContent = r.celebrate ? '🏆' : '🃏';
+  $('#win-line').textContent = r.line;
+  $('#win-stats').innerHTML = r.stats.map((s) => `<div><b>${s.value}</b><small>${s.label}</small></div>`).join('');
+  open(dlgWin);
+}
+
+/** Each game only reaches the shell while it is the one on the table. */
+function hooksFor(id: GameId): GameHooks {
+  const mine = () => game?.id === id;
+  return {
+    event: (e, x) => mine() && bunny.react(e, x),
+    hint: (target, kind) => mine() && bunny.hint(target, kind),
+    hud: (h) => mine() && renderHud(h),
+    toast: (m) => mine() && toast(m),
+    finished: (r) => mine() && showResult(r),
+    stuck() {
+      if (!mine()) return;
+      bunny.react('stuck');
+      open(dlgStuck);
+    },
+  };
+}
+
+function getGame(id: GameId): AnyGame {
+  let g = games[id];
+  if (!g) {
+    const layer = document.createElement('div');
+    layer.className = 'game-root';
+    board.prepend(layer);
+    g = id === 'spider' ? new SpiderGame(layer, hooksFor(id)) : new HeartsGame(layer, hooksFor(id));
+    games[id] = g;
+  }
+  return g;
+}
+
+/** Put a game on the table (creating it on first use) and hide the other. */
+function switchTo<T extends GameId>(id: T): T extends 'spider' ? SpiderGame : HeartsGame {
+  const g = getGame(id);
+  if (game && game !== g) {
+    game.pause();
+    game.setVisible(false);
+  }
+  game = g;
+  g.setVisible(true);
+  store.set(LAST_KEY, id);
+  syncPlaySettings();
+  return g as T extends 'spider' ? SpiderGame : HeartsGame;
+}
+
+const lastGame = (): GameId => store.get<GameId>(LAST_KEY) ?? 'spider';
+
 // Dev-only handle for poking at the game from the console (stripped from production builds).
-if (import.meta.env.DEV) Object.assign(window, { ninnies: { get game() { return ensureGame(); } } });
+if (import.meta.env.DEV) Object.assign(window, { ninnies: { get game() { return game ?? switchTo('spider'); } } });
 
 // ───────── start screen ─────────
 
 const homeOpen = () => !home.classList.contains('hidden');
 
+function savedSummary(id: GameId): string | null {
+  if (id === 'hearts') return HeartsGame.saved();
+  const s = SpiderGame.saved();
+  return s ? `Spider · ${s.suitCount} suit${s.suitCount > 1 ? 's' : ''} · ${s.moves} moves · ${fmtTime(s.ms)}` : null;
+}
+
 function showHome() {
   game?.pause();
   layoutDiag();
-  const saved = SpiderGame.saved();
-  $('#home-resume').hidden = !saved;
-  if (saved) {
-    $('#home-continue-sub').textContent =
-      `Spider · ${saved.suitCount} suit${saved.suitCount > 1 ? 's' : ''} · ${saved.moves} moves · ${fmtTime(saved.ms)}`;
-  }
-  const last = saved?.suitCount ?? (game?.active ? game.suitCount : null);
-  home.querySelectorAll<HTMLElement>('[data-suits]').forEach((b) =>
-    b.classList.toggle('current', Number(b.dataset.suits) === last),
-  );
+  syncPlaySettings(true);
+  const id = lastGame();
+  const summary = savedSummary(id);
+  $('#home-resume').hidden = !summary;
+  if (summary) $('#home-continue-sub').textContent = summary;
+  const suits = SpiderGame.saved()?.suitCount ?? null;
+  home.querySelectorAll<HTMLElement>('[data-suits]').forEach((b) => b.classList.toggle('current', Number(b.dataset.suits) === suits));
   home.classList.remove('hidden');
   home.scrollTop = 0;
 }
 
 function hideHome() {
   home.classList.add('hidden');
+  syncPlaySettings();
 }
 
-/** Bring the saved game onto the table if it isn't there already. */
-function loadSaved(): boolean {
-  const g = ensureGame();
+/** Bring the last game's save onto the table if it isn't there already. */
+function loadSaved(id = lastGame()): boolean {
+  const g = switchTo(id);
   return g.active || g.resume();
 }
 
@@ -189,19 +224,25 @@ $('#home-restart').addEventListener('click', () => {
 });
 home.querySelectorAll<HTMLElement>('[data-suits]').forEach((btn) =>
   btn.addEventListener('click', () => {
-    const g = ensureGame();
+    const g = switchTo('spider');
     hideHome();
     g.newGame(Number(btn.dataset.suits) as SuitCount);
     g.unpause();
   }),
 );
+$('#hearts-play').addEventListener('click', () => {
+  const g = switchTo('hearts');
+  hideHome();
+  g.newGame();
+  g.unpause();
+});
 $('#home-settings').addEventListener('click', () => open(dlgSettings));
 
 $('#btn-preview-win').addEventListener('click', () => {
   dlgSettings.close();
   // Needs cards on the table: use the current game, the saved one, or a fresh deal.
   if (homeOpen()) {
-    if (!loadSaved()) ensureGame().newGame(2);
+    if (!loadSaved()) switchTo('spider').newGame(2);
     hideHome();
   }
   window.setTimeout(() => game?.previewWin(), 250);
@@ -236,11 +277,8 @@ let settingsFromMenu = false;
 function openMenu() {
   if (!game?.active) return;
   game.pause();
-  if (lastHud) {
-    const h = lastHud;
-    $('#menu-line').textContent =
-      `Spider · ${h.suitCount} suit${h.suitCount > 1 ? 's' : ''} · ${h.moves} moves · ${fmtTime(h.ms)}`;
-  }
+  $('#menu-line').textContent = game.status();
+  $('#menu-restart').textContent = game.restartLabel;
   open(dlgMenu);
 }
 
@@ -264,7 +302,10 @@ dlgSettings.addEventListener('close', () => {
 });
 
 dlgWin.addEventListener('close', () => {
-  if (dlgWin.returnValue === 'new' && game) game.newGame(game.suitCount);
+  if (dlgWin.returnValue === 'new' && game) {
+    game.again();
+    game.unpause();
+  }
   if (dlgWin.returnValue === 'home') showHome();
 });
 dlgStuck.addEventListener('close', () => {
@@ -274,17 +315,15 @@ dlgStuck.addEventListener('close', () => {
 
 document.addEventListener('keydown', (e) => {
   if (document.querySelector('dialog[open]') || homeOpen() || !game) return;
+  if (game.key(e)) return;
   if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
     e.preventDefault();
     game.undo();
   } else if (!e.metaKey && !e.ctrlKey) {
     if (e.key === 'h') game.hint();
-    if (e.key === 'd' || e.key === ' ') game.deal();
     if (e.key === 'Escape' || e.key === 'm') openMenu();
   }
 });
-
-showHome();
 
 // ───────── settings sheet ─────────
 
@@ -323,14 +362,29 @@ swatches('courts', COURTS, (id) =>
 swatches('back', BACKS, (id) => `<span class="mini-back" data-back="${id}"></span>`);
 swatches('table', TABLES, (id) => `<span class="mini-table" data-table="${id}"></span>`);
 
-type Toggle = { key: keyof Settings; label: string; hint: string; group: 'play' | 'feel'; show?: () => boolean; needs?: keyof Settings };
+type Toggle = {
+  key: keyof Settings;
+  label: string;
+  hint: string;
+  group: 'play' | 'feel';
+  /** Play options belong to one game and only show while it is on the table. */
+  games?: GameId[];
+  show?: () => boolean;
+  needs?: keyof Settings;
+};
 const TOGGLES: Toggle[] = [
-  { key: 'noMovesAlert', label: 'Tell me when I’m stuck', hint: 'Only when nothing can be moved or dealt; use Hint otherwise', group: 'play' },
-  { key: 'tapToMove', label: 'Tap to move', hint: 'Double-tap a card to send it to the best spot', group: 'play' },
-  { key: 'singleTap', label: 'Single tap is enough', hint: 'Move with one tap instead of two', group: 'play', needs: 'tapToMove' },
-  { key: 'dimLocked', label: 'Shade cards that can’t move', hint: 'Only the movable run in each column stays bright white', group: 'play' },
-  { key: 'dealWithEmpty', label: 'Deal with empty columns', hint: 'Off follows the classic rule: fill every column before dealing', group: 'play' },
-  { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging', group: 'play' },
+  { key: 'noMovesAlert', label: 'Tell me when I’m stuck', hint: 'Only when nothing can be moved or dealt; use Hint otherwise', group: 'play', games: ['spider'] },
+  { key: 'tapToMove', label: 'Tap to move', hint: 'Double-tap a card to send it to the best spot', group: 'play', games: ['spider'] },
+  { key: 'singleTap', label: 'Single tap is enough', hint: 'Move with one tap instead of two', group: 'play', games: ['spider'], needs: 'tapToMove' },
+  { key: 'dimLocked', label: 'Shade cards that can’t move', hint: 'Only the movable run in each column stays bright white', group: 'play', games: ['spider'] },
+  { key: 'dealWithEmpty', label: 'Deal with empty columns', hint: 'Off follows the classic rule: fill every column before dealing', group: 'play', games: ['spider'] },
+  { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging', group: 'play', games: ['spider'] },
+  { key: 'heartsPassing', label: 'Pass cards', hint: 'Swap 3 cards before each hand (left, right, across, none)', group: 'play', games: ['hearts'] },
+  { key: 'heartsOneTap', label: 'Play with one tap', hint: 'Off: tap to lift a card, tap again to play it', group: 'play', games: ['hearts'] },
+  { key: 'dimLocked', label: 'Shade cards you can’t play', hint: 'On your turn, only playable cards stay bright', group: 'play', games: ['hearts'] },
+  { key: 'heartsShort', label: 'Short game', hint: 'Play to 50 points instead of 100 (from the next game)', group: 'play', games: ['hearts'] },
+  { key: 'heartsMoonSubtract', label: 'Moon subtracts 26', hint: 'Shooting the moon takes 26 off your score instead of adding 26 to everyone else', group: 'play', games: ['hearts'] },
+  { key: 'heartsFast', label: 'Quick opponents', hint: 'Fox, Owl and Bear play faster', group: 'play', games: ['hearts'] },
   { key: 'sound', label: 'Sound', hint: '', group: 'feel' },
   { key: 'haptics', label: 'Vibration', hint: '', group: 'feel', show: canVibrate },
   { key: 'bunny', label: 'Hint Bunny', hint: 'Cheers you on with gestures; tap it for a hint', group: 'feel' },
@@ -340,7 +394,7 @@ const toggleRoots = [$('#opt-play'), $('#opt-feel')];
 for (const group of ['play', 'feel'] as const) {
   $(`#opt-${group}`).innerHTML = TOGGLES.filter((t) => t.group === group && (!t.show || t.show()))
   .map(
-    (t) => `<label class="toggle${t.needs ? ' sub' : ''}" ${t.needs ? `data-needs="${t.needs}"` : ''}>
+    (t) => `<label class="toggle${t.needs ? ' sub' : ''}" ${t.needs ? `data-needs="${t.needs}"` : ''} ${t.games ? `data-games="${t.games.join(' ')}"` : ''}>
       <span><b>${t.label}</b>${t.hint ? `<small>${t.hint}</small>` : ''}</span>
       <input type="checkbox" role="switch" data-k="${t.key}" />
     </label>`,
@@ -397,8 +451,25 @@ onSettings((s) => {
       row.querySelector('input')!.disabled = !on;
     });
 });
-onSettings(() => game?.refresh());
+onSettings(() => Object.values(games).forEach((g) => g?.refresh()));
+
+/** The Play section only lists options for the game on the table (none from the start screen). */
+function syncPlaySettings(fromHome = homeOpen()) {
+  const id = fromHome ? null : (game?.id ?? null);
+  let any = false;
+  $('#opt-play')
+    .querySelectorAll<HTMLElement>('[data-games]')
+    .forEach((row) => {
+      const on = id !== null && row.dataset.games!.split(' ').includes(id);
+      row.hidden = !on;
+      any ||= on;
+    });
+  $('#play-group').hidden = !any;
+  $('#play-title').textContent = id === 'hearts' ? 'Hearts' : 'Spider';
+}
 onSettings((s) => bunny.setEnabled(s.bunny));
+
+showHome();
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
