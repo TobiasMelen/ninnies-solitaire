@@ -22,11 +22,12 @@ import {
 } from './rules';
 
 const SAVE_KEY = 'ninnies.spite.save.v1';
-const PLAYERS = [
-  { name: 'You', emoji: '🙂' },
-  { name: 'Fox', emoji: '🦊' },
-];
-const LEVEL_NAME: Record<Level, string> = { easy: 'Easy', medium: 'Medium', hard: 'Hard' };
+/** Each difficulty is a different animal: Bear is easy, Fox medium, Owl hard. */
+export const FOES: Record<Level, { name: string; emoji: string }> = {
+  easy: { name: 'Bear', emoji: '🐻' },
+  medium: { name: 'Fox', emoji: '🦊' },
+  hard: { name: 'Owl', emoji: '🦉' },
+};
 
 interface Layout {
   W: number;
@@ -50,14 +51,18 @@ interface Layout {
   foe: SeatGeo;
 }
 
-/** The opponent's miniature: their goal pile then four piles, each fanning down toward you. */
+/**
+ * The opponent mirrors you across the table: their hand (fanned backs) along the top edge with
+ * their avatar beside it, then their goal pile (with its count) and four piles.
+ */
 interface SeatGeo {
   scale: number;
   /** Top-left of column `i` (0 = goal pile). */
   col: { x: number; y: number }[];
   fan: { dx: number; dy: number };
-  badge: { x: number; y: number };
-  arrow: { x: number; y: number; glyph: string };
+  avatar: { x: number; y: number };
+  count: { x: number; y: number };
+  arrow: { x: number; y: number };
   /** Their hand as a tight fan of card backs. */
   hand: { x: number; y: number; dx: number; scale: number };
   /** Where a hand card it's about to play is shown. */
@@ -113,7 +118,7 @@ export class SpiteGame implements GameController {
   private buildSlots: HTMLElement[] = [];
   private stockSlot: HTMLElement;
   private mySlots: { goal: HTMLElement; discards: HTMLElement[]; count: HTMLElement };
-  private foeEls: { badge: HTMLElement; goal: HTMLElement; discards: HTMLElement[] };
+  private foeEls: { avatar: HTMLElement; count: HTMLElement; goal: HTMLElement; discards: HTMLElement[] };
   private arrow: HTMLElement;
   private helpEl: HTMLElement;
 
@@ -130,10 +135,9 @@ export class SpiteGame implements GameController {
       discards: Array.from({ length: DISCARD_PILES }, (_, i) => this.el('slot spite-discard', { discard: i, player: 0 })),
       count: this.el('spite-count', {}),
     };
-    const badge = this.el('spite-foe', {});
-    badge.innerHTML = `<span class="emo">${PLAYERS[1].emoji}</span><b class="goal"></b><small class="level"></small>`;
     this.foeEls = {
-      badge,
+      avatar: this.el('spite-avatar', {}),
+      count: this.el('spite-count', {}),
       goal: this.el('slot spite-goal foe', { goal: 1 }),
       discards: Array.from({ length: DISCARD_PILES }, (_, i) => this.el('slot spite-discard foe', { discard: i, player: 1 })),
     };
@@ -162,7 +166,7 @@ export class SpiteGame implements GameController {
   static saved(): string | null {
     const s = store.get<SpiteState>(SAVE_KEY);
     if (!s || s.winner !== null || s.stalemate) return null;
-    return `Spite & Malice · ${LEVEL_NAME[s.level ?? 'easy']} · you ${s.seats[0].goal.length} left · ${PLAYERS[1].emoji} ${s.seats[1].goal.length}`;
+    return `Spite & Malice · you ${s.seats[0].goal.length} left · ${FOES[s.level ?? 'easy'].emoji} ${s.seats[1].goal.length}`;
   }
 
   /** The level of the saved (or current) game, for the start screen. */
@@ -170,9 +174,13 @@ export class SpiteGame implements GameController {
     return store.get<SpiteState>(SAVE_KEY)?.level ?? null;
   }
 
+  get foe() {
+    return FOES[this.level];
+  }
+
   status() {
     const s = this.state;
-    return `Spite & Malice · ${LEVEL_NAME[this.level]} · goal cards left: you ${s.seats[0].goal.length}, ${PLAYERS[1].emoji} ${s.seats[1].goal.length}`;
+    return `Spite & Malice · goal cards left: you ${s.seats[0].goal.length}, ${this.foe.emoji} ${s.seats[1].goal.length}`;
   }
 
   newGame(level: Level = this.level, seed = randomSeed()) {
@@ -372,11 +380,10 @@ export class SpiteGame implements GameController {
     const s = this.state;
     store.set(SAVE_KEY, null);
     const won = s.winner === 0;
-    const w = s.winner ?? 0;
     const result = {
-      title: s.stalemate ? 'Stalemate' : won ? 'You won!' : `${PLAYERS[w].emoji} ${PLAYERS[w].name} wins`,
-      line: `Spite & Malice · ${LEVEL_NAME[this.level]} · goal pile of ${s.options.goalSize}`,
-      stats: s.seats.map((seat, i) => ({ label: i === 0 ? 'You left' : `${PLAYERS[i].emoji} left`, value: String(seat.goal.length) })),
+      title: s.stalemate ? 'Stalemate' : won ? 'You won!' : `${this.foe.emoji} ${this.foe.name} wins`,
+      line: `Spite & Malice · goal pile of ${s.options.goalSize}`,
+      stats: s.seats.map((seat, i) => ({ label: i === 0 ? 'You left' : `${this.foe.emoji} left`, value: String(seat.goal.length) })),
       celebrate: won,
     };
     if (won) {
@@ -405,7 +412,7 @@ export class SpiteGame implements GameController {
     const s = this.state;
     if (!s) return;
     const stats: HudStat[] = s.seats.map((seat, i) => ({
-      label: i === 0 ? 'You' : PLAYERS[i].emoji,
+      label: i === 0 ? 'You' : this.foe.emoji,
       value: String(seat.goal.length),
       hot: s.turn === i && !this.starting,
     }));
@@ -435,7 +442,7 @@ export class SpiteGame implements GameController {
     if (!spot) return this.select(null);
     e.preventDefault();
     if (s.turn !== 0) {
-      this.hooks.toast(`${PLAYERS[s.turn].emoji} is playing…`);
+      this.hooks.toast(`${this.foe.emoji} is playing…`);
       return;
     }
     if (this.completing) return;
@@ -597,31 +604,41 @@ export class SpiteGame implements GameController {
     const handW = wide ? W - pad - handX : W - pad * 2;
     // Room above your piles for the Hint Bunny to peek over them.
     const bunnyRoom = wide ? 0 : Math.round(ch * 0.55);
-    const top = pad + 26; // under the opponents' badges
     const bottom = playerY - gap - bunnyRoom;
 
-    // The opponent sits across the top: a miniature of their goal pile and piles.
-    const scale = Math.min(wide ? 0.55 : 0.5, (W - pad * 2) / five);
+    // The opponent mirrors you: their hand along the top edge, then their goal pile and piles.
+    // Portrait has room for these at (nearly) full size; landscape keeps them smaller.
+    const handStrip = Math.round(ch * (wide ? 0.32 : 0.42));
+    const oppY = pad + handStrip;
+    const roomForRow = bottom - oppY - gap * 3 - ch;
+    const scale = wide ? Math.min(0.55, (W - pad * 2) / five) : Math.max(0.5, Math.min(1, roomForRow / (ch * 1.38)));
     const x0 = (W - five * scale) / 2;
     const w = cw * scale;
+    const handScale = wide ? scale * 0.8 : 0.5;
+    const hw = cw * handScale;
+    const fanW = hw * (1 + 4 * 0.42);
+    const fanX = (W - fanW) / 2;
     const foe: SeatGeo = {
       scale,
-      col: Array.from({ length: 5 }, (_, i) => ({ x: x0 + col(i) * scale, y: top })),
-      fan: { dx: 0, dy: ch * scale * 0.16 },
-      badge: { x: x0, y: pad },
-      arrow: { x: x0 + w * 0.5, y: top + ch * scale * 1.5, glyph: '▲' },
-      // Hand: a small fan of backs to the right of their piles; a card about to be played
-      // pops out just below it.
-      hand: { x: Math.min(W - pad - w * 2.4, x0 + five * scale + gap * 2), y: top, dx: w * 0.3, scale: scale * 0.75 },
-      lift: { x: Math.min(W - pad - w * 1.25, x0 + five * scale + gap * 2 + w * 0.3), y: top + ch * scale * 0.85 },
+      col: Array.from({ length: 5 }, (_, i) => ({ x: x0 + col(i) * scale, y: oppY })),
+      fan: { dx: 0, dy: ch * scale * 0.18 },
+      // Beside the hand fan in portrait; left of their (narrower) row in landscape.
+      avatar: wide ? { x: x0 - 48, y: oppY } : { x: fanX - 46, y: pad },
+      count: { x: x0 + w - 14, y: oppY - 8 },
+      arrow: wide ? { x: x0 - 29, y: oppY + 42 } : { x: fanX - 27, y: pad + 40 },
+      // Their hand peeks in from the top edge, like cards held across the table.
+      hand: { x: fanX, y: pad + handStrip - ch * handScale - 4, dx: hw * 0.42, scale: handScale },
+      // A hand card about to be played drops out of the fan first.
+      lift: { x: W / 2 - w / 2, y: oppY + ch * scale * 0.15 },
     };
-    const northBottom = top + ch * scale * 1.45;
+    const northBottom = oppY + ch * scale * 1.38;
 
     // The shared row sits in the middle of what's left.
     const centerScale = 1;
     const cLeft = wide ? left : (W - five) / 2;
     const centerX = Array.from({ length: 5 }, (_, i) => cLeft + col(i) * centerScale);
-    const centerY = Math.round(northBottom + Math.max(gap * 2, (bottom - northBottom - ch * centerScale) / 2));
+    // Centred between the opponent's row and yours, so drags from your side stay short.
+    const centerY = Math.round(northBottom + Math.max(gap * 2, (playerY - northBottom - ch) / 2));
 
     this.L = { W, H, cw, ch, colX, wide, handX, handW, handY, raise, centerY, playerY, fanRoom, centerX, centerScale, foe };
     this.root.style.setProperty('--cw', `${cw}px`);
@@ -639,7 +656,8 @@ export class SpiteGame implements GameController {
     at(this.mySlots.goal, colX[0], playerY);
     this.mySlots.discards.forEach((el, i) => at(el, colX[i + 1], playerY));
     at(this.mySlots.count, colX[0] + cw - 14, playerY - 8);
-    at(this.foeEls.badge, foe.badge.x, foe.badge.y);
+    at(this.foeEls.avatar, foe.avatar.x, foe.avatar.y);
+    at(this.foeEls.count, foe.count.x, foe.count.y);
     at(this.foeEls.goal, foe.col[0].x, foe.col[0].y, foe.scale);
     this.foeEls.discards.forEach((el, d) => at(el, foe.col[d + 1].x, foe.col[d + 1].y, foe.scale));
     at(this.helpEl, wide ? handX + handW / 2 : W / 2, playerY - gap - 2);
@@ -717,14 +735,13 @@ export class SpiteGame implements GameController {
         put(c, { at: 'stock' }, { x: g.lift.x, y: g.lift.y, z: 2000, faceUp: true, scale: g.scale * 1.2 });
       } else {
         const off = foeCards > 1 ? i - (foeCards - 1) / 2 : 0;
-        const rise = L.ch * g.hand.scale * 0.06;
-        put(c, { at: 'stock' }, { x: g.hand.x + i * g.hand.dx, y: g.hand.y + (4 - off * off) * rise, z: 1100 + i, faceUp: false, scale: g.hand.scale, rotate: -off * 9 });
+        const dip = L.ch * g.hand.scale * 0.05;
+        put(c, { at: 'stock' }, { x: g.hand.x + i * g.hand.dx, y: g.hand.y - off * off * dip, z: 1100 + i, faceUp: false, scale: g.hand.scale, rotate: -off * 8 });
       }
     });
-    const badge = this.foeEls.badge;
-    badge.querySelector('.goal')!.textContent = String(foe.goal.length);
-    badge.querySelector('.level')!.textContent = LEVEL_NAME[this.level];
-    badge.classList.toggle('turn', s.turn === 1 && !this.starting);
+    this.foeEls.avatar.textContent = this.foe.emoji;
+    this.foeEls.avatar.classList.toggle('turn', s.turn === 1 && !this.starting);
+    this.foeEls.count.textContent = String(foe.goal.length);
     // A goal or pile card an opponent is about to play glows where it lies.
     if (this.foeLift !== null) this.layer.els.get(this.foeLift)?.classList.add('picked');
 
@@ -778,7 +795,7 @@ export class SpiteGame implements GameController {
     } else {
       // Under the opponent's miniature, pointing up at them.
       const a = L.foe.arrow;
-      this.arrow.textContent = a.glyph;
+      this.arrow.textContent = '▲';
       this.arrow.style.transform = `translate(${a.x}px, ${a.y}px)`;
       this.arrow.classList.add('foe');
     }
