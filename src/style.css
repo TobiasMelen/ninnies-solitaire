@@ -987,8 +987,13 @@ body {
   margin-right: 2px;
 }
 .spite-foe small {
-  font: 600 12px system-ui, sans-serif;
-  opacity: 0.8;
+  display: none;
+}
+.spite-foe[hidden] {
+  display: none;
+}
+.spite-foe.right {
+  translate: -100% 0;
 }
 .spite-foe.turn {
   background: rgba(0, 0, 0, 0.55);
@@ -1014,6 +1019,22 @@ body {
 }
 .spite-arrow.foe {
   animation-name: arrow-bob-up;
+}
+.spite-arrow[data-dir='left'] {
+  animation-name: arrow-bob-left;
+}
+.spite-arrow[data-dir='right'] {
+  animation-name: arrow-bob-right;
+}
+@keyframes arrow-bob-left {
+  50% {
+    translate: calc(-50% - 6px) 0;
+  }
+}
+@keyframes arrow-bob-right {
+  50% {
+    translate: calc(-50% + 6px) 0;
+  }
 }
 @keyframes arrow-bob {
   50% {
@@ -1112,9 +1133,12 @@ body {
   translate: 0 40%;
 }
 /* In Hearts it sits behind the player's hand, peeking over it. */
-#board:has(.hearts-root:not([hidden])) .bunny,
-#board:has(.spite-root:not([hidden])) .bunny {
+#board:has(.hearts-root:not([hidden])) .bunny {
   z-index: 500;
+}
+/* In Spite & Malice it peeks over your piles (their cards cover its lower half). */
+#board:has(.spite-root:not([hidden])) .bunny {
+  z-index: 150;
 }
 /* Out of the way while cards are being dragged. */
 #board:has(.is-dragging) .bunny {
@@ -1357,6 +1381,9 @@ body {
 .tool:active {
   scale: 0.92;
   background: rgba(255, 255, 255, 0.16);
+}
+.tool[hidden] {
+  display: none;
 }
 .tool:disabled {
   opacity: 0.35;

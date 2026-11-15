@@ -465,7 +465,11 @@ function syncPlaySettings(fromHome = homeOpen()) {
   $('#play-group').hidden = !any;
   $('#play-title').textContent = id === 'hearts' ? 'Hearts' : id === 'spite' ? 'Spite & Malice' : 'Spider';
 }
-onSettings((s) => bunny.setEnabled(s.bunny));
+onSettings((s) => {
+  bunny.setEnabled(s.bunny);
+  // The Hint Bunny is the hint button (tap it); keep the toolbar button only without it.
+  $('#btn-hint').hidden = s.bunny;
+});
 
 showHome();
 
