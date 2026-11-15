@@ -40,6 +40,8 @@ interface Layout {
   oppFan: number;
   centerY: number;
   playerY: number;
+  /** Room below your piles for their fans (above the hand in portrait). */
+  fanRoom: number;
   fan: number;
   handY: number;
   raise: number;
@@ -68,6 +70,10 @@ export class SpiteGame implements GameController {
   private timer = 0;
   private paused = true;
   private cascade: Cascade | null = null;
+  /** The opening deal is still on screen: no taps, and Fox waits. */
+  private starting = false;
+  /** One-off per-card delays for the next render (the opening deal). */
+  private delays: Map<number, number> | null = null;
 
   private buildSlots: HTMLElement[] = [];
   private discardSlots: HTMLElement[][] = [[], []];
@@ -126,7 +132,6 @@ export class SpiteGame implements GameController {
     this.save();
     this.dealIn();
     this.hooks.event?.('start');
-    this.step();
   }
 
   restart() {
@@ -228,7 +233,7 @@ export class SpiteGame implements GameController {
   private step() {
     clearTimeout(this.timer);
     const s = this.state;
-    if (!s || this.paused || this.cascade) return;
+    if (!s || this.paused || this.cascade || this.starting) return;
     this.emitHud();
     this.render();
     if (s.winner !== null || s.stalemate) return this.finish();
@@ -315,7 +320,7 @@ export class SpiteGame implements GameController {
   private onDown(e: PointerEvent) {
     unlockAudio();
     const s = this.state;
-    if (!s || this.cascade || s.winner !== null) return;
+    if (!s || this.cascade || s.winner !== null || this.starting) return;
     const t = e.target as HTMLElement;
     const cardEl = t.closest<HTMLElement>('.card');
     const slotEl = t.closest<HTMLElement>('[data-build],[data-discard],[data-goal],[data-stock]');
@@ -402,20 +407,23 @@ export class SpiteGame implements GameController {
     // your piles, so it fits ten cards across and three rows plus fans.
     const cw = Math.floor(
       wide
-        ? Math.min((W - pad * 2 - gap * 10) / 10.6, (H - pad * 2 - gap * 4) / (3.75 * 1.4), 120)
-        : Math.min((W - pad * 2 - gap * 4) / 5, (H - pad * 2 - gap * 5) / (4.9 * 1.4), 120),
+        ? Math.min((W - pad * 2 - gap * 10) / 10.6, (H - pad * 2 - gap * 4) / (3.8 * 1.4), 120)
+        : Math.min((W - pad * 2 - gap * 4) / 5, (H - pad * 2 - gap * 5) / (5.3 * 1.4), 120),
     );
     const ch = Math.round(cw * 1.4);
     const five = cw * 5 + gap * 4;
     const left = wide ? Math.round(pad + gap) : Math.round((W - five) / 2);
     const colX = Array.from({ length: 5 }, (_, i) => left + i * (cw + gap));
+    // Fox's piles hug the top edge, yours sit just above your hand, and the shared piles
+    // (draw pile + centre piles) sit in the middle between the two.
     const oppRow = ch * oppScale * 1.75;
     const oppY = pad;
-    const centerY = Math.round(oppY + oppRow + gap * 1.5);
-    const playerY = Math.round(centerY + ch + gap * 1.5);
     const raise = Math.round(ch * 0.18);
-    const handY = wide ? playerY + raise : H - pad - ch;
-    const fanRoom = wide ? H - pad - playerY - ch : Math.max(0, handY - raise - gap - playerY - ch);
+    const fanRoom = Math.round(ch * (wide ? 0.55 : 0.85));
+    const handY = wide ? H - pad - ch - fanRoom + raise : H - pad - ch;
+    const playerY = Math.round(wide ? handY - raise : handY - raise - gap - fanRoom - ch);
+    const between = playerY - (oppY + oppRow);
+    const centerY = Math.round(oppY + oppRow + Math.max(gap, (between - ch) / 2));
     const handX = wide ? left + five + gap * 3 : pad;
     const handW = wide ? W - pad - handX : W - pad * 2;
     this.L = {
@@ -432,6 +440,7 @@ export class SpiteGame implements GameController {
       oppFan: ch * oppScale * 0.18,
       centerY,
       playerY,
+      fanRoom,
       fan: Math.min(ch * 0.24, fanRoom / 6),
       handY,
       raise,
@@ -468,10 +477,12 @@ export class SpiteGame implements GameController {
     if (!this.L) return;
     const L = this.L;
     this.where.clear();
+    const delays = this.delays;
+    this.delays = null;
     const put = (card: SpiteCard, spot: Spot, p: Placement) => {
       this.where.set(card.id, spot);
       this.layer.sync(card);
-      this.layer.place(card.id, p, animate);
+      this.layer.place(card.id, { ...p, delay: delays?.get(card.id) ?? 0 }, animate);
       const el = this.layer.els.get(card.id)!;
       el.classList.remove('picked', 'can-play');
       delete el.dataset.as;
@@ -499,8 +510,7 @@ export class SpiteGame implements GameController {
     for (const p of [0, 1] as Player[]) {
       s.seats[p].discards.forEach((pile, d) => {
         const n = pile.length;
-        const room = L.wide ? L.H - 10 - L.playerY - L.ch : L.handY - L.raise - 8 - L.playerY - L.ch;
-        const step = p === 0 ? Math.min(L.ch * 0.24, n > 1 ? room / (n - 1) : L.fan) : L.oppFan;
+        const step = p === 0 ? Math.min(L.ch * 0.24, n > 1 ? L.fanRoom / (n - 1) : L.fan) : L.oppFan;
         pile.forEach((c, i) => {
           const x = p === 0 ? L.colX[d + 1] : ox(d + 1);
           const y = (p === 0 ? L.playerY : L.oppY) + i * Math.max(4, step);
@@ -556,16 +566,47 @@ export class SpiteGame implements GameController {
     return all.filter((src) => s.builds.some((_, b) => canBuild(s, 0, src, b)));
   }
 
+  /**
+   * Opening deal: goal piles go out one card at a time, alternating between the players, then
+   * the starting player's hand; a beat shows who starts before anyone can play.
+   */
   private dealIn() {
     if (!this.L) this.relayout();
     if (!this.L) return;
-    const all = [...this.state.stock, ...this.state.seats.flatMap((x) => [...x.goal, ...x.hand])];
+    const s = this.state;
+    const all = [...s.stock, ...s.seats.flatMap((x) => [...x.goal, ...x.hand])];
     for (const c of all) {
       this.layer.sync(c);
       this.layer.place(c.id, { x: this.L.colX[0], y: this.L.centerY, z: 10, faceUp: false }, false);
     }
     void this.root.offsetWidth;
-    for (let i = 0; i < 12; i++) sfx.deal(i * 0.05);
+    const step = 26;
+    const delays = new Map<number, number>();
+    let t = 0;
+    for (let i = 0; i < s.options.goalSize; i++)
+      for (const p of [0, 1] as Player[]) {
+        delays.set(s.seats[p].goal[i].id, t);
+        t += step;
+      }
+    t += 150;
+    for (const c of s.seats[s.turn].hand) {
+      delays.set(c.id, t);
+      t += 90;
+    }
+    for (let k = 0; k < t; k += 120) sfx.deal(k / 1000);
+    this.starting = true;
+    this.delays = delays;
+    this.render();
+    this.statusEl.textContent = '';
+    window.setTimeout(() => {
+      this.statusEl.textContent = s.turn === 0 ? 'You start' : `${FOE.emoji} starts`;
+      this.statusEl.classList.toggle('mine', s.turn === 0);
+      this.foeBadge.classList.toggle('turn', s.turn === 1);
+    }, t + 300);
+    window.setTimeout(() => {
+      this.starting = false;
+      this.step();
+    }, t + 1300);
   }
 
   private celebrate(onDone: () => void) {
