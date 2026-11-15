@@ -39,25 +39,10 @@ for (const d of [dlgSettings, dlgWin, dlgStuck, dlgMenu]) {
   });
 }
 
-// Installed on iOS (standalone), the reported viewport can be short by the status bar's
-// height, which leaves the toolbar floating above the bottom of the screen. Fill the real screen.
+// Installed as an app (standalone). Used only for the layout diagnostics below; an earlier
+// attempt to resize the app to the full screen height clipped the toolbar on iOS.
 const standalone =
   matchMedia('(display-mode: standalone)').matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
-function fitStandalone() {
-  if (!standalone) return;
-  const app = $('#app');
-  const portrait = innerHeight >= innerWidth;
-  const full = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
-  if (full > innerHeight + 1) {
-    app.style.bottom = 'auto';
-    app.style.height = `${full}px`;
-  } else {
-    app.style.bottom = '';
-    app.style.height = '';
-  }
-}
-fitStandalone();
-addEventListener('resize', fitStandalone);
 
 // Temporary: layout numbers for debugging the installed app (shown on the start screen).
 function layoutDiag() {
@@ -88,7 +73,6 @@ function layoutDiag() {
 }
 addEventListener('resize', layoutDiag);
 setTimeout(layoutDiag, 500);
-addEventListener('orientationchange', () => setTimeout(fitStandalone, 300));
 
 // iOS only lets audio start from certain gestures, so try on every kind of tap.
 for (const type of ['pointerdown', 'touchend', 'click', 'keydown']) {
