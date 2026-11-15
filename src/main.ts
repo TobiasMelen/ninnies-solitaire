@@ -4,6 +4,8 @@ import { HeartsGame } from './games/hearts/HeartsGame';
 import { SpiderGame } from './games/spider/SpiderGame';
 import type { Level } from './games/spite/ai';
 import { SpiteGame } from './games/spite/SpiteGame';
+import { MinesGame } from './games/mines/MinesGame';
+import type { MinesLevel } from './games/mines/rules';
 import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
@@ -87,8 +89,14 @@ for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
 
 // ───────── games ─────────
 
-type AnyGame = SpiderGame | HeartsGame | SpiteGame;
-type GameOf<T extends GameId> = T extends 'spider' ? SpiderGame : T extends 'hearts' ? HeartsGame : SpiteGame;
+type AnyGame = SpiderGame | HeartsGame | SpiteGame | MinesGame;
+type GameOf<T extends GameId> = T extends 'spider'
+  ? SpiderGame
+  : T extends 'hearts'
+    ? HeartsGame
+    : T extends 'spite'
+      ? SpiteGame
+      : MinesGame;
 const LAST_KEY = 'ninnies.lastGame';
 
 const bunny = new Bunny(board);
@@ -139,7 +147,14 @@ function getGame(id: GameId): AnyGame {
     layer.className = 'game-root';
     board.prepend(layer);
     const hooks = hooksFor(id);
-    g = id === 'spider' ? new SpiderGame(layer, hooks) : id === 'hearts' ? new HeartsGame(layer, hooks) : new SpiteGame(layer, hooks);
+    g =
+      id === 'spider'
+        ? new SpiderGame(layer, hooks)
+        : id === 'hearts'
+          ? new HeartsGame(layer, hooks)
+          : id === 'spite'
+            ? new SpiteGame(layer, hooks)
+            : new MinesGame(layer, hooks);
     games[id] = g;
   }
   return g;
@@ -171,6 +186,7 @@ const homeOpen = () => !home.classList.contains('hidden');
 function savedSummary(id: GameId): string | null {
   if (id === 'hearts') return HeartsGame.saved();
   if (id === 'spite') return SpiteGame.saved();
+  if (id === 'mines') return MinesGame.saved();
   const s = SpiderGame.saved();
   return s ? `Spider · ${s.suitCount} suit${s.suitCount > 1 ? 's' : ''} · ${s.moves} moves · ${fmtTime(s.ms)}` : null;
 }
@@ -187,6 +203,8 @@ function showHome() {
   home.querySelectorAll<HTMLElement>('[data-suits]').forEach((b) => b.classList.toggle('current', Number(b.dataset.suits) === suits));
   const level = SpiteGame.savedLevel();
   home.querySelectorAll<HTMLElement>('[data-level]').forEach((b) => b.classList.toggle('current', b.dataset.level === level));
+  const field = MinesGame.savedLevel();
+  home.querySelectorAll<HTMLElement>('[data-mines]').forEach((b) => b.classList.toggle('current', b.dataset.mines === field));
   home.classList.remove('hidden');
   home.scrollTop = 0;
 }
@@ -232,6 +250,14 @@ home.querySelectorAll<HTMLElement>('[data-level]').forEach((btn) =>
     const g = switchTo('spite');
     hideHome();
     g.newGame(btn.dataset.level as Level);
+    g.unpause();
+  }),
+);
+home.querySelectorAll<HTMLElement>('[data-mines]').forEach((btn) =>
+  btn.addEventListener('click', () => {
+    const g = switchTo('mines');
+    hideHome();
+    g.newGame(btn.dataset.mines as MinesLevel);
     g.unpause();
   }),
 );
@@ -466,7 +492,7 @@ function syncPlaySettings(fromHome = homeOpen()) {
       any ||= on;
     });
   $('#play-group').hidden = !any;
-  $('#play-title').textContent = id === 'hearts' ? 'Hearts' : id === 'spite' ? 'Spite & Malice' : 'Spider';
+  $('#play-title').textContent = id === 'hearts' ? 'Hearts' : id === 'spite' ? 'Spite & Malice' : id === 'mines' ? 'Minesweeper' : 'Spider';
 }
 onSettings((s) => {
   bunny.setEnabled(s.bunny);
