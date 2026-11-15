@@ -153,6 +153,31 @@ body {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/*
+ * Installed on iOS (standalone, viewport-fit=cover, black-translucent status bar), 100%,
+ * 100vh, 100svh and 100dvh all come out short by the top safe area, leaving a dead band at the
+ * bottom; only 100lvh reports the full screen (WebKit bug 301108). Size the app explicitly,
+ * capped so nothing scrolls when the inset is 0. Browser tabs keep the plain inset: 0.
+ */
+@media (display-mode: standalone) {
+  html,
+  body,
+  #app {
+    height: min(100lvh, calc(100vh + env(safe-area-inset-top)));
+  }
+  #app {
+    bottom: auto;
+  }
+}
+html.standalone,
+html.standalone body,
+html.standalone #app {
+  height: min(100lvh, calc(100vh + env(safe-area-inset-top)));
+}
+html.standalone #app {
+  bottom: auto;
+}
+
 #board {
   position: relative;
   overflow: hidden;

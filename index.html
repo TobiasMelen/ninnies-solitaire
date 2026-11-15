@@ -10,6 +10,7 @@
       try {
         var t = (JSON.parse(localStorage.getItem('ninnies.settings.v1') || '{}').table) || 'felt';
         document.documentElement.dataset.table = t;
+        if (navigator.standalone || matchMedia('(display-mode: standalone)').matches) document.documentElement.classList.add('standalone');
         var c = localStorage.getItem('ninnies.tableColor');
         if (c) {
           document.documentElement.style.backgroundColor = c;
