@@ -292,11 +292,10 @@ export class SpiderGame {
     const ids = this.state.columns[from].slice(index).map((c) => c.id);
     const flipped = this.commit({ t: 'move', from, index, to });
     this.render({ delay: (id) => (fromDrag ? 0 : Math.max(0, ids.indexOf(id)) * 18) });
-    sfx.place();
+    if (fromDrag) sfx.drop();
+    else sfx.move(ids.length);
     haptic(8);
-    if (flipped.length) {
-      sfx.flip(0.14);
-    }
+    if (flipped.length) sfx.flip(fromDrag ? 0.12 : 0.3);
     this.settleLater(fromDrag ? 200 : 260 + ids.length * 18);
   }
 
@@ -554,7 +553,7 @@ export class SpiderGame {
     const order = new Map<number, number>();
     s.columns.forEach((col, c) => col.forEach((card, r) => order.set(card.id, (r * COLUMNS + c) * step)));
     this.render({ delay: (id) => order.get(id) ?? 0 });
-    if (step) for (let i = 0; i < 54; i += 2) sfx.deal((i * step) / 1000);
+    if (step) for (let i = 0; i < 54; i += 3) sfx.deal((i * step) / 1000);
   }
 
   // ───────────────────────── input ─────────────────────────

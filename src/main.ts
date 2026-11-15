@@ -74,7 +74,10 @@ $('#btn-new').addEventListener('click', () => {
   );
   open(dlgNew);
 });
-document.addEventListener('pointerdown', unlockAudio, { capture: true });
+// iOS only lets audio start from certain gestures, so try on every kind of tap.
+for (const type of ['pointerdown', 'touchend', 'click', 'keydown']) {
+  document.addEventListener(type, unlockAudio, { capture: true });
+}
 
 // iOS Safari ignores user-scalable=no; block pinch and double-tap zoom explicitly.
 for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
