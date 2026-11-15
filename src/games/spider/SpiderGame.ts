@@ -348,10 +348,12 @@ export class SpiderGame {
     const ids = this.state.columns[from].slice(index).map((c) => c.id);
     const flipped = this.commit({ t: 'move', from, index, to });
     this.render({ delay: (id) => (fromDrag ? 0 : Math.max(0, ids.indexOf(id)) * 18) });
+    // Cards look settled at ~65% of the slide (the easing front-loads the motion).
+    const landAt = ((this.fast ? 170 : 280) * 0.65) / 1000;
     if (fromDrag) sfx.drop();
-    else sfx.move(ids.length);
+    else sfx.move(ids.length, landAt);
     haptic(8);
-    if (flipped.length) sfx.flip(fromDrag ? 0.12 : 0.3);
+    if (flipped.length) sfx.flip(fromDrag ? 0.1 : landAt + 0.05);
     this.settleLater(fromDrag ? 200 : 260 + ids.length * 18);
   }
 

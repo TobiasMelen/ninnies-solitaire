@@ -1,5 +1,5 @@
 import cardTakeUrl from '../assets/sounds/card-take.mp3?url';
-import { settings } from './settings';
+import { onSettings, settings } from './settings';
 
 // Everything is synthesised with WebAudio so there are no audio assets to load.
 let ctx: AudioContext | null = null;
@@ -30,6 +30,19 @@ export function unlockAudio() {
       warm.Q.value = 0.5;
       master.connect(warm).connect(comp).connect(ctx.destination);
       out = master;
+      // iOS powers the audio output down after a few seconds of silence, and waking it adds
+      // 100–300 ms to the next sound. An inaudible tone keeps it awake while we're on screen.
+      const keepAlive = ctx.createOscillator();
+      const hush = ctx.createGain();
+      keepAlive.frequency.value = 40;
+      hush.gain.value = 0.00004;
+      keepAlive.connect(hush).connect(ctx.destination);
+      keepAlive.start();
+      const a = ctx;
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) void a.suspend();
+        else if (settings.sound) void a.resume();
+      });
       noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const d = noise.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -56,6 +69,11 @@ export function unlockAudio() {
     ctx = null;
   }
 }
+
+// With sound off, pause the engine entirely (including the keep-alive) to save battery.
+onSettings((s) => {
+  if (!s.sound && ctx && ctx.state === 'running') void ctx.suspend();
+});
 
 export const audioState = () => ctx?.state ?? 'none';
 
@@ -234,10 +252,11 @@ export const sfx = {
   /** Dropped where the finger let go: barely any travel, just the landing. */
   drop: () => land(0.02),
   /** Card sweeping across the table, landing when the animation does. */
-  move: (cards = 1) => {
+  /** `landAt`: seconds until the card visibly arrives, so the landing lines up with the animation. */
+  move: (cards = 1, landAt = 0.18) => {
     // Same recording as the deal (that one sounds right), then a soft version of the drop.
-    if (!sample(0.42, 0, 1, { lowpass: 1900 })) swoosh(0.24, 0.08);
-    land(0.26, Math.min(0.7, 0.45 + cards * 0.03));
+    if (!sample(0.42, 0, 1, { lowpass: 1900 })) swoosh(landAt, 0.08);
+    land(landAt, Math.min(0.7, 0.45 + cards * 0.03));
   },
   /** A face-down card turning over: a soft double flick. */
   flip: (when = 0) => {
