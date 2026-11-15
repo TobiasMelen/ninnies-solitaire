@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no" />
     <meta name="google" content="notranslate" />
     <meta name="theme-color" content="#0c3b26" />
+    <script>
+      // Apply the saved table before first paint so an installed app never flashes the default green.
+      try {
+        var t = (JSON.parse(localStorage.getItem('ninnies.settings.v1') || '{}').table) || 'felt';
+        document.documentElement.dataset.table = t;
+        var c = localStorage.getItem('ninnies.tableColor');
+        if (c) {
+          document.documentElement.style.backgroundColor = c;
+          document.querySelector('meta[name=theme-color]').setAttribute('content', c);
+        }
+      } catch (e) {}
+    </script>
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -19,13 +31,9 @@
     <div id="app">
       <main id="board" aria-label="Spider Solitaire table"></main>
       <nav id="toolbar" aria-label="Game controls">
-        <button id="btn-home" class="tool" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+        <button id="btn-menu" class="tool" type="button" aria-haspopup="dialog">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
           <span>Menu</span>
-        </button>
-        <button id="btn-settings" class="tool" type="button">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
-          <span>Settings</span>
         </button>
         <div id="stats" aria-live="off">
           <div><b id="stat-score">500</b><small>Score</small></div>
@@ -99,22 +107,50 @@
 
     <dialog id="dlg-settings" class="sheet">
       <form method="dialog">
+        <div class="grab" aria-hidden="true"></div>
         <div class="sheet-head">
           <h2>Settings</h2>
           <button value="close" class="icon-btn" aria-label="Close">✕</button>
         </div>
-        <h3>Cards</h3>
-        <div class="swatches" id="opt-deck"></div>
-        <h3>Court cards</h3>
-        <div class="swatches" id="opt-courts"></div>
-        <h3>Card back</h3>
-        <div class="swatches" id="opt-back"></div>
-        <h3>Table</h3>
-        <div class="swatches" id="opt-table"></div>
-        <h3>Play</h3>
-        <div class="toggles" id="opt-toggles"></div>
-        <button type="button" id="btn-preview-win" class="btn preview-btn">🏆 Preview win animation</button>
+
+        <section class="group">
+          <h3>Look</h3>
+          <h4>Cards</h4>
+          <div class="swatches" id="opt-deck"></div>
+          <h4>Court cards</h4>
+          <div class="swatches" id="opt-courts"></div>
+          <h4>Card back</h4>
+          <div class="swatches" id="opt-back"></div>
+          <h4>Table</h4>
+          <div class="swatches" id="opt-table"></div>
+        </section>
+
+        <section class="group">
+          <h3>Play</h3>
+          <div class="toggles" id="opt-play"></div>
+        </section>
+
+        <section class="group">
+          <h3>Sound &amp; feel</h3>
+          <div class="toggles" id="opt-feel"></div>
+          <button type="button" id="btn-preview-win" class="btn preview-btn">🏆 Preview win animation</button>
+        </section>
+
         <p class="muted foot">Your game is saved on this device automatically.</p>
+      </form>
+    </dialog>
+
+    <dialog id="dlg-menu" class="sheet">
+      <form method="dialog">
+        <div class="grab" aria-hidden="true"></div>
+        <h2>Paused</h2>
+        <p id="menu-line" class="muted"></p>
+        <div class="menu-list">
+          <button value="resume" class="btn primary">Keep playing</button>
+          <button value="restart" class="btn">Restart this deal</button>
+          <button value="settings" class="btn">Settings</button>
+          <button value="home" class="btn ghost">Main menu</button>
+        </div>
       </form>
     </dialog>
 
@@ -126,7 +162,7 @@
         <div class="win-stats" id="win-stats"></div>
         <div class="actions">
           <button value="new" class="btn primary">Deal again</button>
-          <button value="home" class="btn">Menu</button>
+          <button value="home" class="btn">Main menu</button>
           <button value="close" class="btn ghost">Admire the table</button>
         </div>
       </form>

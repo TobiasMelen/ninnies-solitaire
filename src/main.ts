@@ -12,6 +12,7 @@ const toastEl = $('#toast');
 const dlgSettings = $<HTMLDialogElement>('#dlg-settings');
 const dlgWin = $<HTMLDialogElement>('#dlg-win');
 const dlgStuck = $<HTMLDialogElement>('#dlg-stuck');
+const dlgMenu = $<HTMLDialogElement>('#dlg-menu');
 
 const fmtTime = (ms: number) => {
   const s = Math.floor(ms / 1000);
@@ -34,7 +35,7 @@ function open(d: HTMLDialogElement) {
 }
 
 // Tapping the dimmed backdrop closes a sheet.
-for (const d of [dlgSettings, dlgWin, dlgStuck]) {
+for (const d of [dlgSettings, dlgWin, dlgStuck, dlgMenu]) {
   d.addEventListener('click', (e) => {
     if (e.target === d) d.close('close');
   });
@@ -54,6 +55,7 @@ for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
 
 const hooks: GameHooks = {
   hud(h) {
+    lastHud = h;
     $('#stat-score').textContent = String(h.score);
     $('#stat-moves').textContent = String(h.moves);
     $('#stat-time').textContent = fmtTime(h.ms);
@@ -74,6 +76,8 @@ const hooks: GameHooks = {
     open(dlgStuck);
   },
 };
+
+let lastHud: Parameters<GameHooks['hud']>[0] | null = null;
 
 // Created on first play so the table stays empty behind the start screen.
 let game: SpiderGame | null = null;
@@ -162,8 +166,41 @@ $('#home-reload').addEventListener('click', async () => {
 
 $('#btn-undo').addEventListener('click', () => game?.undo());
 $('#btn-hint').addEventListener('click', () => game?.hint());
-$('#btn-settings').addEventListener('click', () => open(dlgSettings));
-$('#btn-home').addEventListener('click', showHome);
+
+// ───────── pause menu ─────────
+
+/** Settings opened from the pause menu return to it when closed. */
+let settingsFromMenu = false;
+
+function openMenu() {
+  if (!game?.active) return;
+  game.pause();
+  if (lastHud) {
+    const h = lastHud;
+    $('#menu-line').textContent =
+      `Spider · ${h.suitCount} suit${h.suitCount > 1 ? 's' : ''} · ${h.moves} moves · ${fmtTime(h.ms)}`;
+  }
+  open(dlgMenu);
+}
+
+$('#btn-menu').addEventListener('click', openMenu);
+dlgMenu.addEventListener('close', () => {
+  const v = dlgMenu.returnValue;
+  dlgMenu.returnValue = '';
+  if (v === 'home') return showHome();
+  if (v === 'settings') {
+    settingsFromMenu = true;
+    return open(dlgSettings);
+  }
+  if (v === 'restart') game?.restart();
+  game?.unpause();
+});
+dlgSettings.addEventListener('close', () => {
+  if (settingsFromMenu) {
+    settingsFromMenu = false;
+    open(dlgMenu);
+  }
+});
 
 dlgWin.addEventListener('close', () => {
   if (dlgWin.returnValue === 'new' && game) game.newGame(game.suitCount);
@@ -182,7 +219,7 @@ document.addEventListener('keydown', (e) => {
   } else if (!e.metaKey && !e.ctrlKey) {
     if (e.key === 'h') game.hint();
     if (e.key === 'd' || e.key === ' ') game.deal();
-    if (e.key === 'n' || e.key === 'Escape') showHome();
+    if (e.key === 'Escape' || e.key === 'm') openMenu();
   }
 });
 
@@ -225,18 +262,21 @@ swatches('courts', COURTS, (id) =>
 swatches('back', BACKS, (id) => `<span class="mini-back" data-back="${id}"></span>`);
 swatches('table', TABLES, (id) => `<span class="mini-table" data-table="${id}"></span>`);
 
-const TOGGLES: { key: keyof Settings; label: string; hint: string; show?: () => boolean; needs?: keyof Settings }[] = [
-  { key: 'noMovesAlert', label: 'Tell me when I’m stuck', hint: 'Only when nothing can be moved or dealt; use Hint otherwise' },
-  { key: 'tapToMove', label: 'Tap to move', hint: 'Double-tap a card to send it to the best spot' },
-  { key: 'singleTap', label: 'Single tap is enough', hint: 'Move with one tap instead of two', needs: 'tapToMove' },
-  { key: 'dimLocked', label: 'Shade cards that can’t move', hint: 'Only the movable run in each column stays bright white' },
-  { key: 'dealWithEmpty', label: 'Deal with empty columns', hint: 'Off follows the classic rule: fill every column before dealing' },
-  { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging' },
-  { key: 'sound', label: 'Sound', hint: '' },
-  { key: 'haptics', label: 'Vibration', hint: '', show: canVibrate },
+type Toggle = { key: keyof Settings; label: string; hint: string; group: 'play' | 'feel'; show?: () => boolean; needs?: keyof Settings };
+const TOGGLES: Toggle[] = [
+  { key: 'noMovesAlert', label: 'Tell me when I’m stuck', hint: 'Only when nothing can be moved or dealt; use Hint otherwise', group: 'play' },
+  { key: 'tapToMove', label: 'Tap to move', hint: 'Double-tap a card to send it to the best spot', group: 'play' },
+  { key: 'singleTap', label: 'Single tap is enough', hint: 'Move with one tap instead of two', group: 'play', needs: 'tapToMove' },
+  { key: 'dimLocked', label: 'Shade cards that can’t move', hint: 'Only the movable run in each column stays bright white', group: 'play' },
+  { key: 'dealWithEmpty', label: 'Deal with empty columns', hint: 'Off follows the classic rule: fill every column before dealing', group: 'play' },
+  { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging', group: 'play' },
+  { key: 'sound', label: 'Sound', hint: '', group: 'feel' },
+  { key: 'haptics', label: 'Vibration', hint: '', group: 'feel', show: canVibrate },
 ];
 
-$('#opt-toggles').innerHTML = TOGGLES.filter((t) => !t.show || t.show())
+const toggleRoots = [$('#opt-play'), $('#opt-feel')];
+for (const group of ['play', 'feel'] as const) {
+  $(`#opt-${group}`).innerHTML = TOGGLES.filter((t) => t.group === group && (!t.show || t.show()))
   .map(
     (t) => `<label class="toggle${t.needs ? ' sub' : ''}" ${t.needs ? `data-needs="${t.needs}"` : ''}>
       <span><b>${t.label}</b>${t.hint ? `<small>${t.hint}</small>` : ''}</span>
@@ -244,8 +284,10 @@ $('#opt-toggles').innerHTML = TOGGLES.filter((t) => !t.show || t.show())
     </label>`,
   )
   .join('');
-$('#opt-toggles').addEventListener('change', (e) => {
+}
+$('#dlg-settings').addEventListener('change', (e) => {
   const input = e.target as HTMLInputElement;
+  if (!input.dataset.k) return;
   updateSettings({ [input.dataset.k!]: input.checked } as Partial<Settings>);
   // Audible confirmation that sound works (this runs inside the tap, so iOS allows it).
   if (input.dataset.k === 'sound' && input.checked) sfx.move();
@@ -260,21 +302,32 @@ const TABLE_COLOR: Record<string, string> = {
 };
 
 onSettings((s) => {
-  document.body.dataset.table = s.table;
+  document.documentElement.dataset.table = s.table;
   board.dataset.deck = s.deck;
   board.dataset.back = s.back;
   $('#spider-art').dataset.deck = s.deck;
-  document.querySelector('meta[name=theme-color]')!.setAttribute('content', TABLE_COLOR[s.table]);
+  // Paint the page itself in the table colour too, so an installed app's status bar, safe areas
+  // and overscroll match the felt instead of a fixed colour.
+  const color = TABLE_COLOR[s.table];
+  document.documentElement.style.backgroundColor = color;
+  document.querySelector('meta[name=theme-color]')!.setAttribute('content', color);
+  try {
+    localStorage.setItem('ninnies.tableColor', color);
+  } catch {
+    /* ignore */
+  }
   for (const key of ['deck', 'back', 'table', 'courts'] as const) {
     $(`#opt-${key}`)
       .querySelectorAll<HTMLElement>('.swatch')
       .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === s[key])));
   }
-  $('#opt-toggles')
-    .querySelectorAll<HTMLInputElement>('input')
-    .forEach((i) => (i.checked = Boolean(s[i.dataset.k as keyof Settings])));
+  for (const root of toggleRoots) {
+    root
+      .querySelectorAll<HTMLInputElement>('input')
+      .forEach((i) => (i.checked = Boolean(s[i.dataset.k as keyof Settings])));
+  }
   // Sub-options only apply while their parent switch is on.
-  $('#opt-toggles')
+  $('#dlg-settings')
     .querySelectorAll<HTMLElement>('[data-needs]')
     .forEach((row) => {
       const on = Boolean(s[row.dataset.needs as keyof Settings]);
