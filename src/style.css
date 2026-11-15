@@ -125,6 +125,11 @@
   box-sizing: border-box;
 }
 
+/* `hidden` must win over any component's own display (toggle rows, toolbar buttons, badges). */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;

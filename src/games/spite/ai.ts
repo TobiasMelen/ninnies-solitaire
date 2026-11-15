@@ -1,6 +1,7 @@
 import {
   type Move,
   type Player,
+  type Source,
   type SpiteCard,
   type SpiteState,
   apply,
@@ -142,6 +143,30 @@ export function chooseBuild(s: SpiteState, p: Player, rand: () => number, skill:
   const line = search(s, s, p, skill.depth, 0, null, skill, { left: NODE_BUDGET });
   return line.value > 0 ? line.first : null;
 }
+
+/**
+ * Where a given card is best played (e.g. a wild ★ that fits every centre pile): try each pile
+ * it fits and look ahead from there, keeping the best.
+ */
+export function bestPileFor(s: SpiteState, p: Player, source: Source, skill: Skill = ADVISOR): number | null {
+  let best: number | null = null;
+  let bestValue = -Infinity;
+  for (let pile = 0; pile < s.builds.length; pile++) {
+    const m: Move = { t: 'build', source, pile };
+    if (!buildMoves(s, p).some((x) => x.t === 'build' && x.pile === pile && sameSource(x.source, source))) continue;
+    const next = clone(s);
+    const star = sourceOf(next, p, m)?.star ? 1 : 0;
+    apply(next, p, m);
+    const line = search(next, s, p, skill.depth - 1, star, m, skill, { left: NODE_BUDGET });
+    if (line.value > bestValue) {
+      bestValue = line.value;
+      best = pile;
+    }
+  }
+  return best;
+}
+
+const sameSource = (a: Source, b: Source) => JSON.stringify(a) === JSON.stringify(b);
 
 /** End the turn: which hand card goes on which personal pile. */
 export function chooseDiscard(s: SpiteState, p: Player, rand: () => number, skill: Skill = SKILL.easy): Move {

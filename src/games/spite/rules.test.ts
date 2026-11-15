@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/cards';
-import { ADVISOR, SKILL, type Skill, chooseBuild, chooseDiscard } from './ai';
+import { ADVISOR, SKILL, type Skill, bestPileFor, chooseBuild, chooseDiscard } from './ai';
 import { type Player, type SpiteState, apply, buildDeck, buildMoves, canBuild, newGame, needs } from './rules';
 
 const opts = { goalSize: 20 };
@@ -104,6 +104,17 @@ describe('AI', () => {
     s.seats[p].goal.at(-1)!.star = false;
     const m = chooseBuild(s, p, mulberry32(1), ADVISOR);
     expect(m).toMatchObject({ t: 'build', source: { from: 'goal' } });
+  });
+
+  it('sends a double-tapped star to the pile that lets the goal card follow', () => {
+    const s = newGame(7, opts);
+    const p = s.turn as Player;
+    const card = (rank: number, id: number) => ({ id, suit: 'C' as const, rank, faceUp: true });
+    s.builds = [[card(1, 901), card(2, 902)], [card(1, 903), card(2, 904), card(3, 905), card(4, 906)], [], []];
+    s.seats[p].goal.push(card(6, 907));
+    s.seats[p].hand[0] = { id: 908, suit: 'H', rank: 13, faceUp: true, star: true };
+    // As a 5 on the second pile, the goal 6 can go straight on top.
+    expect(bestPileFor(s, p, { from: 'hand', index: 0 })).toBe(1);
   });
 
   it('keeps stars instead of discarding them', () => {

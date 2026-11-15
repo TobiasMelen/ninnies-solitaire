@@ -4,7 +4,7 @@ import { CardLayer, type Placement } from '../../ui/cardLayer';
 import { type Cascade, runCascade } from '../../ui/cascade';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
-import { ADVISOR, type Level, SKILL, chooseBuild, chooseDiscard } from './ai';
+import { ADVISOR, type Level, SKILL, bestPileFor, chooseBuild, chooseDiscard } from './ai';
 import {
   BUILD_PILES,
   DISCARD_PILES,
@@ -532,8 +532,10 @@ export class SpiteGame implements GameController {
     const now = performance.now();
     if (this.lastTap.id === id && now - this.lastTap.at < 380) {
       this.lastTap = { id: -1, at: 0 };
-      const pile = s.builds.findIndex((b) => fits(card, b));
-      if (pile >= 0) return this.tryBuild(src, pile);
+      // A card that fits more than one pile (a ★ fits them all) goes where it helps most.
+      const fitting = s.builds.flatMap((b, i) => (fits(card, b) ? [i] : []));
+      const pile = fitting.length > 1 ? (bestPileFor(s, 0, src) ?? fitting[0]) : fitting[0];
+      if (pile !== undefined) return this.tryBuild(src, pile);
     }
     this.lastTap = { id, at: now };
     if (sameSource(this.selected, src)) return this.select(null);
