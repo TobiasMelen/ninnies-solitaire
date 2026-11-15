@@ -62,6 +62,34 @@ function fitStandalone() {
 }
 fitStandalone();
 addEventListener('resize', fitStandalone);
+
+// Temporary: layout numbers for debugging the installed app (shown on the start screen).
+function layoutDiag() {
+  const probe = document.createElement('div');
+  probe.style.cssText =
+    'position:fixed;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)';
+  document.body.appendChild(probe);
+  const cs = getComputedStyle(probe);
+  const safe = [cs.paddingTop, cs.paddingBottom].map((v) => parseInt(v)).join('/');
+  probe.remove();
+  const app = $('#app').getBoundingClientRect();
+  const bar = $('#toolbar').getBoundingClientRect();
+  const vv = window.visualViewport;
+  const el = $('#layout-diag');
+  el.hidden = !standalone && !location.search.includes('diag');
+  el.textContent = [
+    standalone ? 'standalone' : 'browser',
+    `inner ${innerWidth}×${innerHeight}`,
+    `screen ${screen.width}×${screen.height}`,
+    vv ? `vv ${Math.round(vv.width)}×${Math.round(vv.height)}+${Math.round(vv.offsetTop)}` : 'vv –',
+    `app ${Math.round(app.top)}→${Math.round(app.bottom)}`,
+    `bar ${Math.round(bar.top)}→${Math.round(bar.bottom)}`,
+    `safe t/b ${safe}`,
+    `dpr ${devicePixelRatio}`,
+  ].join(' · ');
+}
+addEventListener('resize', layoutDiag);
+setTimeout(layoutDiag, 500);
 addEventListener('orientationchange', () => setTimeout(fitStandalone, 300));
 
 // iOS only lets audio start from certain gestures, so try on every kind of tap.
@@ -77,9 +105,12 @@ for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
 // ───────── game ─────────
 
 const bunny = new Bunny(board);
+// Tapping the Hint Bunny asks it for a hint.
+bunny.onAskHint = () => game?.hint();
 
 const hooks: GameHooks = {
   event: (e, x) => bunny.react(e, x),
+  hint: (target, kind) => bunny.hint(target, kind),
   hud(h) {
     lastHud = h;
     $('#stat-score').textContent = String(h.score);
@@ -118,6 +149,7 @@ const homeOpen = () => !home.classList.contains('hidden');
 
 function showHome() {
   game?.pause();
+  layoutDiag();
   const saved = SpiderGame.saved();
   $('#home-resume').hidden = !saved;
   if (saved) {
@@ -299,7 +331,7 @@ const TOGGLES: Toggle[] = [
   { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging', group: 'play' },
   { key: 'sound', label: 'Sound', hint: '', group: 'feel' },
   { key: 'haptics', label: 'Vibration', hint: '', group: 'feel', show: canVibrate },
-  { key: 'bunny', label: 'Bunny companion', hint: 'A little friend who watches and cheers you on', group: 'feel' },
+  { key: 'bunny', label: 'Hint Bunny', hint: 'Cheers you on with gestures; tap it for a hint', group: 'feel' },
 ];
 
 const toggleRoots = [$('#opt-play'), $('#opt-feel')];

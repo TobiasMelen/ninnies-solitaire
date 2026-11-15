@@ -43,6 +43,8 @@ export interface GameHooks {
   stuck(): void;
   /** Something worth reacting to happened; `x` is where, 0–1 across the board. */
   event?(e: BunnyEvent, x?: number): void;
+  /** A hint was asked for: where it points (0–1 across the board), for the Hint Bunny to act out. */
+  hint?(target: { from: number; to?: number } | null, kind: 'move' | 'deal' | 'none'): void;
 }
 
 interface Layout {
@@ -296,8 +298,10 @@ export class SpiderGame {
       if (!dealBlocked(this.state, settings.dealWithEmpty)) {
         flash(this.stockSlot, 'hint');
         this.hooks.toast('No moves left — deal a new row');
+        this.hooks.hint?.({ from: (this.L.stockX + this.L.cw / 2) / this.L.W }, 'deal');
       } else {
         this.hooks.toast('No moves left');
+        this.hooks.hint?.(null, 'none');
       }
       return;
     }
@@ -306,7 +310,9 @@ export class SpiderGame {
     ids.forEach((id) => this.layer.els.get(id)!.classList.add('hinted'));
     this.showMarker(mv.to, 'hint');
     haptic(6);
-    this.hintTimer = window.setTimeout(() => this.clearHint(), 1600);
+    this.hooks.hint?.({ from: this.colFraction(mv.from), to: this.colFraction(mv.to) }, 'move');
+    // Long enough for the Hint Bunny to hop from the card to its destination.
+    this.hintTimer = window.setTimeout(() => this.clearHint(), 2600);
   }
 
   /** Called when settings change. */
