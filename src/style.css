@@ -23,6 +23,7 @@
   --primary: #1f7a4d;
   --primary-ink: #fff;
   --ease-out: cubic-bezier(0.2, 0.9, 0.3, 1.04);
+  --display: 'Card', Georgia, 'Times New Roman', serif;
   --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
   color-scheme: light;
 }
@@ -419,6 +420,12 @@ body {
   border-color: transparent;
   background: transparent;
 }
+/* Generous touch target: taps just outside the stock still deal. */
+.stock-slot::before {
+  content: '';
+  position: absolute;
+  inset: -12px -10px -14px -12px;
+}
 .stock-slot.empty {
   border: 1.5px dashed rgba(255, 255, 255, 0.2);
   background: transparent;
@@ -571,7 +578,9 @@ body {
   gap: 2px;
 }
 #stats b {
-  font-size: 15px;
+  font-family: var(--display);
+  font-size: 17px;
+  line-height: 1;
 }
 #stats small {
   font-size: 10px;
@@ -654,7 +663,7 @@ body {
 .home-head h1 {
   flex: 1;
   margin: 0;
-  font-family: 'Card', Georgia, serif;
+  font-family: var(--display);
   font-size: clamp(24px, 7vw, 32px);
   line-height: 1.1;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -715,7 +724,8 @@ body {
   gap: 3px;
 }
 .continue b {
-  font-size: 20px;
+  font-family: var(--display);
+  font-size: 24px;
 }
 .continue small {
   font-size: 13px;
@@ -760,7 +770,7 @@ body {
 }
 .game-tile h3 {
   margin: 2px 0 4px;
-  font-family: 'Card', Georgia, serif;
+  font-family: var(--display);
   font-size: 22px;
 }
 .game-tile p {
@@ -814,7 +824,8 @@ body {
   transition: scale 120ms ease;
 }
 .suit-pick button b {
-  font-size: 15px;
+  font-family: var(--display);
+  font-size: 17px;
 }
 .suit-pick button small {
   font-size: 12px;
@@ -853,22 +864,32 @@ body {
 #toast {
   position: fixed;
   left: 50%;
-  top: calc(env(safe-area-inset-top) + 12px);
+  /* Just above the toolbar, where the thumb and eyes already are. */
+  bottom: calc(env(safe-area-inset-bottom) + 76px);
   z-index: 5000;
   max-width: calc(100vw - 32px);
-  padding: 10px 16px;
+  padding: 10px 18px;
   border-radius: 999px;
   background: rgba(16, 18, 22, 0.88);
   color: #fff;
-  font-size: 14px;
-  font-weight: 600;
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
   pointer-events: none;
   opacity: 0;
-  translate: -50% -12px;
+  translate: -50% 16px;
   transition:
     opacity 180ms ease,
-    translate 240ms var(--ease-out);
+    translate 260ms var(--ease-out);
+}
+@media (orientation: landscape) and (max-height: 540px) {
+  #toast {
+    bottom: calc(env(safe-area-inset-bottom) + 14px);
+  }
 }
 #toast.show {
   opacity: 1;
@@ -930,7 +951,8 @@ dialog.center form {
 
 .sheet h2 {
   margin: 0 0 6px;
-  font-size: 22px;
+  font-family: var(--display);
+  font-size: 26px;
 }
 .sheet h3 {
   margin: 20px 0 10px;
@@ -1095,7 +1117,7 @@ dialog.center form {
   display: grid;
   place-items: center;
   color: #c4122f;
-  font: 700 24px 'Card', Georgia, serif;
+  font: 700 24px var(--display);
 }
 
 .mini-table {
@@ -1186,7 +1208,8 @@ dialog.center form {
   font-variant-numeric: tabular-nums;
 }
 .win-stats b {
-  font-size: 22px;
+  font-family: var(--display);
+  font-size: 26px;
 }
 .win-stats small {
   color: var(--sheet-muted);

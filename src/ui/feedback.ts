@@ -1,9 +1,13 @@
+import cardTakeUrl from '../assets/sounds/card-take.mp3?url';
 import { settings } from './settings';
 
 // Everything is synthesised with WebAudio so there are no audio assets to load.
 let ctx: AudioContext | null = null;
 let out: AudioNode | null = null;
 let noise: AudioBuffer | null = null;
+/** Recorded card slide (see assets/sounds/CREDITS.txt); synthesised fallback until it's decoded. */
+let cardTake: AudioBuffer | null = null;
+let cardTakeLoading = false;
 
 export function unlockAudio() {
   if (!settings.sound) return;
@@ -29,6 +33,15 @@ export function unlockAudio() {
       noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const d = noise.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (!cardTakeLoading) {
+      cardTakeLoading = true;
+      const a = ctx;
+      fetch(cardTakeUrl)
+        .then((r) => r.arrayBuffer())
+        .then((buf) => a.decodeAudioData(buf))
+        .then((b) => (cardTake = b))
+        .catch(() => (cardTakeLoading = false));
     }
     // iOS uses 'interrupted' as well as 'suspended', and only unlocks once something is
     // played inside a gesture it trusts (touchend/click, not touch pointerdown), so keep trying.
@@ -139,6 +152,28 @@ function tone(freq: number, dur: number, gain: number, when = 0) {
   osc.stop(t + dur + 0.02);
 }
 
+/** The recording starts with ~180 ms of near-silence; skip it so the sound is instant. */
+const TAKE_OFFSET = 0.18;
+
+/** Play the recorded card slide with a little random pitch so repeats don't sound identical. */
+function sample(gain: number, when = 0, rate = 1, length?: number): boolean {
+  const a = ready();
+  if (!a || !out || !cardTake) return false;
+  const t = a.currentTime + when;
+  const src = a.createBufferSource();
+  src.buffer = cardTake;
+  src.playbackRate.value = rate * (0.94 + Math.random() * 0.12);
+  const g = a.createGain();
+  g.gain.value = gain;
+  if (length) {
+    g.gain.setValueAtTime(gain, t + length * 0.7);
+    g.gain.linearRampToValueAtTime(0, t + length);
+  }
+  src.connect(g).connect(out);
+  src.start(t, TAKE_OFFSET, length);
+  return true;
+}
+
 /** Bell: a sine with two quieter overtones that decay faster, so it rings rather than beeps. */
 function bell(freq: number, dur: number, gain: number, when = 0) {
   tone(freq, dur, gain, when);
@@ -183,7 +218,8 @@ const land = (when = 0, gain = 1) => {
 export const sfx = {
   /** Lifting a card off the pile. */
   pick: () => {
-    swoosh(0.1, 0.06, 0, 900, 500);
+    // Just the start of the slide, before the snap: a card leaving the pile.
+    if (!sample(0.9, 0, 1.05, 0.14)) swoosh(0.1, 0.06, 0, 900, 500);
   },
   /** Dropped where the finger let go: barely any travel, just the landing. */
   drop: () => land(0.02),
@@ -199,8 +235,10 @@ export const sfx = {
   },
   /** One card flying off the stock. */
   deal: (when = 0) => {
-    swoosh(0.18, 0.07, when, 500, 1500);
-    tap(1200, 0.05, 0.05, when + 0.16);
+    if (!sample(0.8, when, 1.1)) {
+      swoosh(0.18, 0.07, when, 500, 1500);
+      tap(1200, 0.05, 0.05, when + 0.16);
+    }
   },
   /** Shuffle-in at the start of a game. */
   shuffle: () => {

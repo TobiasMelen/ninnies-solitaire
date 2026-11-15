@@ -132,6 +132,7 @@ export class SpiderGame {
   private hintTimer = 0;
   private cascade: Cascade | null = null;
   private paused = false;
+  private stuckTimer = 0;
 
   private colSlots: HTMLElement[] = [];
   private markers: HTMLElement[] = [];
@@ -256,7 +257,7 @@ export class SpiderGame {
       return;
     }
     if (blocked === 'empty-column') {
-      this.hooks.toast('Fill every empty column before dealing');
+      this.hooks.toast('Fill empty columns before dealing');
       sfx.invalid();
       haptic([18, 50, 18]);
       this.colSlots.forEach((s, i) => !this.state.columns[i].length && flash(s, 'attention'));
@@ -278,7 +279,7 @@ export class SpiderGame {
     if (!moves.length) {
       if (!dealBlocked(this.state, settings.dealWithEmpty)) {
         flash(this.stockSlot, 'hint');
-        this.hooks.toast('No moves on the table — deal a new row');
+        this.hooks.toast('No moves left — deal a new row');
       } else {
         this.hooks.toast('No moves left');
       }
@@ -318,6 +319,7 @@ export class SpiderGame {
 
   private commit(a: Action): number[] {
     this.clearHint();
+    clearTimeout(this.stuckTimer);
     this.hintIndex = 0;
     this.actions.push(a);
     const changed = applyAction(this.state, a);
@@ -383,7 +385,16 @@ export class SpiderGame {
     }
   }
 
+  /** Give the player a moment to look at the settled table before telling them they're stuck. */
   private checkStuck() {
+    clearTimeout(this.stuckTimer);
+    const at = this.actions.length;
+    this.stuckTimer = window.setTimeout(() => {
+      if (this.actions.length === at && !this.drag && !this.pending) this.checkStuckNow();
+    }, 1100);
+  }
+
+  private checkStuckNow() {
     if (!settings.noMovesAlert || isWon(this.state)) return;
     if (this.stuckNotified === this.actions.length) return;
     if (findMoves(this.state).length) return;
@@ -391,7 +402,7 @@ export class SpiderGame {
     const blocked = dealBlocked(this.state, settings.dealWithEmpty);
     if (!blocked) {
       flash(this.stockSlot, 'hint');
-      this.hooks.toast('No moves left on the table — deal a new row');
+      this.hooks.toast('No moves left — deal a new row');
     } else if (blocked === 'empty-stock') {
       this.hooks.stuck();
     }
@@ -639,7 +650,7 @@ export class SpiderGame {
       const card = this.state.columns[now.col][now.index];
       this.layer.wiggle([id]);
       haptic(15);
-      if (card.faceUp) this.hooks.toast('Only cards of the same suit in order move together');
+      if (card.faceUp) this.hooks.toast('Only same-suit runs move together');
       return;
     }
 
