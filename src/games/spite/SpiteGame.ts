@@ -80,7 +80,6 @@ export class SpiteGame implements GameController {
   private goalSlots: HTMLElement[] = [];
   private stockSlot: HTMLElement;
   private goalBadges: HTMLElement[] = [];
-  private stockBadge: HTMLElement;
   private statusEl: HTMLElement;
   private foeBadge: HTMLElement;
 
@@ -97,7 +96,6 @@ export class SpiteGame implements GameController {
       this.goalBadges.push(this.slot('spite-count', {}));
     }
     this.stockSlot = this.slot('slot spite-stock', { stock: 1 });
-    this.stockBadge = this.slot('spite-count stock', {});
     this.statusEl = this.slot('spite-status', {});
     this.foeBadge = this.slot('spite-foe', {});
     this.foeBadge.innerHTML = `<span class="emo">${FOE.emoji}</span><small class="hand"></small>`;
@@ -308,7 +306,6 @@ export class SpiteGame implements GameController {
       stats: [
         { label: 'You', value: String(s.seats[0].goal.length), hot: s.turn === 0 },
         { label: FOE.emoji, value: String(s.seats[1].goal.length), hot: s.turn === 1 },
-        { label: 'Stock', value: String(s.stock.length) },
       ],
       canUndo: false,
       hasUndo: false,
@@ -467,7 +464,6 @@ export class SpiteGame implements GameController {
     this.discardSlots[1].forEach((el, i) => at(el, ox(i + 1), oppY, oppScale));
     at(this.goalBadges[0], colX[0] + cw - 14, playerY - 8);
     at(this.goalBadges[1], ox(0) + cw * oppScale - 14, oppY - 4);
-    at(this.stockBadge, colX[0] + cw - 14, centerY - 8);
     at(this.foeBadge, wide ? colX[4] + cw + gap * 2 : colX[0] - 2, wide ? oppY + 4 : oppY + ch * oppScale + 6);
     at(this.statusEl, wide ? handX + handW / 2 : W / 2, wide ? playerY - gap * 0.6 : playerY - gap * 0.75 - 2);
     if (this.state && !this.cascade) this.render(false);
@@ -551,7 +547,6 @@ export class SpiteGame implements GameController {
 
     this.goalBadges[0].textContent = String(s.seats[0].goal.length);
     this.goalBadges[1].textContent = String(s.seats[1].goal.length);
-    this.stockBadge.textContent = String(s.stock.length);
     this.foeBadge.classList.toggle('turn', s.turn === 1);
     this.statusEl.textContent =
       s.winner !== null ? '' : s.turn === 1 ? `${FOE.emoji} is playing…` : this.selected?.from === 'hand' ? 'Play it, or put it on a pile below to end your turn' : 'Your turn';
