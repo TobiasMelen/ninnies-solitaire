@@ -76,6 +76,12 @@ $('#btn-new').addEventListener('click', () => {
 });
 document.addEventListener('pointerdown', unlockAudio, { capture: true });
 
+// iOS Safari ignores user-scalable=no; block pinch and double-tap zoom explicitly.
+for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
+  document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+}
+
+
 dlgNew.querySelectorAll<HTMLElement>('[data-suits]').forEach((btn) =>
   btn.addEventListener('click', () => {
     dlgNew.close();

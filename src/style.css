@@ -125,6 +125,8 @@ body {
   height: 100%;
   overflow: hidden;
   overscroll-behavior: none;
+  /* No double-tap zoom anywhere (iOS ignores user-scalable=no). */
+  touch-action: manipulation;
 }
 
 body {
