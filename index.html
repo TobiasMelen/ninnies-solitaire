@@ -113,6 +113,7 @@
         <div class="swatches" id="opt-table"></div>
         <h3>Play</h3>
         <div class="toggles" id="opt-toggles"></div>
+        <button type="button" id="btn-preview-win" class="btn preview-btn">🏆 Preview win animation</button>
         <p class="muted foot">Your game is saved on this device automatically.</p>
       </form>
     </dialog>
@@ -133,8 +134,8 @@
 
     <dialog id="dlg-stuck" class="sheet center">
       <form method="dialog">
-        <h2>No moves left</h2>
-        <p class="muted">There's nothing left to play on the table and the stock is empty.</p>
+        <h2>Out of moves</h2>
+        <p class="muted">Nothing on the table can be moved and there are no cards left to deal.</p>
         <div class="actions">
           <button value="undo" class="btn primary">Undo last move</button>
           <button value="new" class="btn">New game</button>

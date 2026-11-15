@@ -132,6 +132,8 @@ export class SpiderGame {
   private hintTimer = 0;
   private cascade: Cascade | null = null;
   private paused = false;
+  /** While previewing the win cascade, the real game is parked here. */
+  private preview: { real: SpiderState } | null = null;
   private stuckTimer = 0;
 
   private colSlots: HTMLElement[] = [];
@@ -199,6 +201,7 @@ export class SpiderGame {
   /** Stop the clock while the player is away from the table (menus). */
   pause() {
     if (!this.state) return;
+    this.endPreview();
     this.paused = true;
     this.flush();
     this.cancelDrag();
@@ -213,6 +216,7 @@ export class SpiderGame {
   }
 
   newGame(suitCount: SuitCount, seed = randomSeed()) {
+    this.endPreview();
     this.flush();
     this.stopCelebration();
     this.state = newGame(seed, suitCount);
@@ -233,6 +237,7 @@ export class SpiderGame {
 
   undo() {
     if (this.celebrating) return;
+    if (this.preview) return this.endPreview();
     this.flush();
     this.cancelDrag();
     if (!this.actions.length) return;
@@ -250,6 +255,7 @@ export class SpiderGame {
 
   deal() {
     if (this.celebrating) return;
+    if (this.preview) return this.endPreview();
     this.flush();
     const blocked = dealBlocked(this.state, settings.dealWithEmpty);
     if (blocked === 'empty-stock') {
@@ -273,6 +279,7 @@ export class SpiderGame {
 
   hint() {
     if (this.celebrating) return;
+    if (this.preview) return this.endPreview();
     this.flush();
     this.clearHint();
     const moves = findMoves(this.state);
@@ -398,14 +405,10 @@ export class SpiderGame {
     if (!settings.noMovesAlert || isWon(this.state)) return;
     if (this.stuckNotified === this.actions.length) return;
     if (findMoves(this.state).length) return;
+    // Being able to deal means the game isn't stuck; Hint points at the stock in that case.
+    if (!dealBlocked(this.state, settings.dealWithEmpty)) return;
     this.stuckNotified = this.actions.length;
-    const blocked = dealBlocked(this.state, settings.dealWithEmpty);
-    if (!blocked) {
-      flash(this.stockSlot, 'hint');
-      this.hooks.toast('No moves left — deal a new row');
-    } else if (blocked === 'empty-stock') {
-      this.hooks.stuck();
-    }
+    this.hooks.stuck();
   }
 
   private win() {
@@ -441,9 +444,10 @@ export class SpiderGame {
   }
 
   private save() {
+    const state = this.preview?.real ?? this.state;
     const data: Save = {
-      seed: this.state.seed,
-      suitCount: this.state.suitCount,
+      seed: state.seed,
+      suitCount: state.suitCount,
       actions: this.actions,
       ms: Math.round(this.elapsed()),
       counted: this.counted,
@@ -629,6 +633,7 @@ export class SpiderGame {
   private onDown(e: PointerEvent) {
     unlockAudio();
     if (this.celebrating) return this.cascade!.skip();
+    if (this.preview) return this.endPreview();
     if (this.drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
     const target = e.target as HTMLElement;
 
@@ -826,6 +831,42 @@ export class SpiderGame {
       this.emitHud();
       onDone();
     });
+  }
+
+  /** Play the win cascade with this deal's cards without touching the game, score or stats. */
+  previewWin() {
+    if (!this.state || this.celebrating || this.preview) return;
+    this.flush();
+    this.cancelDrag();
+    this.stopClock();
+    const real = this.state;
+    const fake = structuredClone(real);
+    const cards = [...fake.columns.flat(), ...fake.stock, ...fake.foundations.flat()];
+    const piles: Card[][] = [];
+    for (const suit of new Set(cards.map((c) => c.suit))) {
+      const ofSuit = cards.filter((c) => c.suit === suit).sort((a, b) => a.rank - b.rank);
+      const n = ofSuit.length / 13;
+      for (let p = 0; p < n; p++) piles.push(ofSuit.filter((_, i) => i % n === p));
+    }
+    piles.forEach((p) => p.forEach((c) => (c.faceUp = true)));
+    fake.columns = fake.columns.map(() => []);
+    fake.stock = [];
+    fake.foundations = piles;
+    this.preview = { real };
+    this.state = fake;
+    this.render({ animate: false });
+    sfx.win();
+    this.celebrate(() => this.hooks.toast('Tap to return to your game'));
+  }
+
+  private endPreview() {
+    if (!this.preview) return;
+    this.stopCelebration();
+    this.state = this.preview.real;
+    this.preview = null;
+    this.render({ animate: false });
+    this.emitHud();
+    if (this.actions.length && !this.paused) this.startClock();
   }
 
   private stopCelebration() {
