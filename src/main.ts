@@ -130,6 +130,22 @@ home.querySelectorAll<HTMLElement>('[data-suits]').forEach((btn) =>
 );
 $('#home-settings').addEventListener('click', () => open(dlgSettings));
 
+// Temporary: an installed home-screen app has no reload button, so offer one that also
+// drops the offline cache to guarantee the newest deploy is fetched.
+$('#build-id').textContent = `Build ${__BUILD_ID__}`;
+$('#home-reload').addEventListener('click', async () => {
+  game?.pause();
+  try {
+    const regs = (await navigator.serviceWorker?.getRegistrations()) ?? [];
+    await Promise.all(regs.map((r) => r.unregister()));
+    const keys = (await window.caches?.keys()) ?? [];
+    await Promise.all(keys.map((k) => caches.delete(k)));
+  } catch {
+    /* reload anyway */
+  }
+  location.reload();
+});
+
 // ───────── toolbar ─────────
 
 $('#btn-undo').addEventListener('click', () => game?.undo());
@@ -195,6 +211,7 @@ swatches('table', TABLES, (id) => `<span class="mini-table" data-table="${id}"><
 const TOGGLES: { key: keyof Settings; label: string; hint: string; show?: () => boolean }[] = [
   { key: 'noMovesAlert', label: 'Tell me when no moves are left', hint: 'Points to the stock, or offers undo when the game is stuck' },
   { key: 'tapToMove', label: 'Tap to move', hint: 'Tap a card to send it to the best spot' },
+  { key: 'highlightRuns', label: 'Highlight built runs', hint: 'Marks cards already in suit order with a gold edge' },
   { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging' },
   { key: 'sound', label: 'Sound', hint: '' },
   { key: 'haptics', label: 'Vibration', hint: '', show: canVibrate },

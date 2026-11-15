@@ -285,6 +285,21 @@ body {
   border: calc(var(--cw) * 0.055) solid #f7f4ec;
 }
 
+/* Built same-suit runs: a gold edge that lines up into a ladder down the column. */
+.card.run .front::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: max(3px, calc(var(--cw) * 0.07));
+  background: linear-gradient(180deg, #ffd54a, #e7a600);
+  box-shadow: 1px 0 2px rgba(0, 0, 0, 0.12);
+}
+.card.run .idx {
+  left: calc(var(--cw) * 0.12);
+}
+
 /* Lift & drag feel */
 .card.lifted {
   scale: 1.05;
@@ -767,6 +782,19 @@ body {
 .continue:active,
 .home-gear:active {
   scale: 0.95;
+}
+
+.home-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin-top: 24px;
+}
+.home-foot small {
+  color: var(--ui-muted);
+  font-size: 11px;
+  opacity: 0.7;
 }
 
 @media (max-width: 380px) {

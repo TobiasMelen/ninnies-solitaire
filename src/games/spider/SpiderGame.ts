@@ -1,4 +1,4 @@
-import { randomSeed } from '../../core/cards';
+import { type Card, randomSeed } from '../../core/cards';
 import { CardLayer, type Placement } from '../../ui/cardLayer';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
@@ -559,6 +559,9 @@ export class SpiderGame {
       }),
     );
 
+    const inRun = settings.highlightRuns ? runCards(s.columns) : new Set<number>();
+    this.layer.els.forEach((el, id) => el.classList.toggle('run', inRun.has(id)));
+
     s.columns.forEach((col, c) =>
       col.forEach((card, i) => {
         this.layer.sync(card);
@@ -840,6 +843,22 @@ export class SpiderGame {
     this.board.appendChild(el);
     return el;
   }
+}
+
+/** Ids of face-up cards that sit in a same-suit descending sequence of two or more. */
+function runCards(columns: Card[][]): Set<number> {
+  const ids = new Set<number>();
+  for (const col of columns) {
+    for (let i = 1; i < col.length; i++) {
+      const a = col[i - 1];
+      const b = col[i];
+      if (a.faceUp && b.faceUp && a.suit === b.suit && a.rank === b.rank + 1) {
+        ids.add(a.id);
+        ids.add(b.id);
+      }
+    }
+  }
+  return ids;
 }
 
 function flash(el: HTMLElement, cls: string) {

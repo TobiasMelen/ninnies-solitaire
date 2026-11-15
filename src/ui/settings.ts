@@ -28,6 +28,7 @@ export interface Settings {
   noMovesAlert: boolean;
   tapToMove: boolean;
   showTargets: boolean;
+  highlightRuns: boolean;
   sound: boolean;
   haptics: boolean;
 }
@@ -41,6 +42,7 @@ const DEFAULTS: Settings = {
   noMovesAlert: true,
   tapToMove: true,
   showTargets: true,
+  highlightRuns: true,
   sound: true,
   haptics: true,
 };
