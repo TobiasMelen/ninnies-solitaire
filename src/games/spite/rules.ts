@@ -1,13 +1,13 @@
 import { type Card, type Suit, mulberry32, shuffle } from '../../core/cards';
 
 /**
- * Spite and Malice for two to four players, with a custom numbered deck: two standard decks plus four
+ * Spite and Malice for two players, with a custom numbered deck: two standard decks plus four
  * jokers, where every King and Joker is a wild ★ Star. Centre piles build 1 → 12 regardless of
  * suit and clear when they reach 12. First to empty their goal (pay-off) pile wins.
  */
 
-/** Seat index: 0 is you, then the opponents in turn order. */
-export type Player = number;
+/** 0 is you, 1 is the opponent. */
+export type Player = 0 | 1;
 export const BUILD_PILES = 4;
 export const DISCARD_PILES = 4;
 export const HAND_SIZE = 5;
@@ -27,7 +27,6 @@ export interface Seat {
 
 export interface SpiteOptions {
   goalSize: number;
-  players: number;
 }
 
 export interface SpiteState {
@@ -37,7 +36,7 @@ export interface SpiteState {
   /** Finished centre piles, shuffled back in when the stock runs out. */
   spent: SpiteCard[];
   builds: SpiteCard[][];
-  seats: Seat[];
+  seats: [Seat, Seat];
   turn: Player;
   /** A hand card has been played to a centre pile this turn (purely informational). */
   playedThisTurn: number;
@@ -45,6 +44,8 @@ export interface SpiteState {
   /** Neither player can do anything and nothing is left to draw. */
   stalemate: boolean;
   shuffles: number;
+  /** The opponent's difficulty (used by the app, not the rules). */
+  level?: 'easy' | 'medium' | 'hard';
 }
 
 export type Source = { from: 'hand'; index: number } | { from: 'goal' } | { from: 'discard'; pile: number };
@@ -77,7 +78,7 @@ export function newGame(seed: number, options: SpiteOptions): SpiteState {
     stock: [],
     spent: [],
     builds: Array.from({ length: BUILD_PILES }, () => []),
-    seats: Array.from({ length: options.players }, seat),
+    seats: [seat(), seat()],
     turn: 0,
     playedThisTurn: 0,
     winner: null,
@@ -87,10 +88,9 @@ export function newGame(seed: number, options: SpiteOptions): SpiteState {
   for (let i = 0; i < options.goalSize; i++) for (const seat of s.seats) seat.goal.push(deck.pop()!);
   s.stock = deck;
   for (const seat of s.seats) seat.goal.at(-1)!.faceUp = true;
-  // The first player is whoever shows the highest goal card (stars count high); ties go to the
-  // earliest seat, so you win ties.
+  // The first player is whoever shows the higher goal card (stars count high); ties go to you.
   const v = (p: Player) => cardValue(s.seats[p].goal.at(-1)!);
-  s.turn = s.seats.reduce((best, _, p) => (v(p) > v(best) ? p : best), 0);
+  s.turn = v(1) > v(0) ? 1 : 0;
   startTurn(s);
   return s;
 }
@@ -179,7 +179,7 @@ export function apply(s: SpiteState, p: Player, m: Move): { cleared: boolean; go
 }
 
 function endTurn(s: SpiteState) {
-  s.turn = (s.turn + 1) % s.seats.length;
+  s.turn = (1 - s.turn) as Player;
   startTurn(s);
   // Nothing can ever happen again: no cards to draw and the player to move has no hand.
   if (!s.seats[s.turn].hand.length && !s.stock.length && !s.spent.length) s.stalemate = true;

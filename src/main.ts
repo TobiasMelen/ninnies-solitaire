@@ -2,6 +2,7 @@ import './style.css';
 import { type GameHooks, type GameId, type Hud, type Result, fmtTime, store } from './core/game';
 import { HeartsGame } from './games/hearts/HeartsGame';
 import { SpiderGame } from './games/spider/SpiderGame';
+import type { Level } from './games/spite/ai';
 import { SpiteGame } from './games/spite/SpiteGame';
 import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
@@ -184,6 +185,8 @@ function showHome() {
   if (summary) $('#home-continue-sub').textContent = summary;
   const suits = SpiderGame.saved()?.suitCount ?? null;
   home.querySelectorAll<HTMLElement>('[data-suits]').forEach((b) => b.classList.toggle('current', Number(b.dataset.suits) === suits));
+  const level = SpiteGame.savedLevel();
+  home.querySelectorAll<HTMLElement>('[data-level]').forEach((b) => b.classList.toggle('current', b.dataset.level === level));
   home.classList.remove('hidden');
   home.scrollTop = 0;
 }
@@ -224,11 +227,11 @@ $('#hearts-play').addEventListener('click', () => {
   g.newGame();
   g.unpause();
 });
-home.querySelectorAll<HTMLElement>('[data-foes]').forEach((btn) =>
+home.querySelectorAll<HTMLElement>('[data-level]').forEach((btn) =>
   btn.addEventListener('click', () => {
     const g = switchTo('spite');
     hideHome();
-    g.newGame(Number(btn.dataset.foes) + 1);
+    g.newGame(btn.dataset.level as Level);
     g.unpause();
   }),
 );

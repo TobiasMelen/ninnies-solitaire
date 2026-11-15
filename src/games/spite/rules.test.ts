@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/cards';
-import { ADVISOR, OPPONENT, chooseBuild, chooseDiscard } from './ai';
+import { ADVISOR, SKILL, type Skill, chooseBuild, chooseDiscard } from './ai';
 import { type Player, type SpiteState, apply, buildDeck, buildMoves, canBuild, newGame, needs } from './rules';
 
-const opts = { goalSize: 20, players: 2 };
+const opts = { goalSize: 20 };
 
-function playTurn(s: SpiteState, rand: () => number, skill = OPPONENT) {
+function playTurn(s: SpiteState, rand: () => number, skill: Skill = SKILL.easy) {
   const p = s.turn;
   for (let guard = 0; guard < 60 && s.winner === null; guard++) {
     const m = chooseBuild(s, p, rand, skill);
@@ -58,7 +58,7 @@ describe('building', () => {
   });
 
   it('wins when the goal pile empties', () => {
-    const s = newGame(4, { goalSize: 1, players: 2 });
+    const s = newGame(4, { goalSize: 1 });
     const p = s.turn;
     s.seats[p].goal = [{ id: 999, suit: 'H', rank: 1, faceUp: true }];
     apply(s, p, { t: 'build', source: { from: 'goal' }, pile: 0 });
@@ -71,15 +71,30 @@ describe('AI', () => {
   it('only makes legal moves and finishes games', { timeout: 60_000 }, () => {
     let finished = 0;
     for (let seed = 1; seed <= 8; seed++) {
-      const s = newGame(seed, { goalSize: 13, players: 2 + (seed % 3) });
+      const s = newGame(seed, { goalSize: 13 });
       const rand = mulberry32(seed);
       for (let turn = 0; turn < 600 && s.winner === null && !s.stalemate; turn++) playTurn(s, rand);
       if (s.winner !== null) finished++;
       const total = s.stock.length + s.spent.length + s.builds.flat().length + s.seats.flatMap((x) => [...x.goal, ...x.hand, ...x.discards.flat()]).length;
       expect(total).toBe(108);
-      expect(s.seats).toHaveLength(2 + (seed % 3));
     }
     expect(finished).toBeGreaterThanOrEqual(7);
+  });
+
+  it('hard beats easy more often than not', { timeout: 120_000 }, () => {
+    let hardWins = 0;
+    let decided = 0;
+    for (let seed = 1; seed <= 24; seed++) {
+      const s = newGame(seed, { goalSize: 13 });
+      const rand = mulberry32(seed * 7);
+      // Swap seats halfway so neither level always has the same seat.
+      const hard: Player = seed % 2 ? 0 : 1;
+      for (let turn = 0; turn < 600 && s.winner === null && !s.stalemate; turn++) playTurn(s, rand, s.turn === hard ? SKILL.hard : SKILL.easy);
+      if (s.winner === null) continue;
+      decided++;
+      if (s.winner === hard) hardWins++;
+    }
+    expect(hardWins / decided).toBeGreaterThan(0.6);
   });
 
   it('plays its goal card when it can', () => {
