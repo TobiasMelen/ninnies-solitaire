@@ -23,11 +23,9 @@ export interface Skill {
 export const OPPONENT: Skill = { mistakes: 0.1, depth: 4 };
 export const ADVISOR: Skill = { mistakes: 0, depth: 5 };
 
-const other = (p: Player) => (1 - p) as Player;
-
-/** Does any centre pile now offer the opponent their goal card? */
+/** Does a centre pile now offer the next player their goal card? (The others may still change it.) */
 function feedsOpponent(s: SpiteState, p: Player) {
-  const top = s.seats[other(p)].goal.at(-1);
+  const top = s.seats[(p + 1) % s.seats.length].goal.at(-1);
   if (!top) return false;
   return top.star || s.builds.some((pile) => needs(pile) === top.rank);
 }

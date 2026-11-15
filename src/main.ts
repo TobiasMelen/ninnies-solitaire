@@ -240,12 +240,14 @@ $('#hearts-play').addEventListener('click', () => {
   g.newGame();
   g.unpause();
 });
-$('#spite-play').addEventListener('click', () => {
-  const g = switchTo('spite');
-  hideHome();
-  g.newGame();
-  g.unpause();
-});
+home.querySelectorAll<HTMLElement>('[data-foes]').forEach((btn) =>
+  btn.addEventListener('click', () => {
+    const g = switchTo('spite');
+    hideHome();
+    g.newGame(Number(btn.dataset.foes) + 1);
+    g.unpause();
+  }),
+);
 $('#home-settings').addEventListener('click', () => open(dlgSettings));
 
 $('#btn-preview-win').addEventListener('click', () => {

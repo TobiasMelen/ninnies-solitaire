@@ -972,19 +972,75 @@ body {
   color: #fff;
   white-space: nowrap;
   pointer-events: none;
+  transition: box-shadow 200ms ease, background-color 200ms ease;
 }
 .spite-foe .emo {
   font-size: 20px;
+  line-height: 1;
+}
+.spite-foe .goal {
+  font: 700 16px/1 var(--display);
+}
+.spite-foe .goal::before {
+  content: '🎯';
+  font-size: 12px;
+  margin-right: 2px;
 }
 .spite-foe small {
   font: 600 12px system-ui, sans-serif;
-  opacity: 0.85;
+  opacity: 0.8;
 }
 .spite-foe.turn {
+  background: rgba(0, 0, 0, 0.55);
   box-shadow:
     0 0 0 2px var(--accent),
     0 0 18px var(--accent-glow);
 }
+
+/* Whose turn: a bouncing arrow pointing at them. */
+.spite-arrow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 1250;
+  translate: -50% 0;
+  color: var(--accent);
+  font-size: 22px;
+  line-height: 1;
+  text-shadow: 0 0 10px var(--accent-glow), 0 2px 4px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  transition: transform 350ms var(--ease-out);
+  animation: arrow-bob 900ms ease-in-out infinite;
+}
+.spite-arrow.foe {
+  animation-name: arrow-bob-up;
+}
+@keyframes arrow-bob {
+  50% {
+    translate: -50% 6px;
+  }
+}
+@keyframes arrow-bob-up {
+  50% {
+    translate: -50% -6px;
+  }
+}
+
+/* A pile that just reached 12 glows before it's swept away. */
+.spite-root .card.done .face {
+  animation: glow 550ms ease-in-out 2;
+}
+.spite-root .card.dragging {
+  scale: 1.08;
+  transition: none;
+}
+.spite-build.hot,
+.spite-discard.hot {
+  border: 2.5px solid var(--accent);
+  background: rgba(255, 213, 74, 0.28);
+  box-shadow: 0 0 24px var(--accent-glow);
+}
+
 .spite-status {
   position: absolute;
   left: 0;

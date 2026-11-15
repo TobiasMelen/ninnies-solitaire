@@ -16,6 +16,8 @@ export interface Placement {
   delay?: number;
   /** Draw smaller (e.g. opponents' hands); scales from the top-left corner. */
   scale?: number;
+  /** Tilt in degrees around the card's centre (a fanned hand). */
+  rotate?: number;
 }
 
 const MOVE_MS = 280;
@@ -103,7 +105,10 @@ export class CardLayer {
 
     el.style.setProperty('--d', animate ? `${delay}ms` : '0ms');
     el.classList.toggle('no-anim', !animate);
-    el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)${p.scale && p.scale !== 1 ? ` scale(${p.scale})` : ''}`;
+    const tilt = p.rotate
+      ? ` translate(calc(var(--cw) / 2), calc(var(--ch) / 2)) rotate(${p.rotate}deg) translate(calc(var(--cw) / -2), calc(var(--ch) / -2))`
+      : '';
+    el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)${p.scale && p.scale !== 1 ? ` scale(${p.scale})` : ''}${tilt}`;
     el.classList.toggle('up', p.faceUp);
 
     // While travelling a card must stay above everything it passes over.

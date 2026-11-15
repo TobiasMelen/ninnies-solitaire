@@ -3,7 +3,7 @@ import { mulberry32 } from '../../core/cards';
 import { ADVISOR, OPPONENT, chooseBuild, chooseDiscard } from './ai';
 import { type Player, type SpiteState, apply, buildDeck, buildMoves, canBuild, newGame, needs } from './rules';
 
-const opts = { goalSize: 20 };
+const opts = { goalSize: 20, players: 2 };
 
 function playTurn(s: SpiteState, rand: () => number, skill = OPPONENT) {
   const p = s.turn;
@@ -58,7 +58,7 @@ describe('building', () => {
   });
 
   it('wins when the goal pile empties', () => {
-    const s = newGame(4, { goalSize: 1 });
+    const s = newGame(4, { goalSize: 1, players: 2 });
     const p = s.turn;
     s.seats[p].goal = [{ id: 999, suit: 'H', rank: 1, faceUp: true }];
     apply(s, p, { t: 'build', source: { from: 'goal' }, pile: 0 });
@@ -71,12 +71,13 @@ describe('AI', () => {
   it('only makes legal moves and finishes games', { timeout: 60_000 }, () => {
     let finished = 0;
     for (let seed = 1; seed <= 8; seed++) {
-      const s = newGame(seed, { goalSize: 13 });
+      const s = newGame(seed, { goalSize: 13, players: 2 + (seed % 3) });
       const rand = mulberry32(seed);
       for (let turn = 0; turn < 600 && s.winner === null && !s.stalemate; turn++) playTurn(s, rand);
       if (s.winner !== null) finished++;
       const total = s.stock.length + s.spent.length + s.builds.flat().length + s.seats.flatMap((x) => [...x.goal, ...x.hand, ...x.discards.flat()]).length;
       expect(total).toBe(108);
+      expect(s.seats).toHaveLength(2 + (seed % 3));
     }
     expect(finished).toBeGreaterThanOrEqual(7);
   });
