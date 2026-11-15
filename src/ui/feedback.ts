@@ -12,10 +12,14 @@ let cardTakeLoading = false;
 export function unlockAudio() {
   if (!settings.sound) return;
   try {
-    // 'ambient' = short game sounds: mixes with the player's music and never puts media
-    // controls on the lock screen ('playback' did). Like most games, it follows the silent switch.
+    // 'playback' lets sounds play with the ringer switch on silent ('ambient' would mute them).
     const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
-    if (session && session.type !== 'ambient') session.type = 'ambient';
+    if (session && session.type !== 'playback') session.type = 'playback';
+    // Tell the OS there's nothing "now playing", so it has no reason to show media controls.
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.metadata = null;
+      navigator.mediaSession.playbackState = 'none';
+    }
     if (!ctx) {
       ctx = new AudioContext();
       // A gentle compressor glues the layered sounds together and keeps stacked deals from clipping.

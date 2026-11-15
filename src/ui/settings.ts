@@ -16,7 +16,6 @@ export const BACKS = [
 export const COURTS = [
   { id: 'knoll', label: 'Classic' },
   { id: 'english', label: 'English' },
-  { id: 'bellot', label: 'French' },
   { id: 'letters', label: 'Letters' },
 ] as const;
 
@@ -65,7 +64,10 @@ const listeners = new Set<Listener>();
 
 function load(): Settings {
   try {
-    return { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') };
+    const s: Settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') };
+    // A saved choice may point at an option that has since been removed.
+    if (!COURTS.some((c) => c.id === s.courts)) s.courts = DEFAULTS.courts;
+    return s;
   } catch {
     return { ...DEFAULTS };
   }
