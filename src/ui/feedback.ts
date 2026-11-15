@@ -12,9 +12,10 @@ let cardTakeLoading = false;
 export function unlockAudio() {
   if (!settings.sound) return;
   try {
-    // Without this, iOS mutes web audio whenever the ringer switch is on silent.
+    // 'ambient' = short game sounds: mixes with the player's music and never puts media
+    // controls on the lock screen ('playback' did). Like most games, it follows the silent switch.
     const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
-    if (session && session.type !== 'playback') session.type = 'playback';
+    if (session && session.type !== 'ambient') session.type = 'ambient';
     if (!ctx) {
       ctx = new AudioContext();
       // A gentle compressor glues the layered sounds together and keeps stacked deals from clipping.
@@ -30,14 +31,6 @@ export function unlockAudio() {
       warm.Q.value = 0.5;
       master.connect(warm).connect(comp).connect(ctx.destination);
       out = master;
-      // iOS powers the audio output down after a few seconds of silence, and waking it adds
-      // 100–300 ms to the next sound. An inaudible tone keeps it awake while we're on screen.
-      const keepAlive = ctx.createOscillator();
-      const hush = ctx.createGain();
-      keepAlive.frequency.value = 40;
-      hush.gain.value = 0.00004;
-      keepAlive.connect(hush).connect(ctx.destination);
-      keepAlive.start();
       const a = ctx;
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) void a.suspend();
