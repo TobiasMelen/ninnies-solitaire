@@ -1,0 +1,11 @@
+Court card figures (cropped and downscaled to JPEG for this game)
+
+knoll/    Byron Knoll, "Vector Playing Cards" — public domain.
+          https://code.google.com/archive/p/vector-playing-cards/
+          via https://github.com/hayeah/playing-cards-assets
+
+bellot/   David Bellot, "SVG-cards" — GNU LGPL 2.1 (see bellot/LICENSE-LGPL-2.1.txt).
+          Source: https://github.com/htdebeer/SVG-cards
+
+english/  Dmitry Fomin, "English pattern" playing cards — CC0 1.0 (public domain dedication).
+          https://commons.wikimedia.org/wiki/Category:English_pattern_playing_cards_deck

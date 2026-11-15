@@ -74,6 +74,7 @@ describe('moves', () => {
   it('blocks dealing onto an empty column', () => {
     const s = board([[c(5)]], [c(1), c(2)]);
     expect(dealBlocked(s)).toBe('empty-column');
+    expect(dealBlocked(s, true)).toBeNull();
   });
 });
 

@@ -13,6 +13,13 @@ export const BACKS = [
   { id: 'gold', label: 'Gold' },
 ] as const;
 
+export const COURTS = [
+  { id: 'knoll', label: 'Classic' },
+  { id: 'english', label: 'English' },
+  { id: 'bellot', label: 'French' },
+  { id: 'letters', label: 'Letters' },
+] as const;
+
 export const TABLES = [
   { id: 'felt', label: 'Green felt' },
   { id: 'ocean', label: 'Ocean' },
@@ -25,10 +32,12 @@ export interface Settings {
   deck: (typeof DECKS)[number]['id'];
   back: (typeof BACKS)[number]['id'];
   table: (typeof TABLES)[number]['id'];
+  courts: (typeof COURTS)[number]['id'];
   noMovesAlert: boolean;
   tapToMove: boolean;
   showTargets: boolean;
   highlightRuns: boolean;
+  dealWithEmpty: boolean;
   sound: boolean;
   haptics: boolean;
 }
@@ -39,10 +48,12 @@ const DEFAULTS: Settings = {
   deck: 'classic',
   back: 'crimson',
   table: 'felt',
+  courts: 'knoll',
   noMovesAlert: true,
   tapToMove: true,
   showTargets: true,
   highlightRuns: true,
+  dealWithEmpty: false,
   sound: true,
   haptics: true,
 };

@@ -276,6 +276,31 @@ body {
 .front:has(.court) .pip {
   display: none;
 }
+.court b {
+  font-weight: inherit;
+}
+.fig {
+  display: none;
+}
+
+/* Figure sets: a framed portrait in place of the big letter. */
+[data-courts]:not([data-courts='letters']) .court {
+  inset: 32% 8% 5% 8%; /* starts below the strip left visible when fanned (30% of height) */
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  opacity: 1;
+  overflow: hidden;
+}
+[data-courts]:not([data-courts='letters']) .court b {
+  display: none;
+}
+[data-courts]:not([data-courts='letters']) .fig {
+  display: block;
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center top;
+}
 
 .back {
   background:
@@ -1035,6 +1060,22 @@ dialog.center form {
     repeating-linear-gradient(-45deg, var(--back-line) 0 1.5px, transparent 1.5px 6px),
     linear-gradient(140deg, var(--back-a), var(--back-b));
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+.mini-court {
+  width: 36px;
+  height: 50px;
+  border-radius: 5px;
+  background: #fff center top / cover;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.25),
+    0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.mini-court.letters {
+  display: grid;
+  place-items: center;
+  color: #c4122f;
+  font: 700 24px 'Card', Georgia, serif;
 }
 
 .mini-table {

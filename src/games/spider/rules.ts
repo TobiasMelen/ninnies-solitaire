@@ -81,9 +81,10 @@ export function canMove(s: SpiderState, from: number, index: number, to: number)
 
 export type DealBlock = 'empty-stock' | 'empty-column' | null;
 
-export function dealBlocked(s: SpiderState): DealBlock {
+/** Classic rules forbid dealing while a column is empty; `allowEmpty` relaxes that. */
+export function dealBlocked(s: SpiderState, allowEmpty = false): DealBlock {
   if (!s.stock.length) return 'empty-stock';
-  if (s.columns.some((c) => !c.length)) return 'empty-column';
+  if (!allowEmpty && s.columns.some((c) => !c.length)) return 'empty-column';
   return null;
 }
 
@@ -142,7 +143,7 @@ export const isWon = (s: SpiderState) => s.foundations.length === RUNS_TO_WIN;
 export function replay(seed: number, suitCount: SuitCount, actions: Action[]): SpiderState {
   const s = newGame(seed, suitCount);
   for (const a of actions) {
-    if (a.t === 'move' ? !canMove(s, a.from, a.index, a.to) : dealBlocked(s)) throw new Error('Invalid action in history');
+    if (a.t === 'move' ? !canMove(s, a.from, a.index, a.to) : dealBlocked(s, true)) throw new Error('Invalid action in history');
     applyAction(s, a);
     completeRuns(s);
   }

@@ -1,4 +1,6 @@
-import { type Card, SUIT_SYMBOL, cardName, rankLabel } from '../core/cards';
+import { type Card, SUIT_NAME, SUIT_SYMBOL, cardName, rankLabel } from '../core/cards';
+
+const COURT_NAME: Record<number, string> = { 11: 'jack', 12: 'queen', 13: 'king' };
 
 export interface Placement {
   x: number;
@@ -19,6 +21,8 @@ export class CardLayer {
   readonly els = new Map<number, HTMLElement>();
   private last = new Map<number, Placement>();
   private zTimers = new Map<number, number>();
+  /** Folder under public/courts with J/Q/K figures, or 'letters' for plain letters. */
+  private courts = 'letters';
 
   constructor(private root: HTMLElement) {}
 
@@ -38,12 +42,28 @@ export class CardLayer {
       el.dataset.suit = card.suit;
       const suit = SUIT_SYMBOL[card.suit];
       const rank = rankLabel(card.rank);
-      const face = card.rank > 10 ? `<span class="court">${rank}</span>` : '';
+      const face = card.rank > 10 ? `<span class="court"><span class="fig"></span><b>${rank}</b></span>` : '';
       el.querySelector('.front')!.innerHTML =
         `<span class="idx"><b>${rank}</b><i>${suit}</i></span>${face}<span class="pip">${suit}</span>`;
+      el.dataset.fig = card.rank > 10 ? `${COURT_NAME[card.rank]}_${SUIT_NAME[card.suit]}` : '';
+      this.applyFigure(el);
     }
     el.setAttribute('aria-label', card.faceUp ? cardName(card) : 'Face-down card');
     return el;
+  }
+
+  setCourts(set: string) {
+    if (set === this.courts) return;
+    this.courts = set;
+    this.root.dataset.courts = set;
+    this.els.forEach((el) => this.applyFigure(el));
+  }
+
+  private applyFigure(el: HTMLElement) {
+    const fig = el.querySelector<HTMLElement>('.fig');
+    if (!fig) return;
+    // Images live in public/, so they load lazily and only for the chosen set.
+    fig.style.backgroundImage = this.courts === 'letters' ? '' : `url(courts/${this.courts}/${el.dataset.fig}.jpg)`;
   }
 
   place(id: number, p: Placement, animate: boolean) {

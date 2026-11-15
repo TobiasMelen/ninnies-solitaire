@@ -2,7 +2,7 @@ import './style.css';
 import { type GameHooks, SpiderGame } from './games/spider/SpiderGame';
 import type { SuitCount } from './games/spider/rules';
 import { canVibrate, sfx, unlockAudio } from './ui/feedback';
-import { BACKS, DECKS, TABLES, type Settings, onSettings, updateSettings } from './ui/settings';
+import { BACKS, COURTS, DECKS, TABLES, type Settings, onSettings, updateSettings } from './ui/settings';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
@@ -178,7 +178,7 @@ showHome();
 
 // ───────── settings sheet ─────────
 
-function swatches<K extends 'deck' | 'back' | 'table'>(
+function swatches<K extends 'deck' | 'back' | 'table' | 'courts'>(
   key: K,
   list: readonly { id: Settings[K]; label: string }[],
   preview: (id: string) => string,
@@ -205,6 +205,11 @@ swatches(
     <span class="mini-card" data-suit="D"><b>7</b><i>♦&#xFE0E;</i></span>
     <span class="mini-card" data-suit="C"><b>Q</b><i>♣&#xFE0E;</i></span></span>`,
 );
+swatches('courts', COURTS, (id) =>
+  id === 'letters'
+    ? `<span class="mini-court letters">K</span>`
+    : `<span class="mini-court" style="background-image:url(courts/${id}/king_hearts.jpg)"></span>`,
+);
 swatches('back', BACKS, (id) => `<span class="mini-back" data-back="${id}"></span>`);
 swatches('table', TABLES, (id) => `<span class="mini-table" data-table="${id}"></span>`);
 
@@ -212,6 +217,7 @@ const TOGGLES: { key: keyof Settings; label: string; hint: string; show?: () => 
   { key: 'noMovesAlert', label: 'Tell me when no moves are left', hint: 'Points to the stock, or offers undo when the game is stuck' },
   { key: 'tapToMove', label: 'Tap to move', hint: 'Tap a card to send it to the best spot' },
   { key: 'highlightRuns', label: 'Highlight built runs', hint: 'Marks cards already in suit order with a gold edge' },
+  { key: 'dealWithEmpty', label: 'Deal with empty columns', hint: 'Off follows the classic rule: fill every column before dealing' },
   { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging' },
   { key: 'sound', label: 'Sound', hint: '' },
   { key: 'haptics', label: 'Vibration', hint: '', show: canVibrate },
@@ -246,7 +252,7 @@ onSettings((s) => {
   board.dataset.back = s.back;
   $('#spider-art').dataset.deck = s.deck;
   document.querySelector('meta[name=theme-color]')!.setAttribute('content', TABLE_COLOR[s.table]);
-  for (const key of ['deck', 'back', 'table'] as const) {
+  for (const key of ['deck', 'back', 'table', 'courts'] as const) {
     $(`#opt-${key}`)
       .querySelectorAll<HTMLElement>('.swatch')
       .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === s[key])));

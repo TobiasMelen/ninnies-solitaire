@@ -139,6 +139,7 @@ export class SpiderGame {
     private hooks: GameHooks,
   ) {
     this.layer = new CardLayer(board);
+    this.layer.setCourts(settings.courts);
     this.foundSlot = this.el('slot found-slot');
     for (let i = 0; i < COLUMNS; i++) {
       this.colSlots.push(this.el('slot col-slot'));
@@ -243,7 +244,7 @@ export class SpiderGame {
   deal() {
     if (this.celebrating !== null) return;
     this.flush();
-    const blocked = dealBlocked(this.state);
+    const blocked = dealBlocked(this.state, settings.dealWithEmpty);
     if (blocked === 'empty-stock') {
       this.hooks.toast('No more cards to deal');
       return;
@@ -269,7 +270,7 @@ export class SpiderGame {
     this.clearHint();
     const moves = findMoves(this.state);
     if (!moves.length) {
-      if (!dealBlocked(this.state)) {
+      if (!dealBlocked(this.state, settings.dealWithEmpty)) {
         flash(this.stockSlot, 'hint');
         this.hooks.toast('No moves on the table — deal a new row');
       } else {
@@ -288,6 +289,7 @@ export class SpiderGame {
   /** Called when settings change. */
   refresh() {
     if (!this.state) return;
+    this.layer.setCourts(settings.courts);
     this.render({ animate: false });
     this.checkStuck();
   }
@@ -380,7 +382,7 @@ export class SpiderGame {
     if (this.stuckNotified === this.actions.length) return;
     if (findMoves(this.state).length) return;
     this.stuckNotified = this.actions.length;
-    const blocked = dealBlocked(this.state);
+    const blocked = dealBlocked(this.state, settings.dealWithEmpty);
     if (!blocked) {
       flash(this.stockSlot, 'hint');
       this.hooks.toast('No moves left on the table — deal a new row');
@@ -575,7 +577,7 @@ export class SpiderGame {
     this.stockBadge.style.transform = `translate(${L.stockX + L.cw - 24}px, ${L.topY + L.ch - 16}px)`;
     this.stockSlot.classList.toggle('empty', groups === 0);
     this.colSlots.forEach((slot, i) => slot.classList.toggle('empty', !s.columns[i].length));
-    this.board.classList.toggle('can-deal', !dealBlocked(s));
+    this.board.classList.toggle('can-deal', !dealBlocked(s, settings.dealWithEmpty));
   }
 
   /** Deal-in animation for a fresh game: everything starts on the stock. */
