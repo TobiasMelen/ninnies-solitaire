@@ -2,6 +2,13 @@ import { type Card, SUIT_NAME, SUIT_SYMBOL, cardName, rankLabel } from '../core/
 
 const COURT_NAME: Record<number, string> = { 11: 'jack', 12: 'queen', 13: 'king' };
 
+/** Sets cut out to just the figure (transparent, no suit symbols); the rest are framed pictures. */
+export const CUTOUT_COURTS = new Set(['knoll']);
+
+export const courtUrl = (set: string, name: string) => `courts/${set}/${name}.${CUTOUT_COURTS.has(set) ? 'webp' : 'jpg'}`;
+
+export const courtName = (card: Card) => `${COURT_NAME[card.rank]}_${SUIT_NAME[card.suit]}`;
+
 export interface Placement {
   x: number;
   y: number;
@@ -45,7 +52,7 @@ export class CardLayer {
       const face = card.rank > 10 ? `<span class="court"><span class="fig"></span><b>${rank}</b></span>` : '';
       el.querySelector('.front')!.innerHTML =
         `<span class="idx"><b>${rank}</b><i>${suit}</i></span>${face}<span class="pip">${suit}</span>`;
-      el.dataset.fig = card.rank > 10 ? `${COURT_NAME[card.rank]}_${SUIT_NAME[card.suit]}` : '';
+      el.dataset.fig = card.rank > 10 ? courtName(card) : '';
       this.applyFigure(el);
     }
     el.setAttribute('aria-label', card.faceUp ? cardName(card) : 'Face-down card');
@@ -63,7 +70,7 @@ export class CardLayer {
     const fig = el.querySelector<HTMLElement>('.fig');
     if (!fig) return;
     // Images live in public/, so they load lazily and only for the chosen set.
-    fig.style.backgroundImage = this.courts === 'letters' ? '' : `url(courts/${this.courts}/${el.dataset.fig}.jpg)`;
+    fig.style.backgroundImage = this.courts === 'letters' ? '' : `url(${courtUrl(this.courts, el.dataset.fig!)})`;
   }
 
   place(id: number, p: Placement, animate: boolean) {

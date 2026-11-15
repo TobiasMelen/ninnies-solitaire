@@ -291,6 +291,18 @@ body {
   opacity: 1;
   overflow: hidden;
 }
+/* Cut-out figures stand on the card face itself: no frame, fit to width, head and shoulders up top. */
+[data-courts='knoll']:not([data-courts='letters']) .court {
+  inset: 32% 4% 0 4%;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+[data-courts='knoll']:not([data-courts='letters']) .fig {
+  top: 0;
+  background-size: 100% auto;
+}
+
 [data-courts]:not([data-courts='letters']) .court b {
   display: none;
 }
@@ -1171,6 +1183,10 @@ dialog.center form {
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.25),
     0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.mini-court.cutout {
+  background-color: #fdfcf8;
+  background-size: 100% auto;
 }
 .mini-court.letters {
   display: grid;

@@ -1,4 +1,5 @@
-import { type Card, SUIT_NAME, SUIT_SYMBOL, rankLabel } from '../core/cards';
+import { type Card, SUIT_SYMBOL, rankLabel } from '../core/cards';
+import { CUTOUT_COURTS, courtName, courtUrl } from './cardLayer';
 
 /**
  * The classic Windows win animation: cards leave the foundations one by one, bounce along
@@ -19,7 +20,6 @@ export interface Cascade {
   readonly running: boolean;
 }
 
-const COURT_NAME: Record<number, string> = { 11: 'jack', 12: 'queen', 13: 'king' };
 const LAUNCH_MS = 140;
 const MAX_MS = 24000;
 const SKIP_AFTER_MS = 1500;
@@ -137,7 +137,7 @@ function hideCard(board: HTMLElement, id: number) {
 
 const figures = new Map<string, HTMLImageElement>();
 function figure(courts: string, card: Card) {
-  const src = `courts/${courts}/${COURT_NAME[card.rank]}_${SUIT_NAME[card.suit]}.jpg`;
+  const src = courtUrl(courts, courtName(card));
   let img = figures.get(src);
   if (!img) {
     img = new Image();
@@ -185,8 +185,8 @@ function drawCard(board: HTMLElement, card: Card, cw: number, ch: number, dpr: n
     const fy = ch * 0.32;
     const fw = cw * 0.84;
     const fh = ch * 0.63;
-    // Same "cover, anchored at the top" crop as the CSS.
-    const s = Math.max(fw / img.naturalWidth, fh / img.naturalHeight);
+    // Same crop as the CSS: cut-outs fit the width, framed pictures cover; both anchored at the top.
+    const s = CUTOUT_COURTS.has(courts) ? fw / img.naturalWidth : Math.max(fw / img.naturalWidth, fh / img.naturalHeight);
     x.save();
     x.beginPath();
     x.roundRect(fx, fy, fw, fh, cw * 0.06);

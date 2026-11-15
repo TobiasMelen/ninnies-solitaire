@@ -1,6 +1,7 @@
 import './style.css';
 import { type GameHooks, SpiderGame } from './games/spider/SpiderGame';
 import type { SuitCount } from './games/spider/rules';
+import { CUTOUT_COURTS, courtUrl } from './ui/cardLayer';
 import { canVibrate, sfx, unlockAudio } from './ui/feedback';
 import { BACKS, COURTS, DECKS, TABLES, type Settings, onSettings, updateSettings } from './ui/settings';
 
@@ -278,7 +279,7 @@ swatches(
 swatches('courts', COURTS, (id) =>
   id === 'letters'
     ? `<span class="mini-court letters">K</span>`
-    : `<span class="mini-court" style="background-image:url(courts/${id}/king_hearts.jpg)"></span>`,
+    : `<span class="mini-court${CUTOUT_COURTS.has(id) ? ' cutout' : ''}" style="background-image:url(${courtUrl(id, 'king_hearts')})"></span>`,
 );
 swatches('back', BACKS, (id) => `<span class="mini-back" data-back="${id}"></span>`);
 swatches('table', TABLES, (id) => `<span class="mini-table" data-table="${id}"></span>`);
