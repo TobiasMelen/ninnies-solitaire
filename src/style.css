@@ -1,5 +1,14 @@
 /* ───────────────────────── tokens ───────────────────────── */
 
+/* Playfair Display (SIL OFL, see assets/fonts) for card indices. Latin only: suits fall back to system glyphs. */
+@font-face {
+  font-family: 'Card';
+  src: url('./assets/fonts/playfair-display-latin-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+
 :root {
   --accent: #ffd54a;
   --accent-glow: rgba(255, 213, 74, 0.55);
@@ -57,17 +66,15 @@
   --c-H: #c4122f;
   --c-D: #c4122f;
   --c-C: #1b1c21;
-  --idx-font: Georgia, 'Times New Roman', serif;
+  --idx-font: 'Card', Georgia, 'Times New Roman', serif;
   --idx-weight: 700;
-  --idx-size: 0.37;
+  --idx-size: 0.39;
   --idx-suit: 0.82em;
   --court-tint: rgba(196, 160, 60, 0.13);
 }
 [data-deck='four'] {
   --c-D: #1857c4;
   --c-C: #12793a;
-  --idx-font: ui-rounded, 'SF Pro Rounded', system-ui, sans-serif;
-  --idx-weight: 750;
 }
 [data-deck='bold'] {
   --idx-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -84,8 +91,6 @@
   --c-H: #ff6f80;
   --c-D: #6eaaff;
   --c-C: #6fd697;
-  --idx-font: ui-rounded, system-ui, sans-serif;
-  --idx-weight: 750;
   --court-tint: rgba(255, 255, 255, 0.05);
 }
 
