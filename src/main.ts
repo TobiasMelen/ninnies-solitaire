@@ -67,8 +67,8 @@ const hooks: GameHooks = {
     $('#win-stats').innerHTML = `
       <div><b>${r.score}</b><small>Score</small></div>
       <div><b>${r.stats.won[s]}/${r.stats.played[s]}</b><small>Won</small></div>
-      <div><b>${r.stats.bestMs[s] ? fmtTime(r.stats.bestMs[s]!) : '–'}</b><small>Best</small></div>`;
-    window.setTimeout(() => open(dlgWin), 2600);
+      <div><b>${r.stats.bestMs[s] !== undefined ? fmtTime(r.stats.bestMs[s]!) : '–'}</b><small>Best</small></div>`;
+    open(dlgWin);
   },
   stuck() {
     open(dlgStuck);
@@ -78,6 +78,8 @@ const hooks: GameHooks = {
 // Created on first play so the table stays empty behind the start screen.
 let game: SpiderGame | null = null;
 const ensureGame = () => (game ??= new SpiderGame(board, hooks));
+// Dev-only handle for poking at the game from the console (stripped from production builds).
+if (import.meta.env.DEV) Object.assign(window, { ninnies: { get game() { return ensureGame(); } } });
 
 // ───────── start screen ─────────
 

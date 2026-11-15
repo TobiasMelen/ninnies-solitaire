@@ -139,6 +139,41 @@ function tone(freq: number, dur: number, gain: number, when = 0) {
   osc.stop(t + dur + 0.02);
 }
 
+/** Bell: a sine with two quieter overtones that decay faster, so it rings rather than beeps. */
+function bell(freq: number, dur: number, gain: number, when = 0) {
+  tone(freq, dur, gain, when);
+  tone(freq * 2, dur * 0.6, gain * 0.35, when);
+  tone(freq * 3, dur * 0.35, gain * 0.12, when);
+}
+
+/** Soft brass: two detuned saws through a low-pass that opens on the attack. */
+function brass(freq: number, dur: number, gain: number, when = 0) {
+  const a = ready();
+  if (!a || !out) return;
+  const t = a.currentTime + when;
+  const filter = a.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.Q.value = 0.7;
+  filter.frequency.setValueAtTime(400, t);
+  filter.frequency.linearRampToValueAtTime(1800, t + 0.06);
+  filter.frequency.exponentialRampToValueAtTime(900, t + dur);
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain, t + 0.04);
+  g.gain.setValueAtTime(gain * 0.8, t + Math.max(0.05, dur - 0.12));
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.25);
+  filter.connect(g).connect(out);
+  for (const detune of [-7, 7]) {
+    const osc = a.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+    osc.detune.value = detune;
+    osc.connect(filter);
+    osc.start(t);
+    osc.stop(t + dur + 0.3);
+  }
+}
+
 /** A card settling on the table. */
 const land = (when = 0, gain = 1) => {
   tap(1400, 0.07, 0.12 * gain, when);
@@ -176,11 +211,31 @@ export const sfx = {
     tone(196, 0.16, 0.07);
     tone(165, 0.2, 0.06, 0.08);
   },
+  /** A finished K→A stack: the cards whoosh off, then a bright rising bell arpeggio. */
   complete: () => {
-    for (let i = 0; i < 5; i++) swoosh(0.16, 0.04, i * 0.07, 600, 1600);
-    [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.6, 0.045, 0.28 + i * 0.09));
+    for (let i = 0; i < 5; i++) swoosh(0.16, 0.06, i * 0.06, 600, 1600);
+    thump(0.16, 0.25);
+    [523, 659, 784, 1047].forEach((f, i) => bell(f, i === 3 ? 1.4 : 0.7, 0.11, 0.25 + i * 0.085));
+    bell(1319, 1.2, 0.05, 0.25 + 4 * 0.085);
   },
-  win: () => [523, 659, 784, 1047, 784, 1047, 1319].forEach((f, i) => tone(f, 0.8, 0.05, i * 0.13)),
+  /** Winning the game: a short fanfare ending on a held major chord, with sparkles on top. */
+  win: () => {
+    const beat = 0.15;
+    const notes: [number, number, number][] = [
+      [523, 0, 0.12],
+      [523, 1, 0.12],
+      [523, 2, 0.12],
+      [659, 3, 0.42],
+      [587, 6, 0.12],
+      [659, 7, 0.12],
+    ];
+    notes.forEach(([f, at, dur]) => brass(f, dur, 0.07, at * beat));
+    const end = 8 * beat;
+    for (const f of [262, 523, 659, 784]) brass(f, 1.5, 0.055, end);
+    thump(0.22, 0);
+    thump(0.25, end);
+    [1047, 1319, 1568, 2093].forEach((f, i) => bell(f, 1.1, 0.035, end + 0.1 + i * 0.09));
+  },
   undo: () => {
     swoosh(0.2, 0.08, 0, 1200, 500);
     land(0.2, 0.6);

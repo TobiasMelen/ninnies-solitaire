@@ -1,5 +1,6 @@
 import { type Card, randomSeed } from '../../core/cards';
 import { CardLayer, type Placement } from '../../ui/cardLayer';
+import { type Cascade, type CascadeCard, runCascade } from '../../ui/cascade';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
 import {
@@ -129,7 +130,7 @@ export class SpiderGame {
   private stuckNotified = -1;
   private hintIndex = 0;
   private hintTimer = 0;
-  private celebrating: number | null = null;
+  private cascade: Cascade | null = null;
   private paused = false;
 
   private colSlots: HTMLElement[] = [];
@@ -230,10 +231,11 @@ export class SpiderGame {
   }
 
   undo() {
-    if (this.celebrating !== null) return;
+    if (this.celebrating) return;
     this.flush();
     this.cancelDrag();
     if (!this.actions.length) return;
+    this.stopCelebration();
     this.actions.pop();
     this.state = replay(this.state.seed, this.state.suitCount, this.actions);
     this.hintIndex = 0;
@@ -246,7 +248,7 @@ export class SpiderGame {
   }
 
   deal() {
-    if (this.celebrating !== null) return;
+    if (this.celebrating) return;
     this.flush();
     const blocked = dealBlocked(this.state, settings.dealWithEmpty);
     if (blocked === 'empty-stock') {
@@ -269,7 +271,7 @@ export class SpiderGame {
   }
 
   hint() {
-    if (this.celebrating !== null) return;
+    if (this.celebrating) return;
     this.flush();
     this.clearHint();
     const moves = findMoves(this.state);
@@ -407,9 +409,9 @@ export class SpiderGame {
     store.set(STATS_KEY, st);
     sfx.win();
     haptic([20, 60, 20, 60, 40]);
-    this.celebrate();
-    this.hooks.won({ score: this.state.score, moves: this.state.moves, ms, suitCount: s, stats: st, best });
     this.save();
+    const result = { score: this.state.score, moves: this.state.moves, ms, suitCount: s, stats: st, best };
+    this.celebrate(() => this.hooks.won(result));
   }
 
   // ───────────────────────── persistence & clock ─────────────────────────
@@ -462,7 +464,7 @@ export class SpiderGame {
       score: this.state.score,
       moves: this.state.moves,
       ms: this.elapsed(),
-      canUndo: this.actions.length > 0 && this.celebrating === null,
+      canUndo: this.actions.length > 0 && !this.celebrating,
       suitCount: this.state.suitCount,
     });
   }
@@ -505,7 +507,7 @@ export class SpiderGame {
     at(this.stockSlot, this.L.stockX - this.L.stockStep * 4, topY);
     this.stockSlot.style.width = `${cw + this.L.stockStep * 4}px`;
 
-    if (this.state && this.celebrating === null) {
+    if (this.state && !this.celebrating) {
       this.cancelDrag();
       this.render({ animate: false });
     }
@@ -615,7 +617,7 @@ export class SpiderGame {
 
   private onDown(e: PointerEvent) {
     unlockAudio();
-    if (this.celebrating !== null) return;
+    if (this.celebrating) return this.cascade!.stop();
     if (this.drag || (e.pointerType === 'mouse' && e.button !== 0)) return;
     const target = e.target as HTMLElement;
 
@@ -792,58 +794,32 @@ export class SpiderGame {
 
   // ───────────────────────── celebration ─────────────────────────
 
-  private celebrate() {
-    if (this.fast) return;
-    const cards = this.state.foundations.flatMap((pile) => [...pile].reverse());
-    const { W, H, ch, cw } = this.L;
-    const floor = H - ch;
-    const bodies = cards.map((card, i) => {
-      const p = this.layer.pos(card.id)!;
-      const el = this.layer.els.get(card.id)!;
-      return {
-        el,
-        x: p.x,
-        y: p.y,
-        vx: (Math.random() < 0.5 ? -1 : 1) * (1.5 + Math.random() * 4) * (cw / 40),
-        vy: -(Math.random() * 6) * (ch / 60),
-        start: i * 70,
-        done: false,
-      };
-    });
-    const g = 0.45 * (ch / 60);
-    const t0 = performance.now();
-    let prev = t0;
-    const frame = (now: number) => {
-      const dt = Math.min(2, (now - prev) / 16.7);
-      prev = now;
-      let alive = 0;
-      for (const b of bodies) {
-        if (b.done || now - t0 < b.start) {
-          if (!b.done) alive++;
-          continue;
-        }
-        alive++;
-        b.el.classList.add('no-anim');
-        b.vy += g * dt;
-        b.x += b.vx * dt;
-        b.y += b.vy * dt;
-        if (b.y > floor) {
-          b.y = floor;
-          b.vy *= -0.72;
-        }
-        if (b.x < -cw * 1.5 || b.x > W + cw * 0.5) b.done = true;
-        b.el.style.transform = `translate3d(${b.x}px, ${b.y}px, 0) rotate(${b.vx * (now - t0) * 0.02}deg)`;
-        b.el.style.zIndex = String(3000 + Math.round(now - t0 - b.start) % 1000);
+  private get celebrating() {
+    return Boolean(this.cascade?.running);
+  }
+
+  /** Classic cascade: Kings first, one from each foundation in turn, then Queens, and so on. */
+  private celebrate(onDone: () => void) {
+    this.stopCelebration();
+    if (this.fast) return onDone();
+    const piles = this.state.foundations;
+    const order: CascadeCard[] = [];
+    for (let rank = 13; rank >= 1; rank--) {
+      for (const pile of piles) {
+        const card = pile[rank - 1];
+        const p = this.layer.pos(card.id)!;
+        order.push({ card, x: p.x, y: p.y });
       }
-      if (alive && now - t0 < 12000) this.celebrating = requestAnimationFrame(frame);
-      else this.celebrating = null;
-    };
-    this.celebrating = requestAnimationFrame(frame);
+    }
+    this.cascade = runCascade(this.board, order, { cw: this.L.cw, ch: this.L.ch }, settings.courts, () => {
+      this.emitHud();
+      onDone();
+    });
   }
 
   private stopCelebration() {
-    if (this.celebrating !== null) cancelAnimationFrame(this.celebrating);
-    this.celebrating = null;
+    this.cascade?.clear();
+    this.cascade = null;
   }
 
   // ───────────────────────── helpers ─────────────────────────

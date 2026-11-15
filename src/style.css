@@ -332,6 +332,19 @@ body {
   background: rgba(30, 32, 40, 0.18);
 }
 
+/* Win cascade: trails are painted on a canvas above the table. */
+.cascade {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2600;
+  pointer-events: none;
+}
+.card.gone {
+  visibility: hidden;
+}
+
 /* Lift & drag feel */
 .card.lifted {
   scale: 1.05;
