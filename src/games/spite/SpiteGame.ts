@@ -610,9 +610,10 @@ export class SpiteGame implements GameController {
       fan: { dx: 0, dy: ch * scale * 0.16 },
       badge: { x: x0, y: pad },
       arrow: { x: x0 + w * 0.5, y: top + ch * scale * 1.5, glyph: '▲' },
-      // Hand: a tight fan of backs just right of the badge.
-      hand: { x: x0 + 132, y: pad - 2, dx: w * 0.14, scale: scale * 0.45 },
-      lift: { x: Math.min(W - w * 1.2 - 6, x0 + five * scale + 6), y: top },
+      // Hand: a small fan of backs to the right of their piles; a card about to be played
+      // pops out just below it.
+      hand: { x: Math.min(W - pad - w * 2.4, x0 + five * scale + gap * 2), y: top, dx: w * 0.3, scale: scale * 0.75 },
+      lift: { x: Math.min(W - pad - w * 1.25, x0 + five * scale + gap * 2 + w * 0.3), y: top + ch * scale * 0.85 },
     };
     const northBottom = top + ch * scale * 1.45;
 
@@ -708,12 +709,16 @@ export class SpiteGame implements GameController {
       const k = Math.min(1, 4 / Math.max(1, pile.length - 1));
       pile.forEach((c, i) => put(c, { at: 'discard', player: 1, pile: d }, { x: g.col[d + 1].x, y: g.col[d + 1].y + i * g.fan.dy * k, z: 300 + i, faceUp: true, scale: g.scale }));
     });
+    // Fanned like a hand held across the table from you: tilted outward, the ends curving up.
+    const foeCards = foe.hand.length;
     foe.hand.forEach((c, i) => {
       if (c.id === this.foeLift) {
         // The hand card it's about to play, shown face up beside its miniature for a moment.
         put(c, { at: 'stock' }, { x: g.lift.x, y: g.lift.y, z: 2000, faceUp: true, scale: g.scale * 1.2 });
       } else {
-        put(c, { at: 'stock' }, { x: g.hand.x + i * g.hand.dx, y: g.hand.y, z: 1100 + i, faceUp: false, scale: g.hand.scale });
+        const off = foeCards > 1 ? i - (foeCards - 1) / 2 : 0;
+        const rise = L.ch * g.hand.scale * 0.06;
+        put(c, { at: 'stock' }, { x: g.hand.x + i * g.hand.dx, y: g.hand.y + (4 - off * off) * rise, z: 1100 + i, faceUp: false, scale: g.hand.scale, rotate: -off * 9 });
       }
     });
     const badge = this.foeEls.badge;
