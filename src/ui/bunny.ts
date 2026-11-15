@@ -1,3 +1,5 @@
+import photoUrl from '../assets/bunny/bunny.webp';
+
 /**
  * Hint Bunny: a companion peeking over the bottom edge of the table. It never talks; it reacts
  * with gestures and game-show style pop-up stamps (◯, ✕, !, ?, sparkles…), and it gives hints by
@@ -70,34 +72,6 @@ const IMPORTANT = new Set<string>(['complete', 'stuck', 'win', 'tap', 'hint', 'h
 const IDLE_MS = 40_000;
 const QUIET_MS = 4_000;
 
-/** Placeholder art until a photo set is chosen; the art slot is swappable. */
-const DRAWN = `
-<svg viewBox="0 0 120 116" aria-hidden="true">
-  <g class="ear ear-l">
-    <ellipse cx="44" cy="36" rx="12.5" ry="31" fill="#fbf6ee" stroke="#3b2f27" stroke-width="3"/>
-    <ellipse cx="44" cy="40" rx="6" ry="21" fill="#f5b3c1"/>
-  </g>
-  <g class="ear ear-r">
-    <ellipse cx="78" cy="36" rx="12.5" ry="31" fill="#fbf6ee" stroke="#3b2f27" stroke-width="3"/>
-    <ellipse cx="78" cy="40" rx="6" ry="21" fill="#f5b3c1"/>
-  </g>
-  <ellipse cx="61" cy="84" rx="41" ry="33" fill="#fbf6ee" stroke="#3b2f27" stroke-width="3"/>
-  <ellipse cx="37" cy="93" rx="7.5" ry="4.5" fill="#f5a3b5" opacity="0.65"/>
-  <ellipse cx="85" cy="93" rx="7.5" ry="4.5" fill="#f5a3b5" opacity="0.65"/>
-  <g class="eyes">
-    <g class="gaze">
-      <ellipse cx="47" cy="80" rx="5.6" ry="6.6" fill="#2b211b"/>
-      <circle cx="49" cy="77.6" r="1.9" fill="#fff"/>
-      <ellipse cx="75" cy="80" rx="5.6" ry="6.6" fill="#2b211b"/>
-      <circle cx="77" cy="77.6" r="1.9" fill="#fff"/>
-    </g>
-  </g>
-  <path d="M57.5 89.5 h7 l-3.5 4 z" fill="#ef8ea3" stroke="#3b2f27" stroke-width="1.2" stroke-linejoin="round"/>
-  <path d="M55 96 q3 3.5 6 0 q3 3.5 6 0" fill="none" stroke="#3b2f27" stroke-width="2" stroke-linecap="round"/>
-  <ellipse cx="38" cy="114" rx="13" ry="8" fill="#fbf6ee" stroke="#3b2f27" stroke-width="3"/>
-  <ellipse cx="84" cy="114" rx="13" ry="8" fill="#fbf6ee" stroke="#3b2f27" stroke-width="3"/>
-</svg>`;
-
 export interface HintTarget {
   /** 0–1 across the board: the card to move, and where it goes (or the stock for "deal"). */
   from: number;
@@ -107,12 +81,10 @@ export interface HintTarget {
 export class Bunny {
   private el: HTMLElement;
   private popEl: HTMLElement;
-  private gaze: SVGGElement | null;
   private enabled = false;
   private lastPop = 0;
   private timers = new Set<number>();
   private idleTimer = 0;
-  private blinkTimer = 0;
   private moodTimer = 0;
   private popTimer = 0;
   private busyUntil = 0;
@@ -124,10 +96,11 @@ export class Bunny {
     this.el.className = 'bunny';
     this.el.setAttribute('role', 'button');
     this.el.setAttribute('aria-label', 'Hint Bunny: tap for a hint');
-    this.el.innerHTML = `<div class="bunny-pop" aria-hidden="true"></div><div class="bunny-body">${DRAWN}</div>`;
+    // A real rabbit photo (see assets/bunny/CREDITS.txt); gestures are done with motion.
+    this.el.innerHTML = `<div class="bunny-pop" aria-hidden="true"></div><div class="bunny-body"><img src="${photoUrl}" alt="" draggable="false"></div>`;
+    this.el.classList.add('facing-right'); // at home in the corner it looks toward the table
     host.appendChild(this.el);
     this.popEl = this.el.querySelector('.bunny-pop')!;
-    this.gaze = this.el.querySelector('.gaze');
     // Its own taps must not start anything on the table underneath.
     this.el.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -141,10 +114,8 @@ export class Bunny {
     if (on === this.enabled) return;
     this.enabled = on;
     this.el.classList.toggle('on', on);
-    clearTimeout(this.blinkTimer);
     clearTimeout(this.idleTimer);
     if (on) {
-      this.scheduleBlink();
       this.resetIdle();
     } else {
       this.goHome();
@@ -161,7 +132,7 @@ export class Bunny {
     this.resetIdle();
     // Don't interrupt a hint walk with small reactions.
     if (performance.now() < this.busyUntil && !IMPORTANT.has(event)) return;
-    if (x !== undefined) this.look(x);
+    if (x !== undefined) this.face(x);
     this.gesture(GESTURE[event], event === 'win' ? 6000 : 900);
     if (Math.random() < CHANCE[event]) this.pop(event);
   }
@@ -226,37 +197,22 @@ export class Bunny {
     const left = parseFloat(getComputedStyle(this.el).left) || 0;
     const dx = Math.max(0, Math.min(hostW - w, x * hostW - w / 2)) - left;
     this.el.style.setProperty('--walk', `${dx}px`);
-    this.el.classList.toggle('facing-left', dx < 0);
+    this.el.classList.toggle('facing-right', dx > 0);
     this.el.classList.add('walking');
     this.later(360, () => this.el.classList.remove('walking'));
-    this.look(x);
   }
 
   private goHome() {
     this.el.style.setProperty('--walk', '0px');
-    this.el.classList.remove('facing-left');
+    this.el.classList.add('facing-right');
     this.busyUntil = 0;
   }
 
-  /** Point the eyes toward where the action is, then drift back to the player. */
-  private look(x: number) {
-    if (!this.gaze) return;
+  /** Turn toward where the action is (the photo looks left by default). */
+  private face(x: number) {
     const rect = this.el.getBoundingClientRect();
     const host = this.host.getBoundingClientRect();
-    const dx = Math.max(-1, Math.min(1, (host.left + x * host.width - (rect.left + rect.width / 2)) / (host.width / 2)));
-    this.gaze.style.transform = `translate(${dx * 3.5}px, -2.5px)`;
-    this.later(1600, () => this.gaze && (this.gaze.style.transform = ''));
-  }
-
-  private scheduleBlink() {
-    this.blinkTimer = window.setTimeout(
-      () => {
-        this.el.classList.add('blink');
-        window.setTimeout(() => this.el.classList.remove('blink'), 140);
-        if (this.enabled) this.scheduleBlink();
-      },
-      2500 + Math.random() * 4000,
-    );
+    this.el.classList.toggle('facing-right', host.left + x * host.width > rect.left + rect.width / 2);
   }
 
   private resetIdle() {

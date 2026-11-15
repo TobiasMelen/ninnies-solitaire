@@ -515,10 +515,10 @@ body {
 
 .bunny {
   position: absolute;
-  left: max(10px, env(safe-area-inset-left));
+  left: max(6px, env(safe-area-inset-left));
   bottom: 0;
   z-index: 1900;
-  width: clamp(56px, 11vmin, 96px);
+  width: clamp(68px, 15vmin, 128px);
   translate: 0 105%;
   transform: translateX(var(--walk, 0px));
   transition:
@@ -528,8 +528,9 @@ body {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
+/* Peeking over the edge: ears, face and chest show, the rest is below the table. */
 .bunny.on {
-  translate: 0 14%;
+  translate: 0 40%;
 }
 /* Out of the way while cards are being dragged. */
 #board.is-dragging .bunny {
@@ -541,46 +542,32 @@ body {
 }
 .bunny-body {
   transform-origin: 50% 100%;
+  transition:
+    translate 260ms var(--ease-out),
+    scale 260ms var(--ease-out),
+    rotate 260ms var(--ease-out);
 }
-.bunny-body svg {
+.bunny-body img {
   display: block;
   width: 100%;
-  overflow: visible;
-  filter: drop-shadow(0 -2px 6px rgba(0, 0, 0, 0.25));
+  height: auto;
+  -webkit-user-drag: none;
+  user-select: none;
+  filter: drop-shadow(0 -2px 8px rgba(0, 0, 0, 0.3));
+  transition: scale 200ms ease;
 }
-.bunny.facing-left .bunny-body svg {
+.bunny.facing-right .bunny-body img {
   scale: -1 1;
-}
-.bunny .ear {
-  transform-box: fill-box;
-  transform-origin: 50% 95%;
-  transition: transform 300ms var(--ease-out);
-}
-.bunny .ear-l {
-  transform: rotate(-6deg);
-}
-.bunny .ear-r {
-  transform: rotate(7deg);
-}
-.bunny .eyes {
-  transform-box: fill-box;
-  transform-origin: 50% 50%;
-  transition: transform 90ms ease;
-}
-.bunny .gaze {
-  transition: transform 260ms ease;
-}
-.bunny.blink .eyes {
-  transform: scaleY(0.12);
 }
 
 /* Gestures */
-.bunny.twitch .ear-r {
-  animation: ear-twitch 450ms ease;
+.bunny.twitch .bunny-body {
+  animation: bunny-twitch 420ms ease;
 }
-.bunny.perk .ear-l,
-.bunny.perk .ear-r {
-  transform: rotate(0deg) scaleY(1.08);
+/* Alert: sits up tall. */
+.bunny.perk .bunny-body {
+  scale: 1 1.06;
+  translate: 0 -6%;
 }
 .bunny.hop .bunny-body,
 .bunny.walking .bunny-body,
@@ -591,35 +578,34 @@ body {
   animation-duration: 520ms;
   animation-iteration-count: infinite;
 }
-.bunny.party .ear-l,
-.bunny.hop .ear-l {
-  animation: ear-twitch 520ms ease infinite reverse;
-}
 .bunny.nod .bunny-body {
   animation: bunny-nod 600ms ease;
 }
 .bunny.tilt .bunny-body {
-  rotate: -12deg;
-  transition: rotate 250ms var(--ease-out);
+  rotate: -10deg;
 }
 .bunny.shake .bunny-body {
   animation: bunny-shake 480ms ease;
 }
-.bunny.sad .ear-l {
-  transform: rotate(-38deg);
-}
-.bunny.sad .ear-r {
-  transform: rotate(40deg);
-}
-.bunny.sad .eyes {
-  transform: scaleY(0.65);
+/* Sad: ducks down behind the edge. */
+.bunny.sad .bunny-body {
+  translate: 0 16%;
+  scale: 0.97;
 }
 @keyframes bunny-hop {
   40% {
-    translate: 0 -24%;
+    translate: 0 -16%;
   }
   75% {
-    translate: 0 2%;
+    translate: 0 1%;
+  }
+}
+@keyframes bunny-twitch {
+  30% {
+    rotate: 3deg;
+  }
+  60% {
+    rotate: -2deg;
   }
 }
 @keyframes bunny-nod {
@@ -632,21 +618,13 @@ body {
 }
 @keyframes bunny-shake {
   20% {
-    rotate: -9deg;
+    rotate: -8deg;
   }
   45% {
-    rotate: 9deg;
+    rotate: 8deg;
   }
   70% {
-    rotate: -5deg;
-  }
-}
-@keyframes ear-twitch {
-  35% {
-    transform: rotate(22deg);
-  }
-  70% {
-    transform: rotate(-4deg);
+    rotate: -4deg;
   }
 }
 
@@ -654,7 +632,7 @@ body {
 .bunny-pop {
   position: absolute;
   left: 50%;
-  bottom: 88%;
+  bottom: 96%;
   width: 52px;
   height: 52px;
   translate: -50% 0;
