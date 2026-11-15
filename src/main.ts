@@ -3,7 +3,7 @@ import { type GameHooks, SpiderGame } from './games/spider/SpiderGame';
 import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
-import { canVibrate, sfx, unlockAudio } from './ui/feedback';
+import { audioLatency, canVibrate, sfx, unlockAudio } from './ui/feedback';
 import { BACKS, COURTS, DECKS, TABLES, type Settings, onSettings, updateSettings } from './ui/settings';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
@@ -86,6 +86,8 @@ function layoutDiag() {
     `bar ${Math.round(bar.top)}→${Math.round(bar.bottom)}`,
     `safe t/b ${safe}`,
     `dpr ${devicePixelRatio}`,
+    audioLatency(),
+    navigator.userAgent.replace(/^Mozilla\/5\.0 /, '').slice(0, 80),
   ].join(' · ');
 }
 addEventListener('resize', layoutDiag);

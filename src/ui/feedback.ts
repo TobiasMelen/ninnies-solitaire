@@ -74,6 +74,14 @@ onSettings((s) => {
 
 export const audioState = () => ctx?.state ?? 'none';
 
+/** Built-in output delay of this device's audio path in ms (Bluetooth and many Androids add a lot). */
+export function audioLatency(): string {
+  if (!ctx) return 'audio not started';
+  const base = Math.round((ctx.baseLatency || 0) * 1000);
+  const output = 'outputLatency' in ctx ? Math.round((ctx.outputLatency || 0) * 1000) : NaN;
+  return `audio ${ctx.state} · base ${base}ms · output ${Number.isNaN(output) ? '?' : output}ms · ${ctx.sampleRate}Hz`;
+}
+
 function ready(): AudioContext | null {
   if (!settings.sound) return null;
   unlockAudio();
