@@ -367,7 +367,6 @@ export class HeartsGame implements GameController {
     sfx.heartsBreak();
     haptic([30, 30, 60]);
     flash(this.brokenEl, 'crack', 900);
-    flash(this.root, 'shake', 400);
   }
 
   /** The Queen of Spades: a flickering, sepia silent-movie jump scare. */
@@ -375,7 +374,8 @@ export class HeartsGame implements GameController {
     if (this.scaring) return;
     this.scaring = true;
     sfx.queenScare();
-    haptic([60, 40, 120]);
+    // Impacts: two heavy hits with the timpani, then the long organ stab.
+    haptic([40, 50, 40, 60, 160]);
     const fig = settings.courts === 'letters' ? '' : `<span class="scare-fig" style="background-image:url(${courtUrl(settings.courts, 'queen_spades')})"></span>`;
     const el = document.createElement('div');
     el.className = 'queen-scare';

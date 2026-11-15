@@ -248,21 +248,40 @@ function brass(freq: number, dur: number, gain: number, when = 0) {
   }
 }
 
-/** Short, hard-edged sine "ting" (glass shard, bell strike). */
-function ping(freq: number, dur: number, gain: number, when = 0, dest: 'out' | 'bright' = 'bright') {
+/** A glass shard: a ringing partial that sags slightly in pitch as it settles. */
+function shard(freq: number, dur: number, gain: number, when = 0) {
   const a = ready();
-  const node = dest === 'bright' ? bright : out;
-  if (!a || !node) return;
+  if (!a || !bright) return;
   const t = a.currentTime + when;
   const osc = a.createOscillator();
-  osc.frequency.value = freq;
+  osc.frequency.setValueAtTime(freq, t);
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.97, t + dur);
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain, t + 0.003);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  osc.connect(g).connect(bright);
+  osc.start(t);
+  osc.stop(t + dur + 0.02);
+}
+
+/** Band-limited noise tick: one small piece of glass skittering. */
+function crackle(freq: number, dur: number, gain: number, when = 0) {
+  const a = ready();
+  if (!a || !noise || !bright) return;
+  const t = a.currentTime + when;
+  const src = noiseSource(a);
+  const bp = a.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = freq;
+  bp.Q.value = 2.5;
   const g = a.createGain();
   g.gain.setValueAtTime(0.0001, t);
   g.gain.linearRampToValueAtTime(gain, t + 0.002);
   g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  osc.connect(g).connect(node);
-  osc.start(t);
-  osc.stop(t + dur + 0.02);
+  src.connect(bp).connect(g).connect(bright);
+  src.start(t, Math.random() * 0.5);
+  src.stop(t + dur + 0.02);
 }
 
 /** Bright noise burst through a high-pass: the crack of glass or a cymbal-ish hit. */
@@ -388,21 +407,26 @@ export const sfx = {
   },
   /** Hearts broken: the classic smash of glass. */
   heartsBreak: () => {
-    burst(1800, 0.32, 0.5);
-    burst(4200, 0.18, 0.35, 0.01);
-    thump(0.25);
-    // A shower of shards, dense at first and thinning out.
-    for (let i = 0; i < 22; i++) {
-      const when = 0.02 + Math.pow(Math.random(), 1.7) * 0.75;
-      ping(2600 + Math.random() * 4200, 0.05 + Math.random() * 0.12, 0.05 + Math.random() * 0.06, when);
+    // The break: a dull knock and a short, mid-range crack (real glass is lower than you'd think).
+    thump(0.14);
+    burst(900, 0.12, 0.14);
+    crackle(2200, 0.09, 0.18, 0.005);
+    // Shards ringing as they fall, then small pieces skittering, thinning out over ~0.8 s.
+    for (let i = 0; i < 12; i++) {
+      const when = 0.015 + Math.pow(Math.random(), 1.8) * 0.55;
+      shard(1300 + Math.random() * 2600, 0.08 + Math.random() * 0.22, 0.012 + Math.random() * 0.022, when);
+    }
+    for (let i = 0; i < 16; i++) {
+      const when = 0.04 + Math.pow(Math.random(), 1.4) * 0.8;
+      crackle(1500 + Math.random() * 3500, 0.012 + Math.random() * 0.025, 0.04 + Math.random() * 0.05, when);
     }
   },
   /** The Queen of Spades: a silent-movie organ stab, timpani and a screech. */
   queenScare: () => {
-    thump(0.5);
-    thump(0.35, 0.09);
-    organ([146.8, 174.6, 207.7, 246.9], 1.3, 0.12); // D diminished seventh
-    organ([73.4], 1.3, 0.08);
+    thump(0.32);
+    thump(0.22, 0.09);
+    organ([146.8, 174.6, 207.7, 246.9], 1.3, 0.07); // D diminished seventh
+    organ([73.4], 1.3, 0.05);
     const a = ready();
     if (!a || !out) return;
     // Violin-ish screech sliding up.
@@ -413,7 +437,7 @@ export const sfx = {
     osc.frequency.exponentialRampToValueAtTime(2300, t + 0.5);
     const g = a.createGain();
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.035, t + 0.05);
+    g.gain.linearRampToValueAtTime(0.018, t + 0.05);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
     osc.connect(g).connect(out);
     osc.start(t);
@@ -425,8 +449,42 @@ export const sfx = {
   },
 };
 
-export function haptic(pattern: number | number[] = 8) {
-  if (settings.haptics && 'vibrate' in navigator) navigator.vibrate(pattern);
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+/**
+ * iOS has no Vibration API, but since iOS 18 toggling a `<input type="checkbox" switch>` plays
+ * the system haptic tick. A hidden one is clicked through its label to get a tap of feedback.
+ */
+let iosSwitch: HTMLLabelElement | null = null;
+function iosTick() {
+  if (!iosSwitch) {
+    iosSwitch = document.createElement('label');
+    iosSwitch.setAttribute('aria-hidden', 'true');
+    iosSwitch.style.cssText = 'position:fixed;left:-200px;top:0;width:1px;height:1px;opacity:0;pointer-events:none;';
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.setAttribute('switch', '');
+    input.tabIndex = -1;
+    iosSwitch.appendChild(input);
+    document.body.appendChild(iosSwitch);
+  }
+  iosSwitch.click();
 }
 
-export const canVibrate = () => 'vibrate' in navigator;
+export function haptic(pattern: number | number[] = 8) {
+  if (!settings.haptics) return;
+  if ('vibrate' in navigator) {
+    navigator.vibrate(pattern);
+    return;
+  }
+  if (!isIOS) return;
+  // One tick per pulse in the pattern ([on, off, on, …]); iOS only allows a few in a row.
+  const steps = Array.isArray(pattern) ? pattern : [pattern];
+  let at = 0;
+  steps.forEach((ms, i) => {
+    if (i % 2 === 0 && i < 6) window.setTimeout(iosTick, at);
+    at += ms;
+  });
+}
+
+export const canVibrate = () => 'vibrate' in navigator || isIOS;

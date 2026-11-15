@@ -703,24 +703,6 @@ body {
     rotate: 0deg;
   }
 }
-.hearts-root.shake {
-  animation: table-shake 400ms ease;
-}
-@keyframes table-shake {
-  20% {
-    translate: -6px 2px;
-  }
-  40% {
-    translate: 5px -3px;
-  }
-  60% {
-    translate: -3px 2px;
-  }
-  80% {
-    translate: 2px -1px;
-  }
-}
-
 /* The Queen of Spades: a flickering sepia silent-movie jump scare. */
 .queen-scare {
   position: absolute;
@@ -749,7 +731,37 @@ body {
     0 0 0 6px #1b1209,
     0 0 80px rgba(0, 0, 0, 0.9);
   color: #120c06;
-  animation: scare-lunge 1.5s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+  /* The lunge scales and rotates; the impacts shake it on top (translate is a separate property). */
+  animation:
+    scare-lunge 1.5s cubic-bezier(0.1, 0.9, 0.2, 1) forwards,
+    queen-quake 0.75s ease-out;
+}
+@keyframes queen-quake {
+  6% {
+    translate: -16px 7px;
+  }
+  12% {
+    translate: 14px -9px;
+  }
+  18% {
+    translate: -10px 6px;
+  }
+  /* Second hit, with the timpani. */
+  26% {
+    translate: 15px 8px;
+  }
+  34% {
+    translate: -11px -6px;
+  }
+  46% {
+    translate: 6px 3px;
+  }
+  62% {
+    translate: -3px -1px;
+  }
+  80% {
+    translate: 0 0;
+  }
 }
 .scare-idx {
   position: absolute;
