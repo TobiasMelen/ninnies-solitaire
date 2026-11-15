@@ -156,7 +156,7 @@ function tone(freq: number, dur: number, gain: number, when = 0) {
 const TAKE_OFFSET = 0.18;
 
 /** Play the recorded card slide with a little random pitch so repeats don't sound identical. */
-function sample(gain: number, when = 0, rate = 1, length?: number): boolean {
+function sample(gain: number, when = 0, rate = 1, opts: { length?: number; lowpass?: number } = {}): boolean {
   const a = ready();
   if (!a || !out || !cardTake) return false;
   const t = a.currentTime + when;
@@ -164,13 +164,23 @@ function sample(gain: number, when = 0, rate = 1, length?: number): boolean {
   src.buffer = cardTake;
   src.playbackRate.value = rate * (0.94 + Math.random() * 0.12);
   const g = a.createGain();
-  g.gain.value = gain;
-  if (length) {
-    g.gain.setValueAtTime(gain, t + length * 0.7);
-    g.gain.linearRampToValueAtTime(0, t + length);
+  // A few ms fade-in so starting mid-recording never clicks.
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(gain, t + 0.008);
+  if (opts.length) {
+    g.gain.setValueAtTime(gain, t + opts.length * 0.6);
+    g.gain.linearRampToValueAtTime(0, t + opts.length);
   }
-  src.connect(g).connect(out);
-  src.start(t, TAKE_OFFSET, length);
+  let node: AudioNode = src;
+  if (opts.lowpass) {
+    const lp = a.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = opts.lowpass;
+    lp.Q.value = 0.3;
+    node = node.connect(lp);
+  }
+  node.connect(g).connect(out);
+  src.start(t, TAKE_OFFSET, opts.length);
   return true;
 }
 
@@ -219,14 +229,15 @@ export const sfx = {
   /** Lifting a card off the pile. */
   pick: () => {
     // Just the start of the slide, before the snap: a card leaving the pile.
-    if (!sample(0.9, 0, 1.05, 0.14)) swoosh(0.1, 0.06, 0, 900, 500);
+    if (!sample(0.45, 0, 0.95, { length: 0.14, lowpass: 2200 })) swoosh(0.1, 0.06, 0, 900, 500);
   },
   /** Dropped where the finger let go: barely any travel, just the landing. */
   drop: () => land(0.02),
   /** Card sweeping across the table, landing when the animation does. */
   move: (cards = 1) => {
-    swoosh(0.24, 0.11);
-    land(0.24, Math.min(1.25, 0.9 + cards * 0.04));
+    // Same recording as the deal (that one sounds right), then a soft version of the drop.
+    if (!sample(0.65, 0, 1.05, { lowpass: 3000 })) swoosh(0.24, 0.11);
+    land(0.26, Math.min(0.9, 0.6 + cards * 0.03));
   },
   /** A face-down card turning over: a soft double flick. */
   flip: (when = 0) => {
