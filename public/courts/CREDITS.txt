@@ -1,12 +1,15 @@
 Court card figures
 
-knoll/    Byron Knoll, "Vector Playing Cards" — public domain.
-          Cut out for this game: only the figure artwork is kept (no suit symbols, frame or
-          card background), enclosed areas filled white, exported as transparent WebP.
+Each set is cut out from vector originals for this game: only the figure artwork is kept
+(no suit symbols, indices, frame or card background), areas enclosed by the figure are filled
+white, and the result is exported as transparent WebP.
+
+knoll/    "Classic" — Byron Knoll, "Vector Playing Cards". Public domain.
           https://code.google.com/archive/p/vector-playing-cards/
           via https://github.com/hayeah/playing-cards-assets
 
-Framed sets below are cropped and downscaled to JPEG:
+kennard/  "English" — Adrian Kennard (RevK), traced from a 19th-century Goodall & Son deck. CC0.
+          https://www.me.uk/cards/
 
-english/  Dmitry Fomin, "English pattern" playing cards — CC0 1.0 (public domain dedication).
-          https://commons.wikimedia.org/wiki/Category:English_pattern_playing_cards_deck
+atlas/    "Atlas" — Dmitry Fomin, Russian "Atlas" pattern. CC0.
+          https://commons.wikimedia.org/wiki/File:Atlas_deck_king_of_spades.svg (and siblings)

@@ -15,7 +15,8 @@ export const BACKS = [
 
 export const COURTS = [
   { id: 'knoll', label: 'Classic' },
-  { id: 'english', label: 'English' },
+  { id: 'kennard', label: 'English' },
+  { id: 'atlas', label: 'Atlas' },
   { id: 'letters', label: 'Letters' },
 ] as const;
 
@@ -67,7 +68,8 @@ const listeners = new Set<Listener>();
 function load(): Settings {
   try {
     const s: Settings = { ...DEFAULTS, ...JSON.parse(localStorage.getItem(KEY) ?? '{}') };
-    // A saved choice may point at an option that has since been removed.
+    // A saved choice may point at an option that has since been replaced or removed.
+    if ((s.courts as string) === 'english') s.courts = 'kennard';
     if (!COURTS.some((c) => c.id === s.courts)) s.courts = DEFAULTS.courts;
     return s;
   } catch {

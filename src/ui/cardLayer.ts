@@ -2,10 +2,8 @@ import { type Card, SUIT_NAME, SUIT_SYMBOL, cardName, rankLabel } from '../core/
 
 const COURT_NAME: Record<number, string> = { 11: 'jack', 12: 'queen', 13: 'king' };
 
-/** Sets cut out to just the figure (transparent, no suit symbols); the rest are framed pictures. */
-export const CUTOUT_COURTS = new Set(['knoll']);
-
-export const courtUrl = (set: string, name: string) => `courts/${set}/${name}.${CUTOUT_COURTS.has(set) ? 'webp' : 'jpg'}`;
+/** Figures are cut out of the vector originals: transparent WebP, no suit symbols (see public/courts). */
+export const courtUrl = (set: string, name: string) => `courts/${set}/${name}.webp`;
 
 export const courtName = (card: Card) => `${COURT_NAME[card.rank]}_${SUIT_NAME[card.suit]}`;
 

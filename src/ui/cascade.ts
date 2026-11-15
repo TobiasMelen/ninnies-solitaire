@@ -1,5 +1,5 @@
 import { type Card, SUIT_SYMBOL, rankLabel } from '../core/cards';
-import { CUTOUT_COURTS, courtName, courtUrl } from './cardLayer';
+import { courtName, courtUrl } from './cardLayer';
 
 /**
  * The classic Windows win animation: cards leave the foundations one by one, bounce along
@@ -185,8 +185,8 @@ function drawCard(board: HTMLElement, card: Card, cw: number, ch: number, dpr: n
     const fy = ch * 0.32;
     const fw = cw * 0.84;
     const fh = ch * 0.63;
-    // Same crop as the CSS: cut-outs fit the width, framed pictures cover; both anchored at the top.
-    const s = CUTOUT_COURTS.has(courts) ? fw / img.naturalWidth : Math.max(fw / img.naturalWidth, fh / img.naturalHeight);
+    // Same crop as the CSS: fit the width, anchored at the top.
+    const s = fw / img.naturalWidth;
     x.save();
     x.beginPath();
     x.roundRect(fx, fy, fw, fh, cw * 0.06);
