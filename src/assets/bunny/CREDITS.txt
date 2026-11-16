@@ -1,10 +1,5 @@
-idle.webp: AI-generated for Ninnies Solitaire with Nano Banana 2.1 via Weave (Figma), from a text
-prompt describing the family's chocolate-and-white Holland Lop. Background removed locally (canvas
-flood-fill of the plain studio backdrop), cropped and downscaled to 360x474 WebP.
-
-happy.webp, sad.webp, thinking.webp, angry.webp: AI-generated sprite sheet supplied by the project
-owner (2026-11-16). Split into poses locally, edges eroded 3px and de-fringed, all scaled by one
-shared factor and bottom-aligned in the same 360x474 box as idle.
-
-More poses (alert, aside, shock, love) are picked up automatically when added here as <pose>.webp
-at the same size; until then the bunny falls back to the nearest pose it has.
+All poses: AI-generated images supplied by the project owner (2026-11-16): three 2x2 sprite
+sheets (happy/sad/thinking/angry, idle/bored/idea/proud, aside/shock/love/sleep) and a separate idle
+photo that replaces the sheet's idle. Split into poses locally by connected shape, edges eroded and
+de-fringed, all scaled by one shared factor (lying-down poses shrink to fit) and bottom-aligned in
+the same 360x474 WebP box, so swapping poses never changes the rabbit's size.

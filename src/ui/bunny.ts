@@ -19,7 +19,19 @@ export type BunnyEvent =
   | 'scare';
 
 /** Photo poses (assets/bunny/<pose>.webp, all cropped to the same box so swaps don't jump). */
-type Pose = 'idle' | 'happy' | 'sad' | 'thinking' | 'angry' | 'alert' | 'aside' | 'shock' | 'love';
+type Pose =
+  | 'idle'
+  | 'happy'
+  | 'sad'
+  | 'thinking'
+  | 'angry'
+  | 'bored'
+  | 'idea'
+  | 'proud'
+  | 'aside'
+  | 'shock'
+  | 'love'
+  | 'sleep';
 
 const POSE_URLS = import.meta.glob<string>('../assets/bunny/*.webp', { eager: true, query: '?url', import: 'default' });
 const poseUrl = (p: Pose) => POSE_URLS[`../assets/bunny/${p}.webp`];
@@ -31,10 +43,13 @@ const FALLBACK: Record<Pose, Pose> = {
   sad: 'idle',
   thinking: 'idle',
   angry: 'sad',
-  alert: 'thinking',
+  bored: 'idle',
+  idea: 'thinking',
+  proud: 'happy',
   aside: 'idle',
   shock: 'angry',
   love: 'happy',
+  sleep: 'bored',
 };
 const resolvePose = (p: Pose): Pose => (poseUrl(p) ? p : p === 'idle' ? p : resolvePose(FALLBACK[p]));
 
@@ -90,11 +105,11 @@ const GESTURE: Record<BunnyEvent, string> = {
 
 /** Which photo it switches to for each event (back to idle when the gesture ends). */
 const POSE: Record<BunnyEvent, Pose> = {
-  start: 'happy',
+  start: 'love',
   move: 'aside',
-  reveal: 'alert',
+  reveal: 'aside',
   suit: 'happy',
-  complete: 'happy',
+  complete: 'proud',
   deal: 'aside',
   undo: 'sad',
   invalid: 'angry',
@@ -104,7 +119,9 @@ const POSE: Record<BunnyEvent, Pose> = {
 };
 
 const IMPORTANT = new Set<string>(['complete', 'stuck', 'win', 'scare', 'tap', 'hint', 'hintTarget', 'hintDeal', 'invalid']);
-const IDLE_MS = 40_000;
+/** Left alone, it gets bored, and a while later falls asleep (until anything happens). */
+const BORED_MS = 40_000;
+const SLEEP_MS = 120_000;
 const QUIET_MS = 4_000;
 
 export interface HintTarget {
@@ -120,6 +137,7 @@ export class Bunny {
   private lastPop = 0;
   private timers = new Set<number>();
   private idleTimer = 0;
+  private resting = false;
   private moodTimer = 0;
   private popTimer = 0;
   private busyUntil = 0;
@@ -202,7 +220,7 @@ export class Bunny {
     this.busyUntil = performance.now() + 3200;
     this.walkTo(target.from);
     this.later(380, () => {
-      this.gesture('perk', 1000, 'thinking');
+      this.gesture('perk', 1000, 'idea');
       this.pop(kind === 'deal' ? 'hintDeal' : 'hint');
     });
     if (kind === 'move' && target.to !== undefined) {
@@ -269,7 +287,7 @@ export class Bunny {
     this.busyUntil = 0;
   }
 
-  /** Turn toward where the action is (only shows in the side-glance pose, which looks left as shot). */
+  /** Turn toward where the action is (only shows in the side-glance pose, which looks right as shot). */
   private face(x: number) {
     const rect = this.el.getBoundingClientRect();
     const host = this.host.getBoundingClientRect();
@@ -278,12 +296,23 @@ export class Bunny {
 
   private resetIdle() {
     clearTimeout(this.idleTimer);
-    // Never offers hints on its own: while the player thinks it just fidgets quietly.
+    if (this.resting) {
+      this.resting = false;
+      this.setPose('idle');
+    }
+    // Never offers hints on its own: while the player thinks it just gets bored, then dozes off.
     this.idleTimer = window.setTimeout(() => {
       if (!this.enabled || document.hidden) return;
-      this.gesture('twitch', 900);
-      this.resetIdle();
-    }, IDLE_MS);
+      this.rest('bored');
+      this.idleTimer = window.setTimeout(() => this.enabled && this.rest('sleep'), SLEEP_MS - BORED_MS);
+    }, BORED_MS);
+  }
+
+  /** Hold a pose until something happens. */
+  private rest(pose: Pose) {
+    clearTimeout(this.moodTimer);
+    this.resting = true;
+    this.setPose(pose);
   }
 
   private later(ms: number, fn: () => void) {

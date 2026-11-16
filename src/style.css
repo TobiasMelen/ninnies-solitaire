@@ -1317,8 +1317,8 @@ html.standalone #app {
 .bunny-pose.shown {
   opacity: 1;
 }
-/* Front-facing poses look the same either way; the side glance is shot looking left. */
-.bunny.facing-right .pose-aside {
+/* Front-facing poses look the same either way; the side glance is shot looking right. */
+.bunny:not(.facing-right) .pose-aside {
   scale: -1 1;
 }
 
