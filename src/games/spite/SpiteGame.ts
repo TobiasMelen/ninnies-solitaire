@@ -607,7 +607,9 @@ export class SpiteGame extends TableGame<SpiteState> {
     this.root.style.setProperty('--cw', `${cw}px`);
     this.root.style.setProperty('--ch', `${ch}px`);
     // The Hint Bunny peeks over your piles (portrait) or sits in the free corner (landscape).
-    this.root.parentElement?.style.setProperty('--bunny-lift', wide ? '0px' : `${Math.round(H - playerY - 2)}px`);
+    const host = this.root.parentElement?.style;
+    if (wide) host?.removeProperty('--bunny-lift');
+    else host?.setProperty('--bunny-lift', `${Math.round(H - playerY - 2)}px`);
 
     const at = (el: HTMLElement, x: number, y: number, sc = 1) => {
       el.style.transform = `translate(${x}px, ${y}px)${sc !== 1 ? ` scale(${sc})` : ''}`;

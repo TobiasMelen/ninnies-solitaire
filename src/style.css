@@ -1257,9 +1257,10 @@ html.standalone #app {
 .bunny {
   position: absolute;
   left: max(6px, env(safe-area-inset-left));
-  bottom: var(--bunny-lift, 0px);
+  /* Games that seat it higher set --bunny-lift; otherwise it sits on the bottom edge. */
+  bottom: var(--bunny-lift, var(--bunny-floor, 0px));
   z-index: 1900;
-  width: clamp(68px, 15vmin, 128px);
+  width: clamp(86px, 19vmin, 160px);
   translate: 0 105%;
   transform: translateX(var(--walk, 0px));
   transition:
@@ -1269,9 +1270,9 @@ html.standalone #app {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-/* Peeking over the edge: ears, face and chest show, the rest is below the table. */
+/* Sitting on the edge: only its paws and the bottom of its box are below the table. */
 .bunny.on {
-  translate: 0 40%;
+  translate: 0 12%;
 }
 /* In Hearts it sits behind the player's hand, peeking over it. */
 #board:has(.hearts-root:not([hidden])) .bunny {
@@ -1574,6 +1575,11 @@ html.standalone #app {
   }
   #board {
     margin: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) env(safe-area-inset-left);
+    /* Cards stay above the home-indicator strip, but the Hint Bunny may sit down into it so it
+       rests on the actual screen edge (clip-path reaches below; overflow would cut it off). */
+    --bunny-floor: calc(-1 * env(safe-area-inset-bottom));
+    overflow: visible;
+    clip-path: inset(0 0 calc(-1 * env(safe-area-inset-bottom)) 0);
   }
   #toolbar {
     flex-direction: column;
