@@ -21,6 +21,10 @@ export type BunnyEvent =
 /** Photo poses (assets/bunny/<pose>.webp, all cropped to the same box so swaps don't jump). */
 type Pose =
   | 'idle'
+  | 'idle2'
+  | 'idle3'
+  | 'idle4'
+  | 'idle5'
   | 'happy'
   | 'sad'
   | 'thinking'
@@ -39,6 +43,10 @@ const poseUrl = (p: Pose) => POSE_URLS[`../assets/bunny/${p}.webp`];
 /** A pose that has no photo yet stands in with the nearest one that does (idle always exists). */
 const FALLBACK: Record<Pose, Pose> = {
   idle: 'idle',
+  idle2: 'idle',
+  idle3: 'idle',
+  idle4: 'idle',
+  idle5: 'idle',
   happy: 'idle',
   sad: 'idle',
   thinking: 'idle',
@@ -107,7 +115,8 @@ const GESTURE: Record<BunnyEvent, string> = {
  * The photos that suit each moment; one is picked at random (back to idle when the gesture
  * ends), so the same kind of move doesn't always get the same face.
  */
-const POSES: Record<BunnyEvent | 'tap' | 'hint' | 'hintTarget' | 'shrug', Pose[]> = {
+const POSES: Record<BunnyEvent | 'idle' | 'tap' | 'hint' | 'hintTarget' | 'shrug', Pose[]> = {
+  idle: ['idle', 'idle', 'idle2', 'idle3', 'idle4', 'idle5'],
   start: ['love', 'happy'],
   move: ['aside', 'aside', 'idle', 'thinking'],
   reveal: ['aside', 'shock', 'idea'],
@@ -127,6 +136,7 @@ const POSES: Record<BunnyEvent | 'tap' | 'hint' | 'hintTarget' | 'shrug', Pose[]
 
 const IMPORTANT = new Set<string>(['complete', 'stuck', 'win', 'scare', 'tap', 'hint', 'hintTarget', 'hintDeal', 'invalid']);
 /** Left alone, it gets bored, and a while later falls asleep (until anything happens). */
+const IDLE_SHIFT_MS = 12_000;
 const BORED_MS = 40_000;
 const SLEEP_MS = 120_000;
 const QUIET_MS = 4_000;
@@ -173,7 +183,11 @@ export class Bunny {
       body.appendChild(img);
       this.poses.set(p, img);
     }
-    this.setPose('idle');
+    this.setPose(this.pick('idle'));
+    // Sitting quietly, it shifts between its idle poses now and then.
+    window.setInterval(() => {
+      if (this.enabled && !this.resting && !document.hidden && POSES.idle.includes(this.shown)) this.setPose(this.pick('idle'));
+    }, IDLE_SHIFT_MS);
     this.el.classList.add('facing-right'); // at home in the corner, side glances go toward the table
     host.appendChild(this.el);
     this.popEl = this.el.querySelector('.bunny-pop')!;
@@ -268,7 +282,7 @@ export class Bunny {
     clearTimeout(this.moodTimer);
     this.moodTimer = window.setTimeout(() => {
       this.el.classList.remove(name);
-      this.setPose('idle');
+      this.setPose(this.pick('idle'));
     }, ms);
   }
 
@@ -314,7 +328,7 @@ export class Bunny {
     clearTimeout(this.idleTimer);
     if (this.resting) {
       this.resting = false;
-      this.setPose('idle');
+      this.setPose(this.pick('idle'));
     }
     // Never offers hints on its own: while the player thinks it just gets bored, then dozes off.
     this.idleTimer = window.setTimeout(() => {

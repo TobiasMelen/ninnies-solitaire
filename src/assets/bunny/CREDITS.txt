@@ -1,5 +1,5 @@
 All poses: AI-generated images supplied by the project owner (2026-11-16): three 2x2 sprite
-sheets (happy/sad/thinking/angry, idle/bored/idea/proud, aside/shock/love/sleep) and a separate idle
-photo that replaces the sheet's idle. Split into poses locally by connected shape, edges eroded and
+sheets (happy/sad/thinking/angry, idle/bored/idea/proud, aside/shock/love/sleep), a separate idle
+photo that replaces the sheet's idle, and a sheet of four more idles (idle2-idle5). Split into poses locally by connected shape, edges eroded and
 de-fringed, all scaled by one shared factor (lying-down poses shrink to fit) and bottom-aligned in
 the same 360x474 WebP box, so swapping poses never changes the rabbit's size.
