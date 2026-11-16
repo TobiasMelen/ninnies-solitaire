@@ -19,7 +19,7 @@ export type BunnyEvent =
   | 'scare';
 
 /** Photo poses (assets/bunny/<pose>.webp, all cropped to the same box so swaps don't jump). */
-type Pose = 'idle' | 'happy' | 'sad' | 'alert' | 'aside' | 'shock' | 'love';
+type Pose = 'idle' | 'happy' | 'sad' | 'thinking' | 'angry' | 'alert' | 'aside' | 'shock' | 'love';
 
 const POSE_URLS = import.meta.glob<string>('../assets/bunny/*.webp', { eager: true, query: '?url', import: 'default' });
 const poseUrl = (p: Pose) => POSE_URLS[`../assets/bunny/${p}.webp`];
@@ -29,9 +29,11 @@ const FALLBACK: Record<Pose, Pose> = {
   idle: 'idle',
   happy: 'idle',
   sad: 'idle',
-  alert: 'idle',
+  thinking: 'idle',
+  angry: 'sad',
+  alert: 'thinking',
   aside: 'idle',
-  shock: 'alert',
+  shock: 'angry',
   love: 'happy',
 };
 const resolvePose = (p: Pose): Pose => (poseUrl(p) ? p : p === 'idle' ? p : resolvePose(FALLBACK[p]));
@@ -95,7 +97,7 @@ const POSE: Record<BunnyEvent, Pose> = {
   complete: 'happy',
   deal: 'aside',
   undo: 'sad',
-  invalid: 'shock',
+  invalid: 'angry',
   stuck: 'sad',
   win: 'happy',
   scare: 'shock',
@@ -154,7 +156,7 @@ export class Bunny {
       e.stopPropagation();
       if (!this.enabled) return;
       this.resetIdle();
-      this.gesture('nod', 900, 'love'); // a hint (or a shrug) takes over in a moment
+      this.gesture('nod', 900, 'thinking'); // a hint (or a shrug) takes over in a moment
       this.onAskHint();
     });
   }
@@ -200,7 +202,7 @@ export class Bunny {
     this.busyUntil = performance.now() + 3200;
     this.walkTo(target.from);
     this.later(380, () => {
-      this.gesture('perk', 1000, 'alert');
+      this.gesture('perk', 1000, 'thinking');
       this.pop(kind === 'deal' ? 'hintDeal' : 'hint');
     });
     if (kind === 'move' && target.to !== undefined) {
