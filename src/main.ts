@@ -10,7 +10,7 @@ import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
 import { audioLatency, canVibrate, sfx, unlockAudio } from './ui/feedback';
-import { BACKS, COURTS, DECKS, TABLES, type Settings, onSettings, updateSettings } from './ui/settings';
+import { BACKS, COURTS, DECKS, TABLES, type Settings, onSettings, settings, updateSettings } from './ui/settings';
 
 const $ = <T extends HTMLElement = HTMLElement>(sel: string) => document.querySelector<T>(sel)!;
 
@@ -21,6 +21,7 @@ const dlgSettings = $<HTMLDialogElement>('#dlg-settings');
 const dlgWin = $<HTMLDialogElement>('#dlg-win');
 const dlgStuck = $<HTMLDialogElement>('#dlg-stuck');
 const dlgMenu = $<HTMLDialogElement>('#dlg-menu');
+const dlgSetup = $<HTMLDialogElement>('#dlg-setup');
 
 
 let toastTimer = 0;
@@ -36,7 +37,7 @@ function open(d: HTMLDialogElement) {
 }
 
 // Tapping the dimmed backdrop closes a sheet.
-for (const d of [dlgSettings, dlgWin, dlgStuck, dlgMenu]) {
+for (const d of [dlgWin, dlgStuck, dlgMenu]) {
   d.addEventListener('click', (e) => {
     if (e.target === d) d.close('close');
   });
@@ -170,7 +171,6 @@ function switchTo<T extends GameId>(id: T): GameOf<T> {
   game = g;
   g.setVisible(true);
   store.set(LAST_KEY, id);
-  syncPlaySettings();
   return g as GameOf<T>;
 }
 
@@ -194,7 +194,6 @@ function savedSummary(id: GameId): string | null {
 function showHome() {
   game?.pause();
   layoutDiag();
-  syncPlaySettings(true);
   const id = lastGame();
   const summary = savedSummary(id);
   $('#home-resume').hidden = !summary;
@@ -211,7 +210,6 @@ function showHome() {
 
 function hideHome() {
   home.classList.add('hidden');
-  syncPlaySettings();
 }
 
 /** Bring the last game's save onto the table if it isn't there already. */
@@ -232,26 +230,32 @@ $('#home-restart').addEventListener('click', () => {
   game!.unpause();
 });
 home.querySelectorAll<HTMLElement>('[data-suits]').forEach((btn) =>
-  btn.addEventListener('click', () => {
-    const g = switchTo('spider');
+  btn.addEventListener('click', () =>
+    setup('spider', btn.querySelector('b')!.textContent!, () => {
+      const g = switchTo('spider');
+      hideHome();
+      g.newGame(Number(btn.dataset.suits) as SuitCount);
+      g.unpause();
+    }),
+  ),
+);
+$('#hearts-play').addEventListener('click', () =>
+  setup('hearts', 'Against 🦊 Fox, 🦉 Owl and 🐻 Bear', () => {
+    const g = switchTo('hearts');
     hideHome();
-    g.newGame(Number(btn.dataset.suits) as SuitCount);
+    g.newGame();
     g.unpause();
   }),
 );
-$('#hearts-play').addEventListener('click', () => {
-  const g = switchTo('hearts');
-  hideHome();
-  g.newGame();
-  g.unpause();
-});
 home.querySelectorAll<HTMLElement>('[data-level]').forEach((btn) =>
-  btn.addEventListener('click', () => {
-    const g = switchTo('spite');
-    hideHome();
-    g.newGame(btn.dataset.level as Level);
-    g.unpause();
-  }),
+  btn.addEventListener('click', () =>
+    setup('spite', `Against ${btn.querySelector('b')!.textContent} ${btn.querySelector('small')!.textContent}`, () => {
+      const g = switchTo('spite');
+      hideHome();
+      g.newGame(btn.dataset.level as Level);
+      g.unpause();
+    }),
+  ),
 );
 home.querySelectorAll<HTMLElement>('[data-mines]').forEach((btn) =>
   btn.addEventListener('click', () => {
@@ -261,7 +265,7 @@ home.querySelectorAll<HTMLElement>('[data-mines]').forEach((btn) =>
     g.unpause();
   }),
 );
-$('#home-settings').addEventListener('click', () => open(dlgSettings));
+$('#home-settings').addEventListener('click', () => openSettings());
 
 $('#btn-preview-win').addEventListener('click', () => {
   dlgSettings.close();
@@ -314,7 +318,7 @@ dlgMenu.addEventListener('close', () => {
   if (v === 'home') return showHome();
   if (v === 'settings') {
     settingsFromMenu = true;
-    return open(dlgSettings);
+    return openSettings(game?.id);
   }
   if (v === 'restart') game?.restart();
   game?.unpause();
@@ -392,7 +396,7 @@ type Toggle = {
   label: string;
   hint: string;
   group: 'play' | 'feel';
-  /** Play options belong to one game and only show while it is on the table. */
+  /** Options for one game: listed in its Settings section and its setup step. */
   games?: GameId[];
   show?: () => boolean;
   needs?: keyof Settings;
@@ -417,23 +421,78 @@ const TOGGLES: Toggle[] = [
   { key: 'bunny', label: 'Hint Bunny', hint: 'Cheers you on with gestures; tap it for a hint', group: 'feel' },
 ];
 
-const toggleRoots = [$('#opt-play'), $('#opt-feel')];
-for (const group of ['play', 'feel'] as const) {
-  $(`#opt-${group}`).innerHTML = TOGGLES.filter((t) => t.group === group && (!t.show || t.show()))
-  .map(
-    (t) => `<label class="toggle${t.needs ? ' sub' : ''}" ${t.needs ? `data-needs="${t.needs}"` : ''} ${t.games ? `data-games="${t.games.join(' ')}"` : ''}>
+const toggleRows = (list: Toggle[]) =>
+  list
+    .filter((t) => !t.show || t.show())
+    .map(
+      (t) => `<label class="toggle${t.needs ? ' sub' : ''}" ${t.needs ? `data-needs="${t.needs}"` : ''}>
       <span><b>${t.label}</b>${t.hint ? `<small>${t.hint}</small>` : ''}</span>
       <input type="checkbox" role="switch" data-k="${t.key}" />
     </label>`,
-  )
-  .join('');
+    )
+    .join('');
+const gameToggles = (id: GameId) => TOGGLES.filter((t) => t.games?.includes(id));
+
+/** Games with options get a Settings section and a setup step before a new game. */
+const GAME_OPTIONS: { id: GameId; name: string; remember: keyof Settings }[] = [
+  { id: 'spider', name: 'Spider', remember: 'rememberSpider' },
+  { id: 'hearts', name: 'Hearts', remember: 'rememberHearts' },
+  { id: 'spite', name: 'Spite & Malice', remember: 'rememberSpite' },
+];
+
+$('#opt-feel').innerHTML = toggleRows(TOGGLES.filter((t) => t.group === 'feel'));
+$('#opt-games').innerHTML = GAME_OPTIONS.map(
+  (g) => `<details class="group" data-sec="${g.id}">
+    <summary><b>${g.name}</b><small>Options for new ${g.name} games</small></summary>
+    <div class="toggles">${toggleRows([
+      ...gameToggles(g.id),
+      { key: g.remember, label: 'Skip setup', hint: 'Start new games straight away with these options', group: 'play' },
+    ])}</div>
+  </details>`,
+).join('');
+
+// Every switch on any page writes straight to settings.
+for (const d of [dlgSettings, dlgSetup]) {
+  d.addEventListener('change', (e) => {
+    const input = e.target as HTMLInputElement;
+    if (!input.dataset.k) return;
+    updateSettings({ [input.dataset.k!]: input.checked } as Partial<Settings>);
+    // Audible confirmation that sound works (this runs inside the tap, so iOS allows it).
+    if (input.dataset.k === 'sound' && input.checked) sfx.move();
+  });
 }
-$('#dlg-settings').addEventListener('change', (e) => {
-  const input = e.target as HTMLInputElement;
-  if (!input.dataset.k) return;
-  updateSettings({ [input.dataset.k!]: input.checked } as Partial<Settings>);
-  // Audible confirmation that sound works (this runs inside the tap, so iOS allows it).
-  if (input.dataset.k === 'sound' && input.checked) sfx.move();
+
+/** Settings as a full page; from a game, that game's section starts open. */
+function openSettings(focus?: GameId) {
+  dlgSettings.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => (d.open = d.dataset.sec === focus));
+  open(dlgSettings);
+  dlgSettings.scrollTop = 0;
+}
+
+// ───────── new-game setup ─────────
+
+let pendingStart: (() => void) | null = null;
+
+/** Show a game's options before it starts, unless the player asked to skip this step. */
+function setup(id: GameId, line: string, start: () => void) {
+  const g = GAME_OPTIONS.find((o) => o.id === id);
+  if (!g || settings[g.remember]) return start();
+  pendingStart = start;
+  $('#setup-title').textContent = g.name;
+  $('#setup-line').textContent = line;
+  $('#setup-opts').innerHTML = toggleRows(gameToggles(id));
+  $<HTMLInputElement>('#setup-remember').checked = false;
+  $<HTMLInputElement>('#setup-remember').dataset.remember = g.remember;
+  syncToggles(settings);
+  open(dlgSetup);
+}
+dlgSetup.addEventListener('close', () => {
+  const start = pendingStart;
+  pendingStart = null;
+  if (dlgSetup.returnValue !== 'start' || !start) return;
+  const remember = $<HTMLInputElement>('#setup-remember');
+  if (remember.checked) updateSettings({ [remember.dataset.remember!]: true } as Partial<Settings>);
+  start();
 });
 
 const TABLE_COLOR: Record<string, string> = {
@@ -464,36 +523,22 @@ onSettings((s) => {
       .querySelectorAll<HTMLElement>('.swatch')
       .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === s[key])));
   }
-  for (const root of toggleRoots) {
-    root
-      .querySelectorAll<HTMLInputElement>('input')
-      .forEach((i) => (i.checked = Boolean(s[i.dataset.k as keyof Settings])));
-  }
-  // Sub-options only apply while their parent switch is on.
-  $('#dlg-settings')
-    .querySelectorAll<HTMLElement>('[data-needs]')
-    .forEach((row) => {
-      const on = Boolean(s[row.dataset.needs as keyof Settings]);
-      row.classList.toggle('disabled', !on);
-      row.querySelector('input')!.disabled = !on;
-    });
+  syncToggles(s);
 });
+
+function syncToggles(s: Settings) {
+  document
+    .querySelectorAll<HTMLInputElement>('input[data-k]')
+    .forEach((i) => (i.checked = Boolean(s[i.dataset.k as keyof Settings])));
+  // Sub-options only apply while their parent switch is on.
+  document.querySelectorAll<HTMLElement>('[data-needs]').forEach((row) => {
+    const on = Boolean(s[row.dataset.needs as keyof Settings]);
+    row.classList.toggle('disabled', !on);
+    row.querySelector('input')!.disabled = !on;
+  });
+}
 onSettings(() => Object.values(games).forEach((g) => g?.refresh()));
 
-/** The Play section only lists options for the game on the table (none from the start screen). */
-function syncPlaySettings(fromHome = homeOpen()) {
-  const id = fromHome ? null : (game?.id ?? null);
-  let any = false;
-  $('#opt-play')
-    .querySelectorAll<HTMLElement>('[data-games]')
-    .forEach((row) => {
-      const on = id !== null && row.dataset.games!.split(' ').includes(id);
-      row.hidden = !on;
-      any ||= on;
-    });
-  $('#play-group').hidden = !any;
-  $('#play-title').textContent = id === 'hearts' ? 'Hearts' : id === 'spite' ? 'Spite & Malice' : id === 'mines' ? 'Minesweeper' : 'Spider';
-}
 onSettings((s) => {
   bunny.setEnabled(s.bunny);
   // The Hint Bunny is the hint button (tap it); keep the toolbar button only without it.

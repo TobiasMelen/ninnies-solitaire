@@ -146,16 +146,15 @@
 
     <div id="toast" role="status" aria-live="polite"></div>
 
-    <dialog id="dlg-settings" class="sheet">
+    <dialog id="dlg-settings" class="sheet page">
       <form method="dialog">
-        <div class="grab" aria-hidden="true"></div>
-        <div class="sheet-head">
+        <div class="page-head">
+          <button value="close" class="icon-btn" aria-label="Back">‹</button>
           <h2>Settings</h2>
-          <button value="close" class="icon-btn" aria-label="Close">✕</button>
         </div>
 
-        <section class="group">
-          <h3>Look</h3>
+        <details class="group" data-sec="look">
+          <summary><b>Look</b><small>Cards, court cards, card back, table</small></summary>
           <h4>Cards</h4>
           <div class="swatches" id="opt-deck"></div>
           <h4>Court cards</h4>
@@ -164,20 +163,33 @@
           <div class="swatches" id="opt-back"></div>
           <h4>Table</h4>
           <div class="swatches" id="opt-table"></div>
-        </section>
+        </details>
 
-        <section class="group" id="play-group">
-          <h3 id="play-title">Play</h3>
-          <div class="toggles" id="opt-play"></div>
-        </section>
-
-        <section class="group">
-          <h3>Sound &amp; feel</h3>
+        <details class="group" data-sec="feel">
+          <summary><b>Sound &amp; feel</b><small>Sound, vibration, Hint Bunny</small></summary>
           <div class="toggles" id="opt-feel"></div>
           <button type="button" id="btn-preview-win" class="btn preview-btn">🏆 Preview win animation</button>
-        </section>
+        </details>
+
+        <div id="opt-games"></div>
 
         <p class="muted foot">Your game is saved on this device automatically.</p>
+      </form>
+    </dialog>
+
+    <dialog id="dlg-setup" class="sheet page">
+      <form method="dialog">
+        <div class="page-head">
+          <button value="close" class="icon-btn" aria-label="Back">‹</button>
+          <h2 id="setup-title"></h2>
+        </div>
+        <p id="setup-line" class="muted"></p>
+        <div class="toggles" id="setup-opts"></div>
+        <label class="remember">
+          <input type="checkbox" id="setup-remember" />
+          <span><b>Remember and skip this step</b><small>Change it later in Settings</small></span>
+        </label>
+        <button value="start" class="btn primary start-btn">Start</button>
       </form>
     </dialog>
 

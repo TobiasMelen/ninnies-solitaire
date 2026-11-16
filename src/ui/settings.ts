@@ -49,6 +49,10 @@ export interface Settings {
   heartsOneTap: boolean;
   spiteShort: boolean;
   spiteFast: boolean;
+  /** Skip the setup step when starting that game (the "Remember" box). */
+  rememberSpider: boolean;
+  rememberHearts: boolean;
+  rememberSpite: boolean;
 }
 
 const KEY = 'ninnies.settings.v1';
@@ -74,6 +78,9 @@ const DEFAULTS: Settings = {
   heartsOneTap: false,
   spiteShort: false,
   spiteFast: false,
+  rememberSpider: false,
+  rememberHearts: false,
+  rememberSpite: false,
 };
 
 type Listener = (s: Settings) => void;

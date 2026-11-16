@@ -2048,6 +2048,136 @@ dialog.center form {
   font-size: 13px;
 }
 
+/* Full-screen pages (Settings, new-game setup) built on the sheet styles. */
+dialog.sheet.page {
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+dialog.sheet.page[open] {
+  animation: page-in 260ms var(--ease-out);
+}
+@keyframes page-in {
+  from {
+    translate: 0 24px;
+    opacity: 0;
+  }
+}
+dialog.sheet.page form {
+  width: min(560px, 100%);
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top) + 14px) max(16px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 28px)
+    max(16px, env(safe-area-inset-left));
+}
+.page-head {
+  position: sticky;
+  top: calc(env(safe-area-inset-top) * -1 - 14px);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 -4px 10px;
+  padding: 4px;
+}
+.page-head h2 {
+  margin: 0;
+}
+.page-head .icon-btn {
+  font-size: 26px;
+  line-height: 1;
+  padding-bottom: 3px;
+}
+/* Collapsible Settings sections. */
+.sheet details.group {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  background: var(--sheet-chip);
+  box-shadow: inset 0 0 0 1px var(--sheet-line);
+}
+.sheet details.group > summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  position: relative;
+  padding: 14px 48px 14px 16px;
+  list-style: none;
+  cursor: pointer;
+}
+.sheet details.group > summary::-webkit-details-marker {
+  display: none;
+}
+.sheet details.group > summary b {
+  font-family: var(--display);
+  font-size: 19px;
+}
+.sheet details.group > summary small {
+  color: var(--sheet-muted);
+  font-size: 12.5px;
+}
+.sheet details.group > summary::after {
+  content: '›';
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  translate: 0 -50%;
+  font-size: 26px;
+  color: var(--sheet-muted);
+  transition: rotate 200ms var(--ease-out);
+}
+.sheet details.group[open] > summary::after {
+  rotate: 90deg;
+}
+.sheet details.group[open] {
+  padding-bottom: 14px;
+}
+.sheet details.group > :not(summary) {
+  margin-left: 14px;
+  margin-right: 14px;
+}
+.sheet details.group > h4:first-of-type {
+  margin-top: 0;
+}
+.sheet details.group .toggles {
+  background: var(--sheet-bg);
+}
+/* New-game setup. */
+.remember {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 4px 0;
+  cursor: pointer;
+}
+.remember input {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--primary);
+}
+.remember span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.remember small {
+  color: var(--sheet-muted);
+  font-size: 12.5px;
+}
+.start-btn {
+  width: 100%;
+  min-height: 56px;
+  margin-top: 22px;
+  font-family: var(--display);
+  font-size: 20px;
+}
+
 .icon-btn {
   width: 40px;
   height: 40px;
