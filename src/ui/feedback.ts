@@ -439,6 +439,11 @@ export const sfx = {
     swoosh(0.2, 0.08, 0, 1200, 500);
     land(0.2, 0.6);
   },
+  /** Menu buttons: a short wooden knock, like the chunky buttons of old strategy games. */
+  ui: (pressed = true) => {
+    crackle(pressed ? 950 : 1250, 0.035, 0.09, 0, 7);
+    thump(0.06, 0, pressed ? 2.2 : 2.8);
+  },
 };
 
 const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);

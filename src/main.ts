@@ -83,6 +83,15 @@ for (const type of ['pointerdown', 'touchend', 'click', 'keydown']) {
   document.addEventListener(type, unlockAudio, { capture: true });
 }
 
+// Every menu button knocks like wood; switches click a little higher.
+const UI_BUTTONS = '.btn, .suit-pick button, .continue, .home-gear, .icon-btn, .tool, .swatch, .link-btn, summary';
+document.addEventListener('pointerdown', (e) => {
+  if ((e.target as HTMLElement).closest(UI_BUTTONS)) sfx.ui();
+});
+document.addEventListener('change', (e) => {
+  if ((e.target as HTMLElement).matches('input[type=checkbox]')) sfx.ui(false);
+});
+
 // iOS Safari ignores user-scalable=no; block pinch and double-tap zoom explicitly.
 for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
   document.addEventListener(type, (e) => e.preventDefault(), { passive: false });

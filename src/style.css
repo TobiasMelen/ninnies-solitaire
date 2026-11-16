@@ -8,6 +8,15 @@
   font-style: normal;
   font-display: block;
 }
+/* Cinzel (SIL OFL, see assets/fonts): carved Roman capitals for titles and buttons, after the
+   late-90s strategy games. */
+@font-face {
+  font-family: 'Carved';
+  src: url('./assets/fonts/cinzel-latin-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   --accent: #ffd54a;
@@ -15,30 +24,38 @@
   --ui-ink: #f4f6f2;
   --ui-muted: rgba(244, 246, 242, 0.68);
   --bar-bg: rgba(0, 0, 0, 0.28);
-  --sheet-bg: #f8f1e3;
-  --sheet-ink: #33281c;
-  --sheet-muted: #8a7760;
-  --sheet-line: #e4d6bd;
-  --sheet-chip: #efe3cc;
-  --primary: #2c6e4b;
+  /* Menus are parchment in carved wood, trimmed with brass. */
+  --sheet-bg: #ecdcb4;
+  --sheet-ink: #3a2614;
+  --sheet-muted: #7b5a36;
+  --sheet-line: #c9ad7a;
+  --sheet-chip: #e3cd9c;
+  --parchment: var(--noise), radial-gradient(ellipse 110% 90% at 50% 40%, #f4e7c6 0%, #e9d6a8 60%, #d6b97f 100%);
+  --wood: var(--noise), linear-gradient(180deg, #7a5130, #4a2c15);
+  --brass: #c99d4a;
+  --brass-hi: #f1d58a;
+  --brass-lo: #5e4113;
+  --gold-ink: #f6e3a8;
+  /* Brass rim, wood band, brass rim: the frame around panels. */
+  --frame:
+    0 0 0 2px var(--brass), 0 0 0 5px #3e2410, 0 0 0 6px color-mix(in srgb, var(--brass) 70%, #000);
+  /* Chunky bevelled buttons: lit from the top left, sinking when pressed. */
+  --bevel: #d9b46a #5e3d1a #2e1a0a #b38b4a;
+  --bevel-in: #2e1a0a #b38b4a #d9b46a #5e3d1a;
+  --raised:
+    inset 0 1px 0 rgba(255, 230, 170, 0.35),
+    0 2px 0 #2a170a,
+    0 4px 8px rgba(0, 0, 0, 0.3);
+  --sunk: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+  --primary: #3f6b2a;
   --primary-ink: #fff;
   --ease-out: cubic-bezier(0.2, 0.9, 0.3, 1.04);
-  --display: 'Card', Georgia, 'Times New Roman', serif;
+  --display: 'Carved', 'Card', Georgia, 'Times New Roman', serif;
+  --card-font: 'Card', Georgia, 'Times New Roman', serif;
   --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.35'/%3E%3C/svg%3E");
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --sheet-bg: #2a221c;
-    --sheet-ink: #f3e8d6;
-    --sheet-muted: #b9a68c;
-    --sheet-line: #43372d;
-    --sheet-chip: #362c24;
-    --primary: #3f8a60;
-    color-scheme: dark;
-  }
-}
 
 /* Tables */
 [data-table='felt'] {
@@ -690,11 +707,12 @@ html.standalone #app {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.5);
-  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--brass);
+  background: var(--wood);
+  background-blend-mode: soft-light, normal;
   font-size: 26px;
   line-height: 1;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--raised);
   transition:
     background 150ms ease,
     scale 120ms ease;
@@ -703,8 +721,9 @@ html.standalone #app {
   scale: 0.92;
 }
 .mines-mode.flagging {
-  background: color-mix(in srgb, #e0412f 55%, transparent);
-  border-color: #fff;
+  background: var(--noise), linear-gradient(180deg, #a8402c, #6e1f12);
+  background-blend-mode: soft-light, normal;
+  border-color: var(--brass-hi);
 }
 .mines-root.lost .mines-mode,
 .mines-root.won .mines-mode {
@@ -974,7 +993,7 @@ html.standalone #app {
   position: absolute;
   top: 4%;
   left: 7%;
-  font: 700 clamp(28px, 9vmin, 64px) / 1 var(--display);
+  font: 700 clamp(28px, 9vmin, 64px) / 1 var(--card-font);
 }
 .scare-idx i {
   font-style: normal;
@@ -991,7 +1010,7 @@ html.standalone #app {
   inset: 0;
   display: grid;
   place-items: center;
-  font: 700 clamp(90px, 30vmin, 220px) / 1 var(--display);
+  font: 700 clamp(90px, 30vmin, 220px) / 1 var(--card-font);
 }
 @keyframes scare-lunge {
   0% {
@@ -1527,10 +1546,12 @@ html.standalone #app {
   gap: 4px;
   padding: 6px max(8px, env(safe-area-inset-right), calc(50% - 380px)) max(6px, env(safe-area-inset-bottom))
     max(8px, env(safe-area-inset-left), calc(50% - 380px));
-  background: var(--bar-bg);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.06);
+  background: var(--wood);
+  background-blend-mode: soft-light, normal;
+  box-shadow:
+    inset 0 2px 0 var(--brass),
+    inset 0 3px 0 var(--brass-lo),
+    0 -2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .tool {
@@ -1545,9 +1566,10 @@ html.standalone #app {
   border: 0;
   border-radius: 14px;
   background: transparent;
-  color: var(--ui-ink);
-  font: 600 11px/1 system-ui, sans-serif;
-  letter-spacing: 0.02em;
+  color: var(--gold-ink);
+  font: 700 10.5px/1 var(--display);
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
   cursor: pointer;
   transition:
     background-color 120ms ease,
@@ -1598,10 +1620,12 @@ html.standalone #app {
   font-family: var(--display);
   font-size: 17px;
   line-height: 1;
+  color: var(--gold-ink);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
 }
 #stats small {
   font-size: 10px;
-  color: var(--ui-muted);
+  color: rgba(246, 227, 168, 0.65);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -1618,7 +1642,10 @@ html.standalone #app {
   #toolbar {
     flex-direction: column;
     padding: max(6px, env(safe-area-inset-top)) max(6px, env(safe-area-inset-right)) max(6px, env(safe-area-inset-bottom)) 6px;
-    box-shadow: -1px 0 0 rgba(255, 255, 255, 0.06);
+    box-shadow:
+      inset 2px 0 0 var(--brass),
+      inset 3px 0 0 var(--brass-lo),
+      -2px 0 8px rgba(0, 0, 0, 0.35);
   }
   #stats {
     flex-direction: column;
@@ -1680,19 +1707,28 @@ html.standalone #app {
   flex: 1;
   margin: 0;
   font-family: var(--display);
-  font-size: clamp(24px, 7vw, 32px);
+  font-size: clamp(22px, 6.4vw, 30px);
   line-height: 1.1;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  color: var(--brass-hi);
+  text-shadow:
+    0 1px 0 var(--brass-lo),
+    0 2px 0 #2a170a,
+    0 4px 10px rgba(0, 0, 0, 0.5);
 }
 .home-gear {
   width: 48px;
   height: 48px;
   display: grid;
   place-items: center;
-  border: 0;
+  border: 2px solid var(--brass);
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.25);
-  color: var(--ui-ink);
+  background: var(--wood);
+  background-blend-mode: soft-light, normal;
+  color: var(--gold-ink);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 230, 170, 0.35),
+    0 2px 0 #2a170a,
+    0 4px 10px rgba(0, 0, 0, 0.35);
   cursor: pointer;
 }
 .home-gear svg,
@@ -1725,14 +1761,19 @@ html.standalone #app {
   justify-content: space-between;
   gap: 12px;
   padding: 12px 22px;
-  border: 0;
-  border-radius: 20px;
-  background: linear-gradient(180deg, #f6d37a, #e5ad42);
-  color: #3a2a0c;
+  border: 2px solid;
+  border-color: #fbe7a8 #8a6220 #5e4113 #e0b860;
+  border-radius: 8px;
+  background: var(--noise), linear-gradient(180deg, #f3d78b, #d4a74c 55%, #b98a35);
+  background-blend-mode: soft-light, normal;
+  color: #3a2508;
   text-align: left;
   font: inherit;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow:
+    0 0 0 2px #3e2410,
+    0 3px 0 2px #2a170a,
+    0 10px 24px rgba(0, 0, 0, 0.4);
   transition: scale 120ms ease;
 }
 .continue span {
@@ -1742,7 +1783,8 @@ html.standalone #app {
 }
 .continue b {
   font-family: var(--display);
-  font-size: 24px;
+  font-size: 22px;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
 }
 .continue small {
   font-size: 13px;
@@ -1760,39 +1802,43 @@ html.standalone #app {
   border: 0;
   background: none;
   color: var(--ui-muted);
-  font: 600 14px system-ui, sans-serif;
+  font: 700 13px var(--display);
+  letter-spacing: 0.04em;
   cursor: pointer;
 }
 
 .home-label {
-  margin: 8px 4px 10px;
-  font-size: 13px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--ui-muted);
+  margin: 8px 4px 14px;
+  font: 700 13px var(--display);
+  letter-spacing: 0.14em;
+  color: var(--brass-hi);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
 }
 
 .games {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 22px;
+  padding: 0 6px;
 }
 .game-tile {
   display: flex;
   gap: 14px;
   padding: 16px;
-  border-radius: 22px;
-  background: var(--noise), var(--sheet-bg);
+  border-radius: 4px;
+  background: var(--parchment);
   background-blend-mode: soft-light, normal;
   color: var(--sheet-ink);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.4),
-    0 10px 30px rgba(0, 0, 0, 0.3);
+    inset 0 0 28px rgba(120, 75, 25, 0.35),
+    var(--frame),
+    0 12px 28px rgba(0, 0, 0, 0.45);
 }
 .game-tile h3 {
   margin: 2px 0 4px;
   font-family: var(--display);
-  font-size: 22px;
+  font-size: 20px;
+  letter-spacing: 0.02em;
 }
 .game-tile p {
   margin: 0 0 12px;
@@ -1816,7 +1862,10 @@ html.standalone #app {
   align-self: flex-start;
   height: 64px;
   padding: 0 8px;
-  background: rgba(0, 0, 0, 0.18);
+  border-radius: 3px;
+  box-shadow:
+    0 0 0 2px var(--brass-lo),
+    inset 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 .tile-art .mini-card {
   margin-left: -16px;
@@ -1837,33 +1886,41 @@ html.standalone #app {
   gap: 2px;
   min-height: 60px;
   padding: 8px 4px;
-  border: 0;
-  border-radius: 16px;
-  background: var(--noise), linear-gradient(180deg, #2f7a52, #1f5a3b);
+  border: 2px solid;
+  border-color: var(--bevel);
+  border-radius: 6px;
+  background: var(--wood);
   background-blend-mode: soft-light, normal;
-  color: #f8f1e3;
+  color: var(--gold-ink);
   font: inherit;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
   cursor: pointer;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 3px 8px rgba(0, 0, 0, 0.25);
-  transition: scale 120ms ease;
+  box-shadow: var(--raised);
+  transition: translate 60ms ease;
 }
 .suit-pick button b {
   font-family: var(--display);
-  font-size: 17px;
+  font-size: 15px;
+  white-space: nowrap;
 }
 .suit-pick button small {
-  font-size: 12px;
-  color: rgba(248, 241, 227, 0.75);
+  font-size: 11.5px;
+  color: rgba(246, 227, 168, 0.75);
 }
 .suit-pick button.current {
-  box-shadow: 0 0 0 3px var(--accent);
+  box-shadow:
+    var(--raised),
+    0 0 0 2px var(--brass-hi),
+    0 0 12px var(--accent-glow);
 }
+/* Pressed: the bevel flips and the button sinks, like the old chunky buttons. */
 .suit-pick button:active,
+.btn:active,
 .continue:active,
 .home-gear:active {
-  scale: 0.95;
+  translate: 0 2px;
+  border-color: var(--bevel-in);
+  box-shadow: var(--sunk);
 }
 
 .home-foot {
@@ -1901,9 +1958,11 @@ html.standalone #app {
   z-index: 5000;
   max-width: calc(100vw - 32px);
   padding: 10px 18px;
-  border-radius: 999px;
-  background: rgba(16, 18, 22, 0.88);
-  color: #fff;
+  /* An old-school tooltip: dark wood, brass edge, gold letters. */
+  border: 2px solid var(--brass);
+  border-radius: 4px;
+  background: rgba(36, 22, 10, 0.94);
+  color: var(--gold-ink);
   font-family: var(--display);
   font-size: 16px;
   font-weight: 700;
@@ -1936,17 +1995,17 @@ dialog.sheet {
   max-height: min(88dvh, 760px);
   margin: auto auto 0;
   padding: 0;
-  border: 0;
-  border-radius: 26px 26px 0 0;
-  background:
-    var(--noise),
-    linear-gradient(180deg, color-mix(in srgb, var(--sheet-bg) 100%, #fff 18%), var(--sheet-bg) 120px);
+  border: 3px solid var(--brass);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--parchment);
   background-color: var(--sheet-bg);
   background-blend-mode: soft-light, normal;
   color: var(--sheet-ink);
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 -10px 40px rgba(0, 0, 0, 0.4);
+    inset 0 0 0 3px #3e2410,
+    inset 0 0 40px rgba(120, 75, 25, 0.4),
+    0 -10px 40px rgba(0, 0, 0, 0.45);
   overflow: auto;
   overscroll-behavior: contain;
   -webkit-user-select: none;
@@ -1969,7 +2028,8 @@ dialog.sheet::backdrop {
 @media (min-width: 700px) and (min-height: 600px) {
   dialog.sheet {
     margin: auto;
-    border-radius: 22px;
+    border-radius: 8px;
+    border-bottom: 3px solid var(--brass);
   }
   .grab {
     display: none;
@@ -1978,7 +2038,8 @@ dialog.sheet::backdrop {
 @media (orientation: landscape) and (max-height: 540px) {
   dialog.sheet {
     margin: auto;
-    border-radius: 22px;
+    border-radius: 8px;
+    border-bottom: 3px solid var(--brass);
     max-height: 94dvh;
   }
 }
@@ -1993,7 +2054,9 @@ dialog.center form {
 .sheet h2 {
   margin: 0 0 6px;
   font-family: var(--display);
-  font-size: 26px;
+  font-size: 24px;
+  color: #5a2c10;
+  text-shadow: 0 1px 0 rgba(255, 245, 215, 0.7);
 }
 .sheet h3 {
   margin: 0 0 12px;
@@ -2003,8 +2066,8 @@ dialog.center form {
 }
 .sheet h4 {
   margin: 14px 0 8px;
-  font-size: 13px;
-  font-weight: 600;
+  font: 700 12.5px var(--display);
+  letter-spacing: 0.06em;
   color: var(--sheet-muted);
 }
 .sheet .group {
@@ -2055,8 +2118,9 @@ dialog.sheet.page {
   max-width: none;
   max-height: none;
   margin: 0;
+  border: 0;
   border-radius: 0;
-  box-shadow: none;
+  box-shadow: inset 0 0 60px rgba(120, 75, 25, 0.45);
 }
 dialog.sheet.page[open] {
   animation: page-in 260ms var(--ease-out);
@@ -2093,12 +2157,14 @@ dialog.sheet.page form {
 }
 /* Collapsible Settings sections. */
 .sheet details.group {
-  margin-top: 10px;
+  margin-top: 12px;
   padding: 0;
   border: 0;
-  border-radius: 18px;
-  background: var(--sheet-chip);
-  box-shadow: inset 0 0 0 1px var(--sheet-line);
+  border-radius: 4px;
+  background: rgba(255, 248, 225, 0.35);
+  box-shadow:
+    inset 0 0 0 1px var(--sheet-line),
+    0 0 0 2px rgba(94, 65, 19, 0.35);
 }
 .sheet details.group > summary {
   display: flex;
@@ -2114,7 +2180,8 @@ dialog.sheet.page form {
 }
 .sheet details.group > summary b {
   font-family: var(--display);
-  font-size: 19px;
+  font-size: 18px;
+  color: #5a2c10;
 }
 .sheet details.group > summary small {
   color: var(--sheet-muted);
@@ -2140,11 +2207,14 @@ dialog.sheet.page form {
   margin-left: 14px;
   margin-right: 14px;
 }
+.sheet details.group > .preview-btn {
+  width: calc(100% - 28px);
+}
 .sheet details.group > h4:first-of-type {
   margin-top: 0;
 }
 .sheet details.group .toggles {
-  background: var(--sheet-bg);
+  background: rgba(255, 250, 232, 0.55);
 }
 /* "Remember settings" sits apart from the game's options, just above Start. */
 .toggles.remember {
@@ -2161,39 +2231,52 @@ dialog.sheet.page form {
 .icon-btn {
   width: 40px;
   height: 40px;
-  border: 0;
+  border: 2px solid var(--brass-lo);
   border-radius: 50%;
-  background: var(--sheet-chip);
-  color: inherit;
+  background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 55%, #8a6220);
+  color: #3a2508;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 220, 0.6),
+    0 2px 0 #2a170a;
   font-size: 16px;
   cursor: pointer;
 }
 
 .btn {
   min-height: 48px;
-  box-shadow: inset 0 0 0 1px var(--sheet-line);
   padding: 0 20px;
-  border: 0;
-  border-radius: 14px;
-  background: var(--sheet-chip);
-  color: inherit;
-  font: 650 16px system-ui, sans-serif;
+  border: 2px solid;
+  border-color: var(--bevel);
+  border-radius: 6px;
+  background: var(--wood);
+  background-blend-mode: soft-light, normal;
+  color: var(--gold-ink);
+  font: 700 16px var(--display);
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+  box-shadow: var(--raised);
   cursor: pointer;
-  transition: scale 120ms ease;
+  transition: translate 60ms ease;
 }
-.btn:active,
 .swatch:active {
   scale: 0.96;
 }
+/* The main action is a red wax-seal button. */
 .btn.primary {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--primary) 100%, #fff 12%), var(--primary));
-  color: var(--primary-ink);
-  box-shadow: 0 3px 10px color-mix(in srgb, var(--primary) 40%, transparent);
+  background: var(--noise), linear-gradient(180deg, #a8402c, #6e1f12);
+  background-blend-mode: soft-light, normal;
+  color: #ffe9a8;
 }
 .btn.ghost {
   background: transparent;
+  border-color: transparent;
   box-shadow: none;
   color: var(--sheet-muted);
+  text-shadow: none;
+}
+.btn.ghost:active {
+  border-color: transparent;
+  box-shadow: none;
 }
 .actions {
   display: flex;
@@ -2214,18 +2297,20 @@ dialog.sheet.page form {
   gap: 6px;
   padding: 8px 6px 10px;
   border: 2px solid var(--sheet-line);
-  border-radius: 14px;
-  background: var(--sheet-bg);
+  border-radius: 6px;
+  background: rgba(255, 248, 225, 0.45);
   color: inherit;
-  font: 600 12px system-ui, sans-serif;
+  font: 700 11.5px var(--display);
   cursor: pointer;
   transition:
     border-color 120ms ease,
     scale 120ms ease;
 }
 .swatch[aria-pressed='true'] {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 25%, transparent);
+  border-color: var(--brass);
+  box-shadow:
+    0 0 0 2px var(--brass-lo),
+    0 0 10px rgba(201, 157, 74, 0.7);
 }
 
 .mini-deck {
@@ -2303,7 +2388,7 @@ dialog.sheet.page form {
   display: grid;
   place-items: center;
   color: #c4122f;
-  font: 700 24px var(--display);
+  font: 700 24px var(--card-font);
 }
 
 .mini-table {
@@ -2316,9 +2401,9 @@ dialog.sheet.page form {
 .toggles {
   display: flex;
   flex-direction: column;
-  border-radius: 16px;
+  border-radius: 4px;
   box-shadow: inset 0 0 0 1px var(--sheet-line);
-  background: var(--sheet-chip);
+  background: rgba(255, 248, 225, 0.4);
   overflow: hidden;
 }
 .toggle {
@@ -2346,7 +2431,7 @@ dialog.sheet.page form {
   gap: 3px;
 }
 .toggle b {
-  font-weight: 600;
+  font-weight: 650;
   font-size: 15px;
 }
 .toggle small {
@@ -2361,7 +2446,10 @@ dialog.sheet.page form {
   height: 30px;
   margin: 0;
   border-radius: 15px;
-  background: #b9bcc3;
+  background: #7a5a3a;
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.5),
+    0 1px 0 rgba(255, 245, 215, 0.6);
   cursor: pointer;
   transition: background-color 180ms ease;
 }
@@ -2373,8 +2461,8 @@ dialog.sheet.page form {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 60%, #8a6220);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   transition: translate 200ms var(--ease-out);
 }
 .toggle input:checked {
