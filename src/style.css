@@ -24,27 +24,31 @@
   --ui-ink: #f4f6f2;
   --ui-muted: rgba(244, 246, 242, 0.68);
   --bar-bg: rgba(0, 0, 0, 0.28);
-  /* Menus are parchment in carved wood, trimmed with brass. */
-  --sheet-bg: #ecdcb4;
-  --sheet-ink: #3a2614;
-  --sheet-muted: #7b5a36;
-  --sheet-line: #c9ad7a;
-  --sheet-chip: #e3cd9c;
-  --parchment: var(--noise), radial-gradient(ellipse 110% 90% at 50% 40%, #f4e7c6 0%, #e9d6a8 60%, #d6b97f 100%);
-  --wood: var(--noise), linear-gradient(180deg, #7a5130, #4a2c15);
+  /* Menus are light parchment, framed and buttoned in the table's colour, trimmed with brass.
+     The --tone-* colours come from the chosen table (see Tables). */
+  --tone-a: #2f6b47;
+  --tone-b: #183f29;
+  --tone-dark: #0d2618;
+  --sheet-bg: #f5ecd6;
+  --sheet-ink: #33281c;
+  --sheet-muted: #7d6a52;
+  --sheet-line: #dccaa5;
+  --sheet-chip: #ece0c3;
+  --parchment: var(--noise), radial-gradient(ellipse 120% 100% at 50% 35%, #fbf5e6 0%, #f4ead2 70%, #ecdfc0 100%);
+  --wood: var(--noise), linear-gradient(180deg, var(--tone-a), var(--tone-b));
   --brass: #c99d4a;
   --brass-hi: #f1d58a;
   --brass-lo: #5e4113;
   --gold-ink: #f6e3a8;
   /* Brass rim, wood band, brass rim: the frame around panels. */
   --frame:
-    0 0 0 2px var(--brass), 0 0 0 5px #3e2410, 0 0 0 6px color-mix(in srgb, var(--brass) 70%, #000);
+    0 0 0 2px var(--brass), 0 0 0 5px var(--tone-dark), 0 0 0 6px color-mix(in srgb, var(--brass) 70%, #000);
   /* Chunky bevelled buttons: lit from the top left, sinking when pressed. */
-  --bevel: #d9b46a #5e3d1a #2e1a0a #b38b4a;
-  --bevel-in: #2e1a0a #b38b4a #d9b46a #5e3d1a;
+  --bevel: #d9b46a var(--tone-dark) var(--tone-dark) #b38b4a;
+  --bevel-in: var(--tone-dark) #b38b4a #d9b46a var(--tone-dark);
   --raised:
-    inset 0 1px 0 rgba(255, 230, 170, 0.35),
-    0 2px 0 #2a170a,
+    inset 0 1px 0 rgba(255, 240, 200, 0.3),
+    0 2px 0 var(--tone-dark),
     0 4px 8px rgba(0, 0, 0, 0.3);
   --sunk: inset 0 2px 5px rgba(0, 0, 0, 0.5);
   --primary: #3f6b2a;
@@ -59,18 +63,33 @@
 
 /* Tables */
 [data-table='felt'] {
+  --tone-a: #2f6b47;
+  --tone-b: #183f29;
+  --tone-dark: #0d2618;
   --table-bg: radial-gradient(ellipse 120% 90% at 50% 25%, #23845a 0%, #11593a 55%, #093722 100%);
 }
 [data-table='ocean'] {
+  --tone-a: #2d5f88;
+  --tone-b: #163651;
+  --tone-dark: #0b1f30;
   --table-bg: radial-gradient(ellipse 120% 90% at 50% 25%, #2a75a6 0%, #164d75 55%, #0a2a45 100%);
 }
 [data-table='wine'] {
+  --tone-a: #7d2b38;
+  --tone-b: #46121c;
+  --tone-dark: #26080e;
   --table-bg: radial-gradient(ellipse 120% 90% at 50% 25%, #8c2639 0%, #5c1222 55%, #33070f 100%);
 }
 [data-table='midnight'] {
+  --tone-a: #444d5e;
+  --tone-b: #22272f;
+  --tone-dark: #111419;
   --table-bg: radial-gradient(ellipse 120% 90% at 50% 25%, #333a48 0%, #1d222c 55%, #0d1015 100%);
 }
 [data-table='linen'] {
+  --tone-a: #8a7350;
+  --tone-b: #5a4529;
+  --tone-dark: #33271a;
   --table-bg: repeating-linear-gradient(0deg, rgba(90, 70, 30, 0.05) 0 1px, transparent 1px 3px),
     repeating-linear-gradient(90deg, rgba(90, 70, 30, 0.05) 0 1px, transparent 1px 3px),
     radial-gradient(ellipse 120% 90% at 50% 25%, #e7dbbd 0%, #d2c197 55%, #ae9a6c 100%);
@@ -1712,7 +1731,7 @@ html.standalone #app {
   color: var(--brass-hi);
   text-shadow:
     0 1px 0 var(--brass-lo),
-    0 2px 0 #2a170a,
+    0 2px 0 var(--tone-dark),
     0 4px 10px rgba(0, 0, 0, 0.5);
 }
 .home-gear {
@@ -1727,7 +1746,7 @@ html.standalone #app {
   color: var(--gold-ink);
   box-shadow:
     inset 0 1px 0 rgba(255, 230, 170, 0.35),
-    0 2px 0 #2a170a,
+    0 2px 0 var(--tone-dark),
     0 4px 10px rgba(0, 0, 0, 0.35);
   cursor: pointer;
 }
@@ -1763,7 +1782,7 @@ html.standalone #app {
   padding: 12px 22px;
   border: 2px solid;
   border-color: #fbe7a8 #8a6220 #5e4113 #e0b860;
-  border-radius: 8px;
+  border-radius: 16px;
   background: var(--noise), linear-gradient(180deg, #f3d78b, #d4a74c 55%, #b98a35);
   background-blend-mode: soft-light, normal;
   color: #3a2508;
@@ -1771,8 +1790,8 @@ html.standalone #app {
   font: inherit;
   cursor: pointer;
   box-shadow:
-    0 0 0 2px #3e2410,
-    0 3px 0 2px #2a170a,
+    0 0 0 2px var(--tone-dark),
+    0 3px 0 2px var(--tone-dark),
     0 10px 24px rgba(0, 0, 0, 0.4);
   transition: scale 120ms ease;
 }
@@ -1825,12 +1844,12 @@ html.standalone #app {
   display: flex;
   gap: 14px;
   padding: 16px;
-  border-radius: 4px;
+  border-radius: 14px;
   background: var(--parchment);
   background-blend-mode: soft-light, normal;
   color: var(--sheet-ink);
   box-shadow:
-    inset 0 0 28px rgba(120, 75, 25, 0.35),
+    inset 0 0 16px rgba(150, 110, 50, 0.14),
     var(--frame),
     0 12px 28px rgba(0, 0, 0, 0.45);
 }
@@ -1862,7 +1881,7 @@ html.standalone #app {
   align-self: flex-start;
   height: 64px;
   padding: 0 8px;
-  border-radius: 3px;
+  border-radius: 8px;
   box-shadow:
     0 0 0 2px var(--brass-lo),
     inset 0 2px 6px rgba(0, 0, 0, 0.45);
@@ -1888,7 +1907,7 @@ html.standalone #app {
   padding: 8px 4px;
   border: 2px solid;
   border-color: var(--bevel);
-  border-radius: 6px;
+  border-radius: 12px;
   background: var(--wood);
   background-blend-mode: soft-light, normal;
   color: var(--gold-ink);
@@ -1960,7 +1979,7 @@ html.standalone #app {
   padding: 10px 18px;
   /* An old-school tooltip: dark wood, brass edge, gold letters. */
   border: 2px solid var(--brass);
-  border-radius: 4px;
+  border-radius: 14px;
   background: rgba(36, 22, 10, 0.94);
   color: var(--gold-ink);
   font-family: var(--display);
@@ -1997,14 +2016,14 @@ dialog.sheet {
   padding: 0;
   border: 3px solid var(--brass);
   border-bottom: 0;
-  border-radius: 8px 8px 0 0;
+  border-radius: 18px 18px 0 0;
   background: var(--parchment);
   background-color: var(--sheet-bg);
   background-blend-mode: soft-light, normal;
   color: var(--sheet-ink);
   box-shadow:
-    inset 0 0 0 3px #3e2410,
-    inset 0 0 40px rgba(120, 75, 25, 0.4),
+    inset 0 0 0 3px var(--tone-dark),
+    inset 0 0 20px rgba(150, 110, 50, 0.14),
     0 -10px 40px rgba(0, 0, 0, 0.45);
   overflow: auto;
   overscroll-behavior: contain;
@@ -2028,7 +2047,7 @@ dialog.sheet::backdrop {
 @media (min-width: 700px) and (min-height: 600px) {
   dialog.sheet {
     margin: auto;
-    border-radius: 8px;
+    border-radius: 18px;
     border-bottom: 3px solid var(--brass);
   }
   .grab {
@@ -2038,7 +2057,7 @@ dialog.sheet::backdrop {
 @media (orientation: landscape) and (max-height: 540px) {
   dialog.sheet {
     margin: auto;
-    border-radius: 8px;
+    border-radius: 18px;
     border-bottom: 3px solid var(--brass);
     max-height: 94dvh;
   }
@@ -2055,7 +2074,7 @@ dialog.center form {
   margin: 0 0 6px;
   font-family: var(--display);
   font-size: 24px;
-  color: #5a2c10;
+  color: var(--tone-b);
   text-shadow: 0 1px 0 rgba(255, 245, 215, 0.7);
 }
 .sheet h3 {
@@ -2120,7 +2139,7 @@ dialog.sheet.page {
   margin: 0;
   border: 0;
   border-radius: 0;
-  box-shadow: inset 0 0 60px rgba(120, 75, 25, 0.45);
+  box-shadow: inset 0 0 30px rgba(150, 110, 50, 0.16);
 }
 dialog.sheet.page[open] {
   animation: page-in 260ms var(--ease-out);
@@ -2134,18 +2153,20 @@ dialog.sheet.page[open] {
 dialog.sheet.page form {
   width: min(560px, 100%);
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top) + 14px) max(16px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 28px)
-    max(16px, env(safe-area-inset-left));
+  padding: 0 max(16px, env(safe-area-inset-right)) calc(env(safe-area-inset-bottom) + 28px) max(16px, env(safe-area-inset-left));
 }
 .page-head {
   position: sticky;
-  top: calc(env(safe-area-inset-top) * -1 - 14px);
+  /* A title bar that stays put (below the notch) while the page scrolls. */
+  top: 0;
   z-index: 1;
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 0 -4px 10px;
-  padding: 4px;
+  margin: 0 -16px 10px;
+  padding: calc(env(safe-area-inset-top) + 18px) 16px 8px;
+  background: var(--sheet-bg);
+  box-shadow: 0 6px 8px -6px rgba(90, 60, 20, 0.25);
 }
 .page-head h2 {
   margin: 0;
@@ -2160,7 +2181,7 @@ dialog.sheet.page form {
   margin-top: 12px;
   padding: 0;
   border: 0;
-  border-radius: 4px;
+  border-radius: 14px;
   background: rgba(255, 248, 225, 0.35);
   box-shadow:
     inset 0 0 0 1px var(--sheet-line),
@@ -2181,7 +2202,7 @@ dialog.sheet.page form {
 .sheet details.group > summary b {
   font-family: var(--display);
   font-size: 18px;
-  color: #5a2c10;
+  color: var(--tone-b);
 }
 .sheet details.group > summary small {
   color: var(--sheet-muted);
@@ -2237,7 +2258,7 @@ dialog.sheet.page form {
   color: #3a2508;
   box-shadow:
     inset 0 1px 0 rgba(255, 250, 220, 0.6),
-    0 2px 0 #2a170a;
+    0 2px 0 var(--tone-dark);
   font-size: 16px;
   cursor: pointer;
 }
@@ -2247,7 +2268,7 @@ dialog.sheet.page form {
   padding: 0 20px;
   border: 2px solid;
   border-color: var(--bevel);
-  border-radius: 6px;
+  border-radius: 12px;
   background: var(--wood);
   background-blend-mode: soft-light, normal;
   color: var(--gold-ink);
@@ -2261,11 +2282,13 @@ dialog.sheet.page form {
 .swatch:active {
   scale: 0.96;
 }
-/* The main action is a red wax-seal button. */
+/* The main action is a polished brass plaque. */
 .btn.primary {
-  background: var(--noise), linear-gradient(180deg, #a8402c, #6e1f12);
+  background: var(--noise), linear-gradient(180deg, #f3d78b, #d4a74c 55%, #b98a35);
   background-blend-mode: soft-light, normal;
-  color: #ffe9a8;
+  border-color: #fbe7a8 #8a6220 #5e4113 #e0b860;
+  color: #3a2508;
+  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
 }
 .btn.ghost {
   background: transparent;
@@ -2297,7 +2320,7 @@ dialog.sheet.page form {
   gap: 6px;
   padding: 8px 6px 10px;
   border: 2px solid var(--sheet-line);
-  border-radius: 6px;
+  border-radius: 12px;
   background: rgba(255, 248, 225, 0.45);
   color: inherit;
   font: 700 11.5px var(--display);
@@ -2318,7 +2341,7 @@ dialog.sheet.page form {
   height: 50px;
   align-items: center;
   padding: 0 4px;
-  background: #2a7a4b;
+  background: var(--table-bg, #2a7a4b);
   border-radius: 8px;
 }
 .mini-card {
@@ -2401,7 +2424,7 @@ dialog.sheet.page form {
 .toggles {
   display: flex;
   flex-direction: column;
-  border-radius: 4px;
+  border-radius: 12px;
   box-shadow: inset 0 0 0 1px var(--sheet-line);
   background: rgba(255, 248, 225, 0.4);
   overflow: hidden;
@@ -2446,7 +2469,7 @@ dialog.sheet.page form {
   height: 30px;
   margin: 0;
   border-radius: 15px;
-  background: #7a5a3a;
+  background: #b3a183;
   box-shadow:
     inset 0 2px 4px rgba(0, 0, 0, 0.5),
     0 1px 0 rgba(255, 245, 215, 0.6);
@@ -2466,7 +2489,7 @@ dialog.sheet.page form {
   transition: translate 200ms var(--ease-out);
 }
 .toggle input:checked {
-  background: var(--primary);
+  background: var(--tone-a);
 }
 .toggle input:checked::after {
   translate: 20px 0;
