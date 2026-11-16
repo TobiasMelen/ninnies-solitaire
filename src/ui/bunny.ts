@@ -103,19 +103,26 @@ const GESTURE: Record<BunnyEvent, string> = {
   scare: 'shake',
 };
 
-/** Which photo it switches to for each event (back to idle when the gesture ends). */
-const POSE: Record<BunnyEvent, Pose> = {
-  start: 'love',
-  move: 'aside',
-  reveal: 'aside',
-  suit: 'happy',
-  complete: 'proud',
-  deal: 'aside',
-  undo: 'sad',
-  invalid: 'angry',
-  stuck: 'sad',
-  win: 'happy',
-  scare: 'shock',
+/**
+ * The photos that suit each moment; one is picked at random (back to idle when the gesture
+ * ends), so the same kind of move doesn't always get the same face.
+ */
+const POSES: Record<BunnyEvent | 'tap' | 'hint' | 'hintTarget' | 'shrug', Pose[]> = {
+  start: ['love', 'happy'],
+  move: ['aside', 'aside', 'idle', 'thinking'],
+  reveal: ['aside', 'shock', 'idea'],
+  suit: ['happy', 'love', 'proud'],
+  complete: ['proud', 'happy', 'love'],
+  deal: ['aside', 'thinking', 'idle'],
+  undo: ['sad', 'thinking'],
+  invalid: ['angry', 'sad', 'shock'],
+  stuck: ['sad', 'bored'],
+  win: ['happy', 'proud', 'love'],
+  scare: ['shock', 'angry'],
+  tap: ['thinking', 'love'],
+  hint: ['idea', 'thinking'],
+  hintTarget: ['happy', 'proud'],
+  shrug: ['sad', 'thinking'],
 };
 
 const IMPORTANT = new Set<string>(['complete', 'stuck', 'win', 'scare', 'tap', 'hint', 'hintTarget', 'hintDeal', 'invalid']);
@@ -138,6 +145,7 @@ export class Bunny {
   private timers = new Set<number>();
   private idleTimer = 0;
   private resting = false;
+  private shown: Pose = 'idle';
   private moodTimer = 0;
   private popTimer = 0;
   private busyUntil = 0;
@@ -174,7 +182,7 @@ export class Bunny {
       e.stopPropagation();
       if (!this.enabled) return;
       this.resetIdle();
-      this.gesture('nod', 900, 'thinking'); // a hint (or a shrug) takes over in a moment
+      this.gesture('nod', 900, this.pick('tap')); // a hint (or a shrug) takes over in a moment
       this.onAskHint();
     });
   }
@@ -202,7 +210,7 @@ export class Bunny {
     // Don't interrupt a hint walk with small reactions.
     if (performance.now() < this.busyUntil && !IMPORTANT.has(event)) return;
     if (x !== undefined) this.face(x);
-    this.gesture(GESTURE[event], event === 'win' ? 6000 : event === 'scare' ? 1600 : 900, POSE[event]);
+    this.gesture(GESTURE[event], event === 'win' ? 6000 : event === 'scare' ? 1600 : 900, this.pick(event));
     if (Math.random() < CHANCE[event]) this.pop(event);
   }
 
@@ -213,14 +221,14 @@ export class Bunny {
     this.clearTimers();
     if (kind === 'none' || !target) {
       this.goHome();
-      this.gesture('sad', 1400, 'sad');
+      this.gesture('sad', 1400, this.pick('shrug'));
       this.pop('stuck');
       return;
     }
     this.busyUntil = performance.now() + 3200;
     this.walkTo(target.from);
     this.later(380, () => {
-      this.gesture('perk', 1000, 'idea');
+      this.gesture('perk', 1000, this.pick('hint'));
       this.pop(kind === 'deal' ? 'hintDeal' : 'hint');
     });
     if (kind === 'move' && target.to !== undefined) {
@@ -228,7 +236,7 @@ export class Bunny {
       this.later(1250, () => {
         this.walkTo(to);
         this.later(380, () => {
-          this.gesture('nod', 1200, 'happy');
+          this.gesture('nod', 1200, this.pick('hintTarget'));
           this.pop('hintTarget');
         });
       });
@@ -264,8 +272,16 @@ export class Bunny {
     }, ms);
   }
 
+  /** A random fitting pose for the moment, if possible not the one already showing. */
+  private pick(moment: keyof typeof POSES): Pose {
+    const fresh = POSES[moment].filter((p) => resolvePose(p) !== this.shown);
+    const from = fresh.length ? fresh : POSES[moment];
+    return from[Math.floor(Math.random() * from.length)];
+  }
+
   private setPose(pose: Pose) {
     const shown = resolvePose(pose);
+    this.shown = shown;
     this.poses.forEach((img, p) => img.classList.toggle('shown', p === shown));
   }
 
