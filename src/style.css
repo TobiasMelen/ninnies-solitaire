@@ -2146,29 +2146,9 @@ dialog.sheet.page form {
 .sheet details.group .toggles {
   background: var(--sheet-bg);
 }
-/* New-game setup. */
-.remember {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 18px 4px 0;
-  cursor: pointer;
-}
-.remember input {
-  flex: none;
-  width: 24px;
-  height: 24px;
-  margin: 0;
-  accent-color: var(--primary);
-}
-.remember span {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.remember small {
-  color: var(--sheet-muted);
-  font-size: 12.5px;
+/* "Remember settings" sits apart from the game's options, just above Start. */
+.toggles.remember {
+  margin-top: 14px;
 }
 .start-btn {
   width: 100%;

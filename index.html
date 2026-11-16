@@ -185,10 +185,12 @@
         </div>
         <p id="setup-line" class="muted"></p>
         <div class="toggles" id="setup-opts"></div>
-        <label class="remember">
-          <input type="checkbox" id="setup-remember" />
-          <span><b>Remember and skip this step</b><small>Change it later in Settings</small></span>
-        </label>
+        <div class="toggles remember">
+          <label class="toggle">
+            <span><b>Remember settings</b><small>Skip this step next time</small></span>
+            <input type="checkbox" role="switch" id="setup-remember" />
+          </label>
+        </div>
         <button value="start" class="btn primary start-btn">Start</button>
       </form>
     </dialog>

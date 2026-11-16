@@ -444,9 +444,9 @@ $('#opt-feel').innerHTML = toggleRows(TOGGLES.filter((t) => t.group === 'feel'))
 $('#opt-games').innerHTML = GAME_OPTIONS.map(
   (g) => `<details class="group" data-sec="${g.id}">
     <summary><b>${g.name}</b><small>Options for new ${g.name} games</small></summary>
-    <div class="toggles">${toggleRows([
-      ...gameToggles(g.id),
-      { key: g.remember, label: 'Skip setup', hint: 'Start new games straight away with these options', group: 'play' },
+    <div class="toggles">${toggleRows(gameToggles(g.id))}</div>
+    <div class="toggles remember">${toggleRows([
+      { key: g.remember, label: 'Remember settings', hint: 'Skip the setup step', group: 'play' },
     ])}</div>
   </details>`,
 ).join('');
