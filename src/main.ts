@@ -9,6 +9,7 @@ import type { MinesLevel } from './games/mines/rules';
 import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
+import { navigate } from './ui/nav';
 import { audioLatency, canVibrate, sfx, unlockAudio } from './ui/feedback';
 import { BACKS, COURTS, DECKS, TABLES, type Settings, onSettings, settings, updateSettings } from './ui/settings';
 
@@ -33,13 +34,41 @@ function toast(msg: string) {
 }
 
 function open(d: HTMLDialogElement) {
-  if (!d.open) d.showModal();
+  if (!d.open) go(() => d.showModal());
+}
+
+/** What happens when each dialog closes, by the button value it closed with. */
+const onClose = new Map<HTMLDialogElement, (value: string) => void>();
+
+/**
+ * Close a dialog and run its handler right away. (The native close event fires a moment later,
+ * which would land outside the screen transition.)
+ */
+function shut(d: HTMLDialogElement, value = 'close') {
+  if (!d.open) return;
+  d.close(value);
+  onClose.get(d)?.(value);
+}
+
+function close(d: HTMLDialogElement, value = 'close') {
+  if (d.open) go(() => shut(d, value));
 }
 
 // Tapping the dimmed backdrop closes a sheet.
 for (const d of [dlgWin, dlgStuck, dlgMenu]) {
   d.addEventListener('click', (e) => {
-    if (e.target === d) d.close('close');
+    if (e.target === d) close(d);
+  });
+}
+// Dialog buttons and Escape close through `go`, so closing animates too.
+for (const d of document.querySelectorAll('dialog')) {
+  d.addEventListener('submit', (e) => {
+    e.preventDefault();
+    close(d, (e.submitter as HTMLButtonElement | null)?.value ?? 'close');
+  });
+  d.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    close(d);
   });
 }
 
@@ -192,6 +221,71 @@ if (import.meta.env.DEV) Object.assign(window, { ninnies: { get game() { return 
 
 const homeOpen = () => !home.classList.contains('hidden');
 
+// ───────── navigation ─────────
+
+/** The screens, in stack order: going up the list is a push, down is a pop. */
+type Screen = 'home' | 'setup' | 'game' | 'settings';
+const RANK: Record<Screen, number> = { home: 0, setup: 1, game: 2, settings: 3 };
+
+function currentScreen(): Screen {
+  if (dlgSettings.open) return 'settings';
+  if (dlgSetup.open) return 'setup';
+  return homeOpen() ? 'home' : 'game';
+}
+
+/** History entries above the start screen, so the browser's Back button steps back too. */
+function depth(s: Screen) {
+  if (s === 'home') return 0;
+  return s === 'settings' && !homeOpen() ? 2 : 1;
+}
+let histDepth = 0;
+let ignorePops = 0;
+
+/** Make the browser history as deep as the screen stack. */
+function syncHistory() {
+  const want = depth(currentScreen());
+  while (histDepth < want) history.pushState({ depth: ++histDepth }, '');
+  if (histDepth > want) {
+    ignorePops++;
+    history.go(want - histDepth);
+    histDepth = want;
+  }
+}
+
+/** Change screens with the stack animation, then line up the browser history. */
+function go(update: () => void, animate = true) {
+  const before = RANK[currentScreen()];
+  navigate(
+    () => {
+      update();
+      syncHistory();
+    },
+    () => {
+      const after = RANK[currentScreen()];
+      return after > before ? 'push' : after < before ? 'pop' : 'sheet';
+    },
+    animate,
+  );
+}
+
+/** One step back: the top sheet or page closes, or the game returns to the start screen. */
+function back() {
+  const top = [...document.querySelectorAll<HTMLDialogElement>('dialog[open]')].pop();
+  if (top) shut(top);
+  else if (!homeOpen()) showHome();
+}
+
+history.replaceState({ depth: 0 }, '');
+addEventListener('popstate', (e) => {
+  if (ignorePops) {
+    ignorePops--;
+    return;
+  }
+  histDepth = (e.state as { depth?: number } | null)?.depth ?? 0;
+  // Safari's swipe-back has already animated the page away; don't play ours on top.
+  go(back, !(e as PopStateEvent & { hasUAVisualTransition?: boolean }).hasUAVisualTransition);
+});
+
 function savedSummary(id: GameId): string | null {
   if (id === 'hearts') return HeartsGame.saved();
   if (id === 'spite') return SpiteGame.saved();
@@ -227,17 +321,21 @@ function loadSaved(id = lastGame()): boolean {
   return g.active || g.resume();
 }
 
-$('#home-continue').addEventListener('click', () => {
-  if (!loadSaved()) return showHome();
-  hideHome();
-  game!.unpause();
-});
-$('#home-restart').addEventListener('click', () => {
-  if (!loadSaved()) return showHome();
-  hideHome();
-  game!.restart();
-  game!.unpause();
-});
+$('#home-continue').addEventListener('click', () =>
+  go(() => {
+    if (!loadSaved()) return showHome();
+    hideHome();
+    game!.unpause();
+  }),
+);
+$('#home-restart').addEventListener('click', () =>
+  go(() => {
+    if (!loadSaved()) return showHome();
+    hideHome();
+    game!.restart();
+    game!.unpause();
+  }),
+);
 home.querySelectorAll<HTMLElement>('[data-suits]').forEach((btn) =>
   btn.addEventListener('click', () =>
     setup('spider', btn.querySelector('b')!.textContent!, () => {
@@ -267,23 +365,28 @@ home.querySelectorAll<HTMLElement>('[data-level]').forEach((btn) =>
   ),
 );
 home.querySelectorAll<HTMLElement>('[data-mines]').forEach((btn) =>
-  btn.addEventListener('click', () => {
-    const g = switchTo('mines');
-    hideHome();
-    g.newGame(btn.dataset.mines as MinesLevel);
-    g.unpause();
-  }),
+  btn.addEventListener('click', () =>
+    go(() => {
+      const g = switchTo('mines');
+      hideHome();
+      g.newGame(btn.dataset.mines as MinesLevel);
+      g.unpause();
+    }),
+  ),
 );
 $('#home-settings').addEventListener('click', () => openSettings());
 
 $('#btn-preview-win').addEventListener('click', () => {
-  dlgSettings.close();
-  // Needs cards on the table: use the current game, the saved one, or a fresh deal.
-  if (homeOpen()) {
-    if (!loadSaved()) switchTo('spider').newGame(2);
-    hideHome();
-  }
-  window.setTimeout(() => game?.previewWin(), 250);
+  go(() => {
+    settingsFromMenu = false;
+    shut(dlgSettings);
+    // Needs cards on the table: use the current game, the saved one, or a fresh deal.
+    if (homeOpen()) {
+      if (!loadSaved()) switchTo('spider').newGame(2);
+      hideHome();
+    }
+  });
+  window.setTimeout(() => game?.previewWin(), 600);
 });
 
 // Temporary: an installed home-screen app has no reload button, so offer one that also
@@ -321,9 +424,7 @@ function openMenu() {
 }
 
 $('#btn-menu').addEventListener('click', openMenu);
-dlgMenu.addEventListener('close', () => {
-  const v = dlgMenu.returnValue;
-  dlgMenu.returnValue = '';
+onClose.set(dlgMenu, (v) => {
   if (v === 'home') return showHome();
   if (v === 'settings') {
     settingsFromMenu = true;
@@ -332,23 +433,23 @@ dlgMenu.addEventListener('close', () => {
   if (v === 'restart') game?.restart();
   game?.unpause();
 });
-dlgSettings.addEventListener('close', () => {
+onClose.set(dlgSettings, () => {
   if (settingsFromMenu) {
     settingsFromMenu = false;
     open(dlgMenu);
   }
 });
 
-dlgWin.addEventListener('close', () => {
-  if (dlgWin.returnValue === 'new' && game) {
+onClose.set(dlgWin, (v) => {
+  if (v === 'new' && game) {
     game.again();
     game.unpause();
   }
-  if (dlgWin.returnValue === 'home') showHome();
+  if (v === 'home') showHome();
 });
-dlgStuck.addEventListener('close', () => {
-  if (dlgStuck.returnValue === 'undo') game?.undo();
-  if (dlgStuck.returnValue === 'new') showHome();
+onClose.set(dlgStuck, (v) => {
+  if (v === 'undo') game?.undo();
+  if (v === 'new') showHome();
 });
 
 document.addEventListener('keydown', (e) => {
@@ -485,7 +586,7 @@ let pendingStart: (() => void) | null = null;
 /** Show a game's options before it starts, unless the player asked to skip this step. */
 function setup(id: GameId, line: string, start: () => void) {
   const g = GAME_OPTIONS.find((o) => o.id === id);
-  if (!g || settings[g.remember]) return start();
+  if (!g || settings[g.remember]) return go(start);
   pendingStart = start;
   $('#setup-title').textContent = g.name;
   $('#setup-line').textContent = line;
@@ -495,10 +596,10 @@ function setup(id: GameId, line: string, start: () => void) {
   syncToggles(settings);
   open(dlgSetup);
 }
-dlgSetup.addEventListener('close', () => {
+onClose.set(dlgSetup, (v) => {
   const start = pendingStart;
   pendingStart = null;
-  if (dlgSetup.returnValue !== 'start' || !start) return;
+  if (v !== 'start' || !start) return;
   const remember = $<HTMLInputElement>('#setup-remember');
   if (remember.checked) updateSettings({ [remember.dataset.remember!]: true } as Partial<Settings>);
   start();

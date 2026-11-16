@@ -21,13 +21,21 @@ export abstract class TableGame<S> implements GameController {
   protected paused = true;
   protected cascade: Cascade | null = null;
   private timers = new Map<string, number>();
+  /** Board size the layout was last made for. */
+  private sized = '';
 
   constructor(
     protected root: HTMLElement,
     protected hooks: GameHooks,
     private saveKey: string,
   ) {
-    new ResizeObserver(() => this.relayout()).observe(root);
+    // The observer also reports the first size a frame after a new game has started animating;
+    // only a real size change may re-lay out (which snaps cards into place).
+    new ResizeObserver(() => {
+      if (this.sizeKey() === this.sized) return;
+      this.sized = this.sizeKey();
+      this.relayout();
+    }).observe(root);
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) this.save();
     });
@@ -105,10 +113,18 @@ export abstract class TableGame<S> implements GameController {
     this.step();
   }
 
+  private sizeKey() {
+    return `${this.root.clientWidth}x${this.root.clientHeight}`;
+  }
+
   setVisible(on: boolean) {
     this.root.hidden = !on;
-    if (on) this.relayout();
-    else this.root.parentElement?.style.removeProperty('--bunny-lift');
+    if (on) {
+      this.sized = this.sizeKey();
+      this.relayout();
+    } else {
+      this.root.parentElement?.style.removeProperty('--bunny-lift');
+    }
   }
 
   resume(): boolean {

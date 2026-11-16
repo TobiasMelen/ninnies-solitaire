@@ -43,6 +43,8 @@ export class MinesGame implements GameController {
   private paused = true;
   private msBefore = 0;
   private clockStart: number | null = null;
+  /** Board size the layout was last made for (see SpiderGame's observer). */
+  private sized = '';
 
   constructor(
     private root: HTMLElement,
@@ -65,7 +67,12 @@ export class MinesGame implements GameController {
     this.grid.addEventListener('pointerup', (e) => this.onUp(e));
     this.grid.addEventListener('pointercancel', () => this.cancelPress());
     this.grid.addEventListener('contextmenu', (e) => e.preventDefault());
-    new ResizeObserver(() => this.relayout()).observe(root);
+    new ResizeObserver(() => {
+      const key = `${root.clientWidth}x${root.clientHeight}`;
+      if (key === this.sized) return;
+      this.sized = key;
+      this.relayout();
+    }).observe(root);
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.stopClock();
@@ -429,6 +436,7 @@ export class MinesGame implements GameController {
     const W = this.root.clientWidth;
     const H = this.root.clientHeight;
     if (!W || !H) return;
+    this.sized = `${W}x${H}`;
     const pad = 10;
     // Room for the dig/flag switch: below the board in portrait, beside it in landscape.
     const side = W > H;

@@ -139,7 +139,12 @@ export class SpiderGame implements GameController {
     this.stockBadge = this.el('stock-badge');
 
     this.bindInput();
-    new ResizeObserver(() => this.relayout()).observe(board);
+    // The observer also reports the first size one frame after a new game has laid out (and
+    // started dealing); only a real size change may re-lay out, or it snaps the deal into place.
+    new ResizeObserver(() => {
+      if (this.L && board.clientWidth === this.L.W && board.clientHeight === this.L.H) return;
+      this.relayout();
+    }).observe(board);
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         this.stopClock();

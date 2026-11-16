@@ -1694,6 +1694,11 @@ html.standalone #app {
     scale 320ms var(--ease-out),
     visibility 0s 260ms;
 }
+/* With View Transitions the screen change itself is animated (see navigation). */
+html.vt #home,
+html.vt #home.hidden {
+  transition: none;
+}
 
 .home-inner {
   width: min(560px, 100%);
@@ -1988,6 +1993,82 @@ html.standalone #app {
   translate: -50% 0;
 }
 
+/* ───────────────────────── navigation ───────────────────────── */
+
+/* Screen changes (src/ui/nav.ts) move like an iOS navigation stack, with UIKit's timing as
+   Ionic's iOS mode reproduces it: a push slides the new screen in from the right while the
+   old one drifts a third of the way left and dims; a pop plays it backwards. Sheets rise and
+   fall on the same curve. */
+:root {
+  --nav-ms: 540ms;
+  --sheet-ms: 500ms;
+  --nav-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* An open bottom sheet moves on its own, over the cross-fading backdrop. */
+html.vt dialog.sheet:not(.page)[open] {
+  view-transition-name: sheet;
+}
+::view-transition-group(*),
+::view-transition-old(*),
+::view-transition-new(*) {
+  animation-duration: var(--sheet-ms);
+  animation-timing-function: var(--nav-ease);
+}
+::view-transition-new(sheet):only-child {
+  animation: var(--sheet-ms) var(--nav-ease) both sheet-rise;
+}
+::view-transition-old(sheet):only-child {
+  animation: var(--sheet-ms) var(--nav-ease) both sheet-fall;
+}
+@keyframes sheet-rise {
+  from {
+    transform: translateY(100vh);
+  }
+}
+@keyframes sheet-fall {
+  to {
+    transform: translateY(100vh);
+  }
+}
+html.vt-push::view-transition-old(root) {
+  animation: var(--nav-ms) var(--nav-ease) both nav-push-out;
+}
+html.vt-push::view-transition-new(root) {
+  animation: var(--nav-ms) var(--nav-ease) both nav-push-in;
+  box-shadow: 0 0 28px rgba(0, 0, 0, 0.35);
+}
+/* Going back, the leaving screen stays on top as it slides away. */
+html.vt-pop::view-transition-old(root) {
+  z-index: 1;
+  animation: var(--nav-ms) var(--nav-ease) both nav-pop-out;
+  box-shadow: 0 0 28px rgba(0, 0, 0, 0.35);
+}
+html.vt-pop::view-transition-new(root) {
+  animation: var(--nav-ms) var(--nav-ease) both nav-pop-in;
+}
+@keyframes nav-push-in {
+  from {
+    transform: translateX(100%);
+  }
+}
+@keyframes nav-push-out {
+  to {
+    transform: translateX(-33%);
+    filter: brightness(0.82);
+  }
+}
+@keyframes nav-pop-out {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes nav-pop-in {
+  from {
+    transform: translateX(-33%);
+    filter: brightness(0.82);
+  }
+}
+
 /* ───────────────────────── sheets ───────────────────────── */
 
 dialog.sheet {
@@ -2009,7 +2090,7 @@ dialog.sheet {
   -webkit-user-select: none;
   user-select: none;
 }
-dialog.sheet[open] {
+html:not(.vt) dialog.sheet[open] {
   animation: sheet-in 300ms var(--ease-out);
 }
 dialog.sheet::backdrop {
@@ -2118,7 +2199,7 @@ dialog.sheet.page {
   border-radius: 0;
   box-shadow: none;
 }
-dialog.sheet.page[open] {
+html:not(.vt) dialog.sheet.page[open] {
   animation: page-in 260ms var(--ease-out);
 }
 @keyframes page-in {
