@@ -1,8 +1,7 @@
+/** Card face styles: one big suit symbol, or pips laid out like a real card. */
 export const DECKS = [
-  { id: 'classic', label: 'Classic' },
-  { id: 'four', label: 'Four colour' },
-  { id: 'bold', label: 'Large print' },
-  { id: 'night', label: 'Night' },
+  { id: 'simple', label: 'Simple' },
+  { id: 'pips', label: 'Classic' },
 ] as const;
 
 export const BACKS = [
@@ -33,6 +32,9 @@ export interface Settings {
   back: (typeof BACKS)[number]['id'];
   table: (typeof TABLES)[number]['id'];
   courts: (typeof COURTS)[number]['id'];
+  /** Easier-to-read cards, with either face style. */
+  fourColour: boolean;
+  largePrint: boolean;
   noMovesAlert: boolean;
   tapToMove: boolean;
   singleTap: boolean;
@@ -58,10 +60,12 @@ export interface Settings {
 const KEY = 'ninnies.settings.v1';
 
 const DEFAULTS: Settings = {
-  deck: 'classic',
+  deck: 'simple',
   back: 'crimson',
   table: 'felt',
   courts: 'knoll',
+  fourColour: false,
+  largePrint: false,
   noMovesAlert: true,
   tapToMove: true,
   singleTap: false,
@@ -92,6 +96,11 @@ function load(): Settings {
     // A saved choice may point at an option that has since been replaced or removed.
     if ((s.courts as string) === 'english') s.courts = 'kennard';
     if (!COURTS.some((c) => c.id === s.courts)) s.courts = DEFAULTS.courts;
+    // The old four-colour and large-print decks are now switches on either face style.
+    const deck = s.deck as string;
+    if (deck === 'four' || deck === 'bold') s.fourColour = true;
+    if (deck === 'bold') s.largePrint = true;
+    if (!DECKS.some((d) => d.id === s.deck)) s.deck = DEFAULTS.deck;
     return s;
   } catch {
     return { ...DEFAULTS };

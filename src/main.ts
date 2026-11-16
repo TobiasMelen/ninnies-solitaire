@@ -487,11 +487,14 @@ function swatches<K extends 'deck' | 'back' | 'table' | 'courts'>(
 swatches(
   'deck',
   DECKS,
-  (id) => `<span class="mini-deck" data-deck="${id}">
-    <span class="mini-card" data-suit="S"><b>A</b><i>♠&#xFE0E;</i></span>
-    <span class="mini-card" data-suit="H"><b>K</b><i>♥&#xFE0E;</i></span>
-    <span class="mini-card" data-suit="D"><b>7</b><i>♦&#xFE0E;</i></span>
-    <span class="mini-card" data-suit="C"><b>Q</b><i>♣&#xFE0E;</i></span></span>`,
+  // A 3 of hearts and of spades in each style: one big suit, or three pips.
+  (id) => `<span class="mini-deck" data-deck="${id}">${['H', 'S']
+    .map((suit) => {
+      const sym = suit === 'H' ? '♥&#xFE0E;' : '♠&#xFE0E;';
+      const face = id === 'pips' ? `<u class="trio"><s>${sym}</s><s>${sym}</s><s>${sym}</s></u>` : `<u>${sym}</u>`;
+      return `<span class="mini-face" data-suit="${suit}"><b>3</b>${face}</span>`;
+    })
+    .join('')}</span>`,
 );
 swatches('courts', COURTS, (id) =>
   id === 'letters'
@@ -505,7 +508,7 @@ type Toggle = {
   key: keyof Settings;
   label: string;
   hint: string;
-  group: 'play' | 'feel';
+  group: 'cards' | 'play' | 'feel';
   /** Options for one game: listed in its Settings section and its setup step. */
   games?: GameId[];
   show?: () => boolean;
@@ -526,6 +529,8 @@ const TOGGLES: Toggle[] = [
   { key: 'heartsFast', label: 'Quick opponents', hint: 'Fox, Owl and Bear play faster', group: 'play', games: ['hearts'] },
   { key: 'spiteShort', label: 'Short game', hint: '13-card goal piles instead of 20 (from the next game)', group: 'play', games: ['spite'] },
   { key: 'spiteFast', label: 'Quick opponent', hint: 'Fox plays faster', group: 'play', games: ['spite'] },
+  { key: 'fourColour', label: 'Four-colour suits', hint: 'Blue diamonds and green clubs, so no two suits share a colour', group: 'cards' },
+  { key: 'largePrint', label: 'Large print', hint: 'Bigger, bolder corner numbers', group: 'cards' },
   { key: 'sound', label: 'Sound', hint: '', group: 'feel' },
   { key: 'haptics', label: 'Vibration', hint: '', group: 'feel', show: canVibrate },
   { key: 'bunny', label: 'Hint Bunny', hint: 'Cheers you on with gestures; tap it for a hint', group: 'feel' },
@@ -550,6 +555,7 @@ const GAME_OPTIONS: { id: GameId; name: string; remember: keyof Settings }[] = [
   { id: 'spite', name: 'Spite & Malice', remember: 'rememberSpite' },
 ];
 
+$('#opt-cards').innerHTML = toggleRows(TOGGLES.filter((t) => t.group === 'cards'));
 $('#opt-feel').innerHTML = toggleRows(TOGGLES.filter((t) => t.group === 'feel'));
 $('#opt-games').innerHTML = GAME_OPTIONS.map(
   (g) => `<details class="group" data-sec="${g.id}">
@@ -616,6 +622,8 @@ const TABLE_COLOR: Record<string, string> = {
 onSettings((s) => {
   document.documentElement.dataset.table = s.table;
   board.dataset.deck = s.deck;
+  document.documentElement.classList.toggle('four-colour', s.fourColour);
+  document.documentElement.classList.toggle('large-print', s.largePrint);
   board.dataset.back = s.back;
   $('#spider-art').dataset.deck = s.deck;
   // Paint the page itself in the table colour too, so an installed app's status bar, safe areas

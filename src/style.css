@@ -103,26 +103,16 @@
   --idx-suit: 0.82em;
   --court-tint: rgba(196, 160, 60, 0.13);
 }
-[data-deck='four'] {
+/* Accessibility switches, with either face style. */
+html.four-colour [data-deck] {
   --c-D: #1857c4;
   --c-C: #12793a;
 }
-[data-deck='bold'] {
+html.large-print [data-deck] {
   --idx-font: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --idx-weight: 850;
   --idx-size: 0.43;
   --idx-suit: 0.7em;
-  --c-D: #1857c4;
-  --c-C: #12793a;
-}
-[data-deck='night'] {
-  --face: #232833;
-  --face-edge: rgba(255, 255, 255, 0.12);
-  --c-S: #e9ecf2;
-  --c-H: #ff6f80;
-  --c-D: #6eaaff;
-  --c-C: #6fd697;
-  --court-tint: rgba(255, 255, 255, 0.05);
 }
 
 /* Card backs */
@@ -318,6 +308,36 @@ html.standalone #app {
   text-align: center;
   font-size: calc(var(--cw) * 0.72);
   line-height: 1;
+}
+
+/* Classic faces: the rank's number of pips, laid out like a real card (see PIPS). The pip area
+   starts below the index strip, which is all that shows when a card is fanned. */
+.pips {
+  display: none;
+  position: absolute;
+  inset: 37% 24% 10% 24%;
+  font-size: calc(var(--cw) * 0.2);
+  line-height: 1;
+}
+.pips i {
+  position: absolute;
+  font-style: normal;
+  translate: -50% -50%;
+}
+.pips i.down {
+  rotate: 180deg;
+}
+.pips.ace {
+  font-size: calc(var(--cw) * 0.5);
+}
+html.large-print .pips {
+  inset: 40% 24% 9% 24%;
+}
+[data-deck='pips'] .pips {
+  display: block;
+}
+[data-deck='pips'] .pip {
+  display: none;
 }
 
 .court {
@@ -2359,6 +2379,51 @@ dialog.sheet.page form {
 .mini-card i {
   font-style: normal;
   font-size: 12px;
+}
+/* Deck style previews in Settings. */
+.mini-face {
+  position: relative;
+  width: 38px;
+  height: 52px;
+  margin-left: 4px;
+  border-radius: 4px;
+  background: var(--face);
+  box-shadow:
+    0 0 0 0.5px var(--face-edge),
+    0 1px 2px rgba(0, 0, 0, 0.35);
+  font-family: var(--idx-font);
+  font-weight: var(--idx-weight);
+  line-height: 1;
+}
+.mini-face:first-child {
+  margin-left: 0;
+}
+.mini-face b {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 12px;
+}
+.mini-face u {
+  position: absolute;
+  inset: 16px 0 3px;
+  display: grid;
+  place-items: center;
+  text-decoration: none;
+  font-size: 26px;
+}
+.mini-face u.trio {
+  grid-template-rows: repeat(3, 1fr);
+  font-size: 10px;
+}
+.mini-face s {
+  text-decoration: none;
+}
+.mini-face[data-suit='H'] {
+  color: var(--c-H);
+}
+.mini-face[data-suit='S'] {
+  color: var(--c-S);
 }
 .mini-card[data-suit='S'] {
   color: var(--c-S);

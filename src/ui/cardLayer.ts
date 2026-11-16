@@ -1,4 +1,4 @@
-import { type Card, SUIT_NAME, SUIT_SYMBOL, cardName, rankLabel } from '../core/cards';
+import { type Card, PIPS, SUIT_NAME, SUIT_SYMBOL, cardName, rankLabel } from '../core/cards';
 
 const COURT_NAME: Record<number, string> = { 11: 'jack', 12: 'queen', 13: 'king' };
 
@@ -30,6 +30,10 @@ export class CardLayer {
   readonly els = new Map<number, HTMLElement>();
   private last = new Map<number, Placement>();
   private zTimers = new Map<number, number>();
+  /** When each travelling card lands (performance.now() time). */
+  private landAt = new Map<number, number>();
+  private cw = 60;
+  private cwFrame = -1;
   /** Folder under public/courts with J/Q/K figures, or 'letters' for plain letters. */
   private courts = 'letters';
 
@@ -60,8 +64,15 @@ export class CardLayer {
       const suit = SUIT_SYMBOL[card.suit];
       const rank = rankLabel(card.rank);
       const face = card.rank > 10 ? `<span class="court"><span class="fig"></span><b>${rank}</b></span>` : '';
+      // Both face styles are in the markup; the deck setting picks which shows (see style.css).
+      const pips =
+        card.rank > 10
+          ? ''
+          : `<span class="pips${card.rank === 1 ? ' ace' : ''}">${PIPS[card.rank]
+              .map(([x, y]) => `<i style="left:${x * 100}%;top:${y * 100}%"${y > 0.5 ? ' class="down"' : ''}>${suit}</i>`)
+              .join('')}</span>`;
       el.querySelector('.front')!.innerHTML =
-        `<span class="idx"><b>${rank}</b><i>${suit}</i></span>${face}<span class="pip">${suit}</span>`;
+        `<span class="idx"><b>${rank}</b><i>${suit}</i></span>${face}<span class="pip">${suit}</span>${pips}`;
       el.dataset.fig = card.rank > 10 ? courtName(card) : '';
       this.applyFigure(el);
     }
@@ -111,18 +122,38 @@ export class CardLayer {
     el.style.transform = `translate3d(${p.x}px, ${p.y}px, 0)${p.scale && p.scale !== 1 ? ` scale(${p.scale})` : ''}${tilt}`;
     el.classList.toggle('up', p.faceUp);
 
-    // While travelling a card must stay above everything it passes over.
+    // While travelling a card must stay above everything it passes over. Short slides (a hand
+    // closing a gap) keep their layer, so they don't hop over the cards beside them, and a card
+    // that is re-placed mid-flight stays lifted until it has landed.
+    const now = performance.now();
+    const far = prev && Math.hypot(prev.x - p.x, prev.y - p.y) > this.cardWidth() * 0.6;
+    const landing = animate && moved && far ? now + delay + MOVE_MS + 40 : animate ? (this.landAt.get(id) ?? 0) : 0;
     clearTimeout(this.zTimers.get(id));
-    if (animate && moved && prev) {
+    if (landing > now) {
       el.style.zIndex = String(1000 + p.z);
+      this.landAt.set(id, landing);
       this.zTimers.set(
         id,
-        window.setTimeout(() => (el.style.zIndex = String(p.z)), delay + MOVE_MS + 40),
+        window.setTimeout(() => {
+          el.style.zIndex = String(p.z);
+          this.landAt.delete(id);
+        }, landing - now),
       );
     } else {
       el.style.zIndex = String(p.z);
+      this.landAt.delete(id);
     }
     this.last.set(id, p);
+  }
+
+  /** Card width from the --cw the game sets (read once per frame; places come in batches). */
+  private cardWidth() {
+    const frame = Math.floor(performance.now() / 16);
+    if (frame !== this.cwFrame) {
+      this.cwFrame = frame;
+      this.cw = parseFloat(getComputedStyle(this.root).getPropertyValue('--cw')) || 60;
+    }
+    return this.cw;
   }
 
   /** Position during a drag: follows the finger with no transition. */
