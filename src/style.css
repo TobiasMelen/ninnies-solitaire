@@ -1281,9 +1281,12 @@ html.standalone #app {
 #board:has(.spite-root:not([hidden])) .bunny {
   z-index: 150;
 }
-/* Out of the way while cards are being dragged. */
-#board:has(.is-dragging) .bunny {
-  opacity: 0.3;
+/* While a card is being dragged it watches where it goes (whatever its mood was). */
+#board:has(.card.dragging) .bunny .bunny-pose.shown {
+  opacity: 0;
+}
+#board:has(.card.dragging) .bunny .bunny-pose.pose-aside {
+  opacity: 1;
 }
 /* Above the win cascade so it can celebrate with you. */
 .bunny.party {
