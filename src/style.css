@@ -24,22 +24,19 @@
   --ui-ink: #f4f6f2;
   --ui-muted: rgba(244, 246, 242, 0.68);
   --bar-bg: rgba(0, 0, 0, 0.28);
-  /* Menus are light panels with buttons in the table's colour and brass accents.
-     The --tone-* colours come from the chosen table (see Tables). */
+  /* Menus are plain light panels; buttons take the table's colour (the --tone-* colours, see
+     Tables). */
   --tone-a: #2f6b47;
   --tone-b: #183f29;
   --tone-dark: #0d2618;
-  --sheet-bg: #fbfaf8;
-  --sheet-ink: #2a2724;
-  --sheet-muted: #77716a;
-  --sheet-line: #e7e3de;
-  --sheet-chip: #f2efeb;
-  --parchment: linear-gradient(180deg, #ffffff, #f6f4f1);
+  --sheet-bg: #fafafa;
+  --sheet-ink: #1f2023;
+  --sheet-muted: #6c6e73;
+  --sheet-line: #e3e4e6;
+  --sheet-chip: #f0f1f2;
+  --parchment: linear-gradient(180deg, #ffffff, #f6f6f7);
   --wood: var(--noise), linear-gradient(180deg, var(--tone-a), var(--tone-b));
-  --brass: #c99d4a;
-  --brass-hi: #f1d58a;
-  --brass-lo: #5e4113;
-  --gold-ink: #f6e3a8;
+  --btn-ink: #fff;
   /* Depth comes from soft shadows: buttons sit on a darker edge and sink when pressed. */
   --raised:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
@@ -738,7 +735,7 @@ html.standalone #app {
 .mines-mode.flagging {
   background: var(--noise), linear-gradient(180deg, #a8402c, #6e1f12);
   background-blend-mode: soft-light, normal;
-  border-color: var(--brass-hi);
+  border-color: #fff;
 }
 .mines-root.lost .mines-mode,
 .mines-root.won .mines-mode {
@@ -1580,7 +1577,7 @@ html.standalone #app {
   border: 0;
   border-radius: 14px;
   background: transparent;
-  color: var(--gold-ink);
+  color: var(--btn-ink);
   font: 700 10.5px/1 var(--display);
   letter-spacing: 0.04em;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
@@ -1634,12 +1631,12 @@ html.standalone #app {
   font-family: var(--display);
   font-size: 17px;
   line-height: 1;
-  color: var(--gold-ink);
+  color: var(--btn-ink);
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
 }
 #stats small {
   font-size: 10px;
-  color: rgba(246, 227, 168, 0.65);
+  color: rgba(255, 255, 255, 0.65);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -1722,9 +1719,9 @@ html.standalone #app {
   font-family: var(--display);
   font-size: clamp(22px, 6.4vw, 30px);
   line-height: 1.1;
-  color: var(--brass-hi);
+  color: #fff;
   text-shadow:
-    0 1px 0 var(--brass-lo),
+    0 1px 0 rgba(0, 0, 0, 0.35),
     0 2px 0 var(--tone-dark),
     0 4px 10px rgba(0, 0, 0, 0.5);
 }
@@ -1737,9 +1734,9 @@ html.standalone #app {
   border-radius: 50%;
   background: var(--wood);
   background-blend-mode: soft-light, normal;
-  color: var(--gold-ink);
+  color: var(--btn-ink);
   box-shadow:
-    inset 0 1px 0 rgba(255, 230, 170, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
     0 2px 0 var(--tone-dark),
     0 4px 10px rgba(0, 0, 0, 0.35);
   cursor: pointer;
@@ -1776,15 +1773,13 @@ html.standalone #app {
   padding: 12px 22px;
   border: 0;
   border-radius: 16px;
-  background: var(--noise), linear-gradient(180deg, #f3d78b, #d4a74c 55%, #b98a35);
-  background-blend-mode: soft-light, normal;
-  color: #3a2508;
+  background: linear-gradient(180deg, #ffffff, #eeeff1);
+  color: var(--tone-b);
   text-align: left;
   font: inherit;
   cursor: pointer;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    0 3px 0 #8a6220,
+    0 3px 0 rgba(0, 0, 0, 0.2),
     0 10px 24px rgba(0, 0, 0, 0.35);
   transition: scale 120ms ease;
 }
@@ -1796,7 +1791,6 @@ html.standalone #app {
 .continue b {
   font-family: var(--display);
   font-size: 22px;
-  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
 }
 .continue small {
   font-size: 13px;
@@ -1823,8 +1817,8 @@ html.standalone #app {
   margin: 8px 4px 14px;
   font: 700 13px var(--display);
   letter-spacing: 0.14em;
-  color: var(--brass-hi);
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
 }
 
 .games {
@@ -1899,7 +1893,7 @@ html.standalone #app {
   border-radius: 12px;
   background: var(--wood);
   background-blend-mode: soft-light, normal;
-  color: var(--gold-ink);
+  color: var(--btn-ink);
   font: inherit;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
   cursor: pointer;
@@ -1913,13 +1907,12 @@ html.standalone #app {
 }
 .suit-pick button small {
   font-size: 11.5px;
-  color: rgba(246, 227, 168, 0.75);
+  color: rgba(255, 255, 255, 0.75);
 }
 .suit-pick button.current {
   box-shadow:
     var(--raised),
-    0 0 0 2px var(--brass-hi),
-    0 0 12px var(--accent-glow);
+    0 0 0 2px #fff;
 }
 /* Pressed: the bevel flips and the button sinks, like the old chunky buttons. */
 .suit-pick button:active,
@@ -1965,11 +1958,11 @@ html.standalone #app {
   z-index: 5000;
   max-width: calc(100vw - 32px);
   padding: 10px 18px;
-  /* An old-school tooltip: dark wood, brass edge, gold letters. */
+
   border: 0;
   border-radius: 14px;
-  background: rgba(36, 22, 10, 0.94);
-  color: var(--gold-ink);
+  background: rgba(22, 23, 26, 0.92);
+  color: var(--btn-ink);
   font-family: var(--display);
   font-size: 16px;
   font-weight: 700;
@@ -2149,7 +2142,7 @@ dialog.sheet.page form {
   margin: 0 -16px 10px;
   padding: calc(env(safe-area-inset-top) + 18px) 16px 8px;
   background: var(--sheet-bg);
-  box-shadow: 0 6px 8px -6px rgba(90, 60, 20, 0.25);
+  box-shadow: 0 6px 8px -6px rgba(0, 0, 0, 0.12);
 }
 .page-head h2 {
   margin: 0;
@@ -2237,11 +2230,11 @@ dialog.sheet.page form {
   height: 40px;
   border: 0;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 55%, #8a6220);
-  color: #3a2508;
+  background: #fff;
+  color: var(--tone-b);
   box-shadow:
-    inset 0 1px 0 rgba(255, 250, 220, 0.6),
-    0 2px 0 var(--tone-dark);
+    0 1px 2px rgba(0, 0, 0, 0.15),
+    0 3px 10px rgba(0, 0, 0, 0.1);
   font-size: 16px;
   cursor: pointer;
 }
@@ -2251,25 +2244,26 @@ dialog.sheet.page form {
   padding: 0 20px;
   border: 0;
   border-radius: 12px;
-  background: var(--wood);
-  background-blend-mode: soft-light, normal;
-  color: var(--gold-ink);
+  background: linear-gradient(180deg, #ffffff, #eeeff1);
+  color: var(--tone-b);
   font: 700 16px var(--display);
   letter-spacing: 0.03em;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
-  box-shadow: var(--raised);
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.14),
+    0 4px 12px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition: translate 60ms ease;
 }
 .swatch:active {
   scale: 0.96;
 }
-/* The main action is a polished brass plaque. */
+/* The main action is in the table's colour. */
 .btn.primary {
-  background: var(--noise), linear-gradient(180deg, #f3d78b, #d4a74c 55%, #b98a35);
+  background: var(--wood);
   background-blend-mode: soft-light, normal;
-  color: #3a2508;
-  text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
+  color: var(--btn-ink);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+  box-shadow: var(--raised);
 }
 .btn.ghost {
   background: transparent;
@@ -2448,10 +2442,10 @@ dialog.sheet.page form {
   height: 30px;
   margin: 0;
   border-radius: 15px;
-  background: #c9c5bf;
+  background: #cfd1d4;
   box-shadow:
     inset 0 2px 4px rgba(0, 0, 0, 0.5),
-    0 1px 0 rgba(255, 245, 215, 0.6);
+    0 1px 0 rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: background-color 180ms ease;
 }
@@ -2463,7 +2457,7 @@ dialog.sheet.page form {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, var(--brass-hi), var(--brass) 60%, #8a6220);
+  background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
   transition: translate 200ms var(--ease-out);
 }
