@@ -63,6 +63,9 @@ export interface GameController {
   setVisible(on: boolean): void;
 }
 
+/** Pause before a new game's opening deal, so it starts once the screen has slid in. */
+export const INTRO_MS = 850;
+
 export function fmtTime(ms: number) {
   const s = Math.floor(ms / 1000);
   const h = Math.floor(s / 3600);

@@ -1,5 +1,5 @@
 import { type Card, randomSeed } from '../../core/cards';
-import { type GameController, type GameHooks, fmtTime, store } from '../../core/game';
+import { type GameController, type GameHooks, INTRO_MS, fmtTime, store } from '../../core/game';
 import { CardLayer, type Placement } from '../../ui/cardLayer';
 import { type Cascade, type CascadeCard, runCascade } from '../../ui/cascade';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
@@ -661,9 +661,9 @@ export class SpiderGame implements GameController {
     void this.board.offsetWidth;
     const step = this.fast ? 8 : 22;
     const order = new Map<number, number>();
-    s.columns.forEach((col, c) => col.forEach((card, r) => order.set(card.id, (r * COLUMNS + c) * step)));
+    s.columns.forEach((col, c) => col.forEach((card, r) => order.set(card.id, INTRO_MS + (r * COLUMNS + c) * step)));
     this.render({ delay: (id) => order.get(id) ?? 0 });
-    if (step) for (let i = 0; i < 54; i += 3) sfx.deal((i * step) / 1000);
+    if (step) for (let i = 0; i < 54; i += 3) sfx.deal((INTRO_MS + i * step) / 1000);
   }
 
   // ───────────────────────── input ─────────────────────────

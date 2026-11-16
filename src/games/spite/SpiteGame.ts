@@ -1,5 +1,5 @@
 import { randomSeed } from '../../core/cards';
-import { type GameHooks, type HudStat, store } from '../../core/game';
+import { type GameHooks, type HudStat, INTRO_MS, store } from '../../core/game';
 import { TableGame } from '../../core/tableGame';
 import { CardLayer, type Placement } from '../../ui/cardLayer';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
@@ -791,7 +791,7 @@ export class SpiteGame extends TableGame<SpiteState> {
     void this.root.offsetWidth;
     const step = s.seats.length > 2 ? 18 : 26;
     const delays = new Map<number, number>();
-    let t = 0;
+    let t = INTRO_MS;
     for (let i = 0; i < s.options.goalSize; i++)
       for (const seat of s.seats) {
         delays.set(seat.goal[i].id, t);
@@ -802,7 +802,7 @@ export class SpiteGame extends TableGame<SpiteState> {
       delays.set(c.id, t);
       t += 90;
     }
-    for (let k = 0; k < t; k += 120) sfx.deal(k / 1000);
+    for (let k = INTRO_MS; k < t; k += 120) sfx.deal(k / 1000);
     this.starting = true;
     this.delays = delays;
     this.render();

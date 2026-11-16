@@ -1,5 +1,5 @@
 import { type Card, randomSeed } from '../../core/cards';
-import { type GameHooks, type HudStat, store } from '../../core/game';
+import { type GameHooks, type HudStat, INTRO_MS, store } from '../../core/game';
 import { TableGame } from '../../core/tableGame';
 import { CardLayer, type Placement, courtUrl } from '../../ui/cardLayer';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
@@ -134,9 +134,9 @@ export class HeartsGame extends TableGame<HeartsState> {
     this.state = newGame(seed, options());
     this.resetHandUi();
     this.save();
-    this.dealIn();
+    this.dealIn(INTRO_MS);
     this.hooks.event?.('start');
-    this.step();
+    this.after('next', INTRO_MS, () => this.step());
   }
 
   restart() {
@@ -676,8 +676,8 @@ export class HeartsGame extends TableGame<HeartsState> {
     this.layer.els.get(id)?.classList.remove('locked', 'received', 'picked');
   }
 
-  /** New hand: cards fly out from the middle of the table to each seat. */
-  private dealIn() {
+  /** New hand: cards fly out from the middle of the table to each seat, after `wait` ms. */
+  private dealIn(wait = 0) {
     if (!this.L) this.relayout();
     if (!this.L) return;
     const { center, cw, ch } = this.L;
@@ -689,7 +689,7 @@ export class HeartsGame extends TableGame<HeartsState> {
     }
     void this.root.offsetWidth;
     const order = new Map<number, number>();
-    for (let i = 0; i < 13; i++) for (const seat of SEATS) order.set(this.state.hands[seat][i]?.id ?? -1, (i * 4 + seat) * 18);
+    for (let i = 0; i < 13; i++) for (const seat of SEATS) order.set(this.state.hands[seat][i]?.id ?? -1, wait + (i * 4 + seat) * 18);
     const s = this.state;
     const spots = this.handSpots(s.hands[0]);
     const L = this.L;
@@ -705,7 +705,7 @@ export class HeartsGame extends TableGame<HeartsState> {
         }
       });
     }
-    for (let i = 0; i < 52; i += 4) sfx.deal((i * 18) / 1000);
+    for (let i = 0; i < 52; i += 4) sfx.deal((wait + i * 18) / 1000);
   }
 
   protected cascadeCards() {

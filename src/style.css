@@ -1897,7 +1897,8 @@ html.vt #home.hidden {
   padding: 8px 4px;
   border: 0;
   border-radius: 12px;
-  background: var(--wood);
+  --tone-dark: #0f2c1c;
+  background: var(--noise), linear-gradient(180deg, #34825a, #1f5a3b);
   background-blend-mode: soft-light, normal;
   color: var(--btn-ink);
   font: inherit;
@@ -2008,6 +2009,10 @@ html.vt #home.hidden {
 html.vt dialog.sheet:not(.page)[open] {
   view-transition-name: sheet;
 }
+/* Black behind the screens, so the one underneath dims as it fades (cheaper than a filter). */
+::view-transition {
+  background: #000;
+}
 ::view-transition-group(*),
 ::view-transition-old(*),
 ::view-transition-new(*) {
@@ -2035,13 +2040,11 @@ html.vt-push::view-transition-old(root) {
 }
 html.vt-push::view-transition-new(root) {
   animation: var(--nav-ms) var(--nav-ease) both nav-push-in;
-  box-shadow: 0 0 28px rgba(0, 0, 0, 0.35);
 }
 /* Going back, the leaving screen stays on top as it slides away. */
 html.vt-pop::view-transition-old(root) {
   z-index: 1;
   animation: var(--nav-ms) var(--nav-ease) both nav-pop-out;
-  box-shadow: 0 0 28px rgba(0, 0, 0, 0.35);
 }
 html.vt-pop::view-transition-new(root) {
   animation: var(--nav-ms) var(--nav-ease) both nav-pop-in;
@@ -2054,7 +2057,7 @@ html.vt-pop::view-transition-new(root) {
 @keyframes nav-push-out {
   to {
     transform: translateX(-33%);
-    filter: brightness(0.82);
+    opacity: 0.75;
   }
 }
 @keyframes nav-pop-out {
@@ -2065,7 +2068,7 @@ html.vt-pop::view-transition-new(root) {
 @keyframes nav-pop-in {
   from {
     transform: translateX(-33%);
-    filter: brightness(0.82);
+    opacity: 0.75;
   }
 }
 
@@ -2095,8 +2098,6 @@ html:not(.vt) dialog.sheet[open] {
 }
 dialog.sheet::backdrop {
   background: rgba(0, 0, 0, 0.45);
-  -webkit-backdrop-filter: blur(2px);
-  backdrop-filter: blur(2px);
 }
 @keyframes sheet-in {
   from {
