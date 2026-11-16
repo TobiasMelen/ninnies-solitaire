@@ -232,14 +232,14 @@ function drawCard(board: HTMLElement, card: Card, cw: number, ch: number, dpr: n
     x.drawImage(img, fx + (fw - img.naturalWidth * s) / 2, fy, img.naturalWidth * s, img.naturalHeight * s);
     x.restore();
   } else if (card.rank <= 10 && board.dataset.deck === 'pips') {
-    // Same pip area as the CSS (.pips): inset 37% 24% 10% 24%.
-    const left = cw * 0.24;
-    const top = ch * 0.37;
-    const w = cw * 0.52;
-    const h = ch * 0.53;
+    // Same pip area as the CSS (.pips): inset 30% 22% 9% 22%.
+    const left = cw * 0.22;
+    const top = ch * 0.3;
+    const w = cw * 0.56;
+    const h = ch * 0.61;
     x.textAlign = 'center';
     x.textBaseline = 'middle';
-    x.font = `${cw * (card.rank === 1 ? 0.5 : 0.2)}px ${font}`;
+    x.font = `${cw * (card.rank === 1 ? 0.56 : 0.25)}px ${font}`;
     for (const [px, py] of PIPS[card.rank]) {
       x.save();
       x.translate(left + px * w, top + py * h);

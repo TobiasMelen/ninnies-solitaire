@@ -315,8 +315,8 @@ html.standalone #app {
 .pips {
   display: none;
   position: absolute;
-  inset: 37% 24% 10% 24%;
-  font-size: calc(var(--cw) * 0.2);
+  inset: 30% 22% 9% 22%;
+  font-size: calc(var(--cw) * 0.25);
   line-height: 1;
 }
 .pips i {
@@ -328,13 +328,20 @@ html.standalone #app {
   rotate: 180deg;
 }
 .pips.ace {
-  font-size: calc(var(--cw) * 0.5);
+  font-size: calc(var(--cw) * 0.56);
 }
 html.large-print .pips {
-  inset: 40% 24% 9% 24%;
+  inset: 33% 22% 9% 22%;
 }
 [data-deck='pips'] .pips {
   display: block;
+}
+/* Like a real card, the corner index is modest and the pips carry the face. */
+[data-deck='pips'] {
+  --idx-size: 0.3;
+}
+html.large-print [data-deck='pips'] {
+  --idx-size: 0.36;
 }
 [data-deck='pips'] .pip {
   display: none;
