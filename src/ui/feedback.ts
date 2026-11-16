@@ -435,6 +435,24 @@ export const sfx = {
     osc.start(t);
     osc.stop(t + 0.75);
   },
+  /** Taking points: a short, soft deflate (air rushing out while the pitch sags). */
+  deflate: () => {
+    swoosh(0.32, 0.07, 0, 900, 220);
+    const a = ready();
+    if (!a || !out) return;
+    const t = a.currentTime;
+    const osc = a.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(420, t);
+    osc.frequency.exponentialRampToValueAtTime(140, t + 0.3);
+    const g = a.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.045, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.34);
+    osc.connect(g).connect(out);
+    osc.start(t);
+    osc.stop(t + 0.36);
+  },
   undo: () => {
     swoosh(0.2, 0.08, 0, 1200, 500);
     land(0.2, 0.6);

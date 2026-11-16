@@ -1,7 +1,7 @@
 import { type Card, randomSeed } from '../../core/cards';
 import { type GameHooks, type HudStat, INTRO_MS, store } from '../../core/game';
 import { TableGame } from '../../core/tableGame';
-import { CardLayer, type Placement, courtUrl } from '../../ui/cardLayer';
+import { CardLayer, type Placement } from '../../ui/cardLayer';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { flash } from '../../ui/fx';
 import { settings } from '../../ui/settings';
@@ -78,6 +78,7 @@ export class HeartsGame extends TableGame<HeartsState> {
   /** A jump-scare is on screen; play waits for it. */
   private scaring = false;
   private scareEl: HTMLElement | null = null;
+  private scareCard: HTMLElement | null = null;
 
   private badges: HTMLElement[] = [];
   private passBar: HTMLElement;
@@ -241,7 +242,7 @@ export class HeartsGame extends TableGame<HeartsState> {
     const breaking = card.suit === 'H' && !s.heartsBroken;
     const winner = playCard(s, seat, card);
     if (breaking) this.heartsBroken();
-    if (isQueenOfSpades(card)) this.queenScare();
+    if (isQueenOfSpades(card)) this.queenScare(card);
     this.raised = null;
     if (seat === 0) {
       sfx.move(1, 0.12);
@@ -270,6 +271,7 @@ export class HeartsGame extends TableGame<HeartsState> {
     const cards = trick.map((p) => p.card);
     const pts = trickPoints(cards);
     const hadQueen = cards.some(isQueenOfSpades);
+    if (winner === 0 && pts) sfx.deflate();
     if (winner === 0) {
       if (hadQueen) this.hooks.event?.('stuck', 0.5);
       else if (pts) this.hooks.event?.('invalid', 0.5);
@@ -334,20 +336,20 @@ export class HeartsGame extends TableGame<HeartsState> {
     flash(this.brokenEl, 'crack', 900);
   }
 
-  /** The Queen of Spades: a flickering, sepia silent-movie jump scare. */
-  private queenScare() {
+  /** The Queen of Spades: the table drains of colour and the queen shudders where she lies. */
+  private queenScare(card: Card) {
     if (this.scaring) return;
     this.scaring = true;
     sfx.queenScare();
     // Impacts: two heavy hits with the timpani, then the long organ stab.
     haptic([40, 50, 40, 60, 160]);
-    const fig = settings.courts === 'letters' ? '' : `<span class="scare-fig" style="background-image:url(${courtUrl(settings.courts, 'queen_spades')})"></span>`;
-    const el = document.createElement('div');
-    el.className = 'queen-scare';
-    el.innerHTML = `<div class="scare-card" data-suit="S"><span class="scare-idx">Q<i>♠\uFE0E</i></span>${fig}<span class="scare-q">${fig ? '' : 'Q'}</span></div>`;
-    this.root.parentElement!.appendChild(el);
-    this.scareEl = el;
-    this.after('scare', 1500, () => {
+    const dim = document.createElement('div');
+    dim.className = 'queen-dim';
+    this.root.appendChild(dim);
+    this.scareEl = dim;
+    this.scareCard = this.layer.els.get(card.id) ?? null;
+    this.scareCard?.classList.add('queen-shake');
+    this.after('scare', 1300, () => {
       this.endScare();
       this.step();
     });
@@ -356,6 +358,8 @@ export class HeartsGame extends TableGame<HeartsState> {
   private endScare() {
     this.scareEl?.remove();
     this.scareEl = null;
+    this.scareCard?.classList.remove('queen-shake');
+    this.scareCard = null;
     this.scaring = false;
   }
 

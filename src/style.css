@@ -942,131 +942,52 @@ html.standalone #app {
     rotate: 0deg;
   }
 }
-/* The Queen of Spades: a flickering sepia silent-movie jump scare. */
-.queen-scare {
+/* The Queen of Spades: everything else drains to grey while she shudders in place. */
+.queen-dim {
   position: absolute;
-  inset: 0;
+  inset: -100vmax;
   z-index: 3500;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
   pointer-events: none;
-  background:
-    var(--noise),
-    repeating-linear-gradient(90deg, transparent 0 37%, rgba(255, 255, 255, 0.18) 37% 37.3%, transparent 37.3% 71%, rgba(0, 0, 0, 0.35) 71% 71.25%, transparent 71.25%),
-    radial-gradient(ellipse at center, rgba(70, 52, 30, 0.82) 0%, rgba(10, 6, 2, 0.98) 72%);
-  filter: sepia(1) contrast(1.35) brightness(0.95);
-  animation:
-    scare-in 1.5s steps(1) forwards,
-    scare-flicker 0.11s steps(2) infinite;
+  -webkit-backdrop-filter: grayscale(1) brightness(0.8);
+  backdrop-filter: grayscale(1) brightness(0.8);
+  animation: queen-dim 1.3s ease both;
 }
-.queen-scare .scare-card {
-  position: relative;
-  width: min(64vw, 46vh);
-  aspect-ratio: 5 / 7;
-  border-radius: 6%;
-  background: #f4ecd8;
-  box-shadow:
-    0 0 0 6px #1b1209,
-    0 0 80px rgba(0, 0, 0, 0.9);
-  color: #120c06;
-  /* The lunge scales and rotates; the impacts shake it on top (translate is a separate property). */
-  animation:
-    scare-lunge 1.5s cubic-bezier(0.1, 0.9, 0.2, 1) forwards,
-    queen-quake 0.75s ease-out;
-}
-@keyframes queen-quake {
-  6% {
-    translate: -16px 7px;
-  }
-  12% {
-    translate: 14px -9px;
-  }
-  18% {
-    translate: -10px 6px;
-  }
-  /* Second hit, with the timpani. */
-  26% {
-    translate: 15px 8px;
-  }
-  34% {
-    translate: -11px -6px;
-  }
-  46% {
-    translate: 6px 3px;
-  }
-  62% {
-    translate: -3px -1px;
-  }
-  80% {
-    translate: 0 0;
-  }
-}
-.scare-idx {
-  position: absolute;
-  top: 4%;
-  left: 7%;
-  font: 700 clamp(28px, 9vmin, 64px) / 1 var(--card-font);
-}
-.scare-idx i {
-  font-style: normal;
-  font-size: 0.8em;
-  margin-left: 0.05em;
-}
-.scare-fig {
-  position: absolute;
-  inset: 20% 8% 4% 8%;
-  background: center top / 100% auto no-repeat;
-}
-.scare-q {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font: 700 clamp(90px, 30vmin, 220px) / 1 var(--card-font);
-}
-@keyframes scare-lunge {
+@keyframes queen-dim {
   0% {
-    scale: 0.15;
-    rotate: -8deg;
-    opacity: 1;
-  }
-  12% {
-    scale: 1.25;
-    rotate: 3deg;
-  }
-  18% {
-    scale: 1.1;
-    rotate: -2deg;
-  }
-  24%,
-  80% {
-    scale: 1.16;
-    rotate: 0deg;
-    opacity: 1;
-  }
-  100% {
-    scale: 1.6;
     opacity: 0;
   }
-}
-@keyframes scare-flicker {
-  50% {
-    opacity: 0.86;
-  }
-}
-@keyframes scare-in {
-  0% {
-    background-color: #fff;
-  }
-  4% {
-    background-color: transparent;
-  }
-  90% {
+  12%,
+  75% {
     opacity: 1;
   }
   100% {
     opacity: 0;
+  }
+}
+.hearts-root .card.queen-shake {
+  z-index: 3600 !important;
+  /* Starts once she has landed on the table. */
+  animation: queen-shake 0.7s ease-out 0.3s;
+}
+/* Translate only: hearts cards scale from their corner, so a rotation would swing her about. */
+@keyframes queen-shake {
+  10% {
+    translate: -5px 1px;
+  }
+  20% {
+    translate: 5px -1px;
+  }
+  30% {
+    translate: -4px 1px;
+  }
+  40% {
+    translate: 4px 0;
+  }
+  55% {
+    translate: -2px 0;
+  }
+  70% {
+    translate: 1px 0;
   }
 }
 
@@ -2599,7 +2520,7 @@ dialog.sheet.page form {
     --move-ms: 170ms;
     --ease-out: ease-out;
   }
-  *:not(.card):not(.queen-scare):not(.queen-scare *):not(.mine-cell),
+  *:not(.card):not(.queen-dim):not(.mine-cell),
   *::before,
   *::after {
     animation-duration: 1ms !important;
