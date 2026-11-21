@@ -41,6 +41,8 @@ export interface HeartsState {
   turn: Seat;
   trickNo: number;
   heartsBroken: boolean;
+  /** Suits each seat has shown to be out of this hand (e.g. 'CD'), for the AI's card counting. */
+  voids?: string[];
   /** All cards won in tricks this hand, per seat. */
   taken: Card[][];
   scores: number[];
@@ -110,6 +112,7 @@ export function startHand(s: HeartsState) {
   s.trickNo = 0;
   s.heartsBroken = false;
   s.taken = [[], [], [], []];
+  s.voids = ['', '', '', ''];
   s.moon = null;
   if (s.passDir === 'none') beginPlay(s);
   else s.phase = 'pass';
@@ -185,6 +188,8 @@ export function winnerOf(trick: Play[]): Seat {
 export function playCard(s: HeartsState, seat: Seat, card: Card): Seat | null {
   if (!legalPlays(s, seat).some((c) => c.id === card.id)) throw new Error('Illegal play');
   s.hands[seat] = s.hands[seat].filter((c) => c.id !== card.id);
+  const lead = s.trick[0]?.card.suit;
+  if (lead && card.suit !== lead && s.voids && !s.voids[seat].includes(lead)) s.voids[seat] += lead;
   s.trick.push({ seat, card });
   if (card.suit === 'H') s.heartsBroken = true;
   if (s.trick.length < 4) {

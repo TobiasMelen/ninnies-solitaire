@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/cards';
-import { ADVISOR, OPPONENT, chooseCard, choosePassCards } from './ai';
+import { ADVISOR, EASY, SHARP, STEADY, type Skill, chooseCard, choosePassCards, skillFor } from './ai';
 import {
   type HeartsState,
   type Seat,
@@ -108,7 +108,7 @@ describe('AI', () => {
       { id: 2, suit: 'S' as const, rank: 3, faceUp: true },
       ...Array.from({ length: 11 }, (_, i) => ({ id: 10 + i, suit: 'C' as const, rank: i + 2, faceUp: true })),
     ];
-    const pass = choosePassCards(hand, mulberry32(1), { ...OPPONENT, mistakes: 0 });
+    const pass = choosePassCards(hand, mulberry32(1), { ...STEADY, mistakes: 0 });
     expect(pass.some((c) => c.suit === 'S' && c.rank === 12)).toBe(true);
   });
 
@@ -123,7 +123,45 @@ describe('AI', () => {
       { id: 91, suit: 'D', rank: 4, faceUp: true },
       { id: 92, suit: 'D', rank: 13, faceUp: true },
     ];
-    const card = chooseCard(s, 2, mulberry32(1), ADVISOR);
+    const card = chooseCard(s, 2, mulberry32(1), { ...STEADY, mistakes: 0 });
     expect(value(card)).toBe(4);
+  });
+});
+
+describe('skill levels', () => {
+  /** Average points per hand for each seat over a number of hands. */
+  function average(skills: Skill[], hands: number) {
+    const rand = mulberry32(99);
+    const total = [0, 0, 0, 0];
+    for (let g = 0; g < hands; g++) {
+      const s = newGame(1000 + g * 31, { passing: true, target: 100000, moonSubtracts: false });
+      for (const seat of SEATS) choosePass(s, seat, choosePassCards(s.hands[seat], rand, skills[seat]));
+      while (s.phase === 'play') playCard(s, s.turn, chooseCard(s, s.turn, rand, skills[s.turn]));
+      s.history[0].forEach((p, i) => (total[i] += p));
+    }
+    return total.map((t) => t / hands);
+  }
+
+  it('a sharp player takes clearly fewer points than easy ones', () => {
+    const [sharp, ...easy] = average([SHARP, EASY, EASY, EASY], 60);
+    expect(sharp).toBeLessThan(Math.min(...easy) - 1);
+  });
+
+  it('gives opponents a mix of levels that stays the same for a game', () => {
+    const seen = new Set<Skill>();
+    for (let seed = 1; seed <= 40; seed++) for (const seat of [1, 2, 3] as const) seen.add(skillFor(seed, seat));
+    expect(seen.size).toBe(3);
+    expect(skillFor(1234, 2)).toBe(skillFor(1234, 2));
+  });
+
+  it('notes a suit a player has shown out of', () => {
+    const s = newGame(5, { passing: false, target: 100, moonSubtracts: false });
+    while (s.phase === 'play' && s.voids!.every((v) => !v)) {
+      const before = { seat: s.turn, lead: s.trick[0]?.card.suit };
+      const card = legalPlays(s, s.turn)[0];
+      playCard(s, s.turn, card);
+      if (before.lead && card.suit !== before.lead) expect(s.voids![before.seat]).toContain(before.lead);
+    }
+    expect(s.voids!.some((v) => v)).toBe(true);
   });
 });

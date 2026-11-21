@@ -1,9 +1,13 @@
-import type { Card } from '../../core/cards';
+import { type Card, mulberry32, shuffle } from '../../core/cards';
 import {
   type HeartsState,
   type Seat,
+  SEATS,
+  handPoints,
   isQueenOfSpades,
   legalPlays,
+  passTarget,
+  playCard,
   playedCards,
   points,
   trickPoints,
@@ -12,28 +16,40 @@ import {
 } from './rules';
 
 /**
- * Rule-based Hearts AI built on the classic heuristics (pass away the Q♠/A♠/K♠ and high
- * hearts, void short suits, duck under the current winner, dump the Q♠ on a higher spade,
- * lead low spades to flush the queen). It is deliberately imperfect: it sometimes plays a
- * random legal card, and it only occasionally notices someone going for the moon.
+ * Hearts AI. Every level shares the classic rules of thumb (pass away the Q♠/A♠/K♠ and high
+ * hearts, void short suits, duck under the current winner, dump the Q♠ on a higher spade, lead
+ * low spades to flush the queen). Weaker levels sometimes play a random legal card and rarely
+ * notice a moon shot. The sharp level also thinks ahead: it imagines where the unseen cards
+ * might be, plays the hand out for each card it could play, and picks the best on average.
  */
 export interface Skill {
   /** Chance of a random legal play instead of the considered one. */
   mistakes: number;
   /** Chance per decision of noticing (and trying to stop) a moon shot. */
   moonAwareness: number;
+  /** How many imagined layouts of the unseen cards to play out per decision (0: none). */
+  samples: number;
 }
 
-export const OPPONENT: Skill = { mistakes: 0.12, moonAwareness: 0.25 };
-/** Used for the player's hints: no deliberate mistakes. */
-export const ADVISOR: Skill = { mistakes: 0, moonAwareness: 0.8 };
+export const EASY: Skill = { mistakes: 0.2, moonAwareness: 0.2, samples: 0 };
+export const STEADY: Skill = { mistakes: 0.04, moonAwareness: 0.6, samples: 0 };
+export const SHARP: Skill = { mistakes: 0, moonAwareness: 1, samples: 30 };
+/** Used for the player's hints. */
+export const ADVISOR: Skill = { mistakes: 0, moonAwareness: 1, samples: 40 };
+/** How imagined hands are played out. */
+const PLAYOUT: Skill = { mistakes: 0, moonAwareness: 1, samples: 0 };
+
+const LEVELS = [EASY, STEADY, SHARP];
+/** Each opponent's level is drawn from the game's seed: random per game, the same on resume. */
+export const skillFor = (seed: number, seat: Seat): Skill =>
+  LEVELS[Math.floor(mulberry32((seed ^ Math.imul(seat, 0x9e3779b1)) >>> 0)() * LEVELS.length)];
 
 const pick = <T>(xs: T[], rand: () => number) => xs[Math.floor(rand() * xs.length)];
 const highest = (cs: Card[]) => cs.reduce((a, b) => (value(b) > value(a) ? b : a));
 const lowest = (cs: Card[]) => cs.reduce((a, b) => (value(b) < value(a) ? b : a));
 
 /** Choose three cards to pass: the most dangerous first, with a nudge toward voiding short suits. */
-export function choosePassCards(hand: Card[], rand: () => number, skill: Skill = OPPONENT): Card[] {
+export function choosePassCards(hand: Card[], rand: () => number, skill: Skill = STEADY): Card[] {
   const count = (suit: string) => hand.filter((c) => c.suit === suit).length;
   const spades = count('S');
   const danger = (c: Card) => {
@@ -66,10 +82,83 @@ function moonSuspect(s: HeartsState, seat: Seat): Seat | null {
   return holder >= 0 && holder !== seat ? (holder as Seat) : null;
 }
 
-export function chooseCard(s: HeartsState, seat: Seat, rand: () => number, skill: Skill = OPPONENT): Card {
+export function chooseCard(s: HeartsState, seat: Seat, rand: () => number, skill: Skill = STEADY): Card {
   const legal = legalPlays(s, seat);
   if (legal.length === 1) return legal[0];
   if (rand() < skill.mistakes) return pick(legal, rand);
+  return skill.samples ? lookAhead(s, seat, legal, rand, skill.samples) : byRules(s, seat, legal, rand, skill);
+}
+
+/**
+ * One way the cards `seat` can't see might be dealt among the other players. Respects what the
+ * seat knows: how many cards each player holds, suits they've shown out of, and the cards it
+ * passed (still with whoever received them until played).
+ */
+function imagine(s: HeartsState, seat: Seat, rand: () => number): HeartsState {
+  const others = SEATS.filter((x) => x !== seat);
+  const unseen = others.flatMap((x) => s.hands[x]);
+  const passed = new Set(s.passDir !== 'none' ? (s.passes[seat] ?? []).map((c) => c.id) : []);
+  const receiver = passTarget(s, seat);
+  const allowed = (c: Card) =>
+    passed.has(c.id) ? [receiver] : others.filter((x) => !(s.voids?.[x] ?? '').includes(c.suit));
+  let hands: Card[][] = [];
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const strict = attempt < 29;
+    hands = SEATS.map((x) => (x === seat ? s.hands[seat].slice() : []));
+    // Most constrained cards first, so they still find room.
+    const order = shuffle(unseen.slice(), rand)
+      .map((c) => ({ c, seats: strict ? allowed(c) : others }))
+      .sort((a, b) => a.seats.length - b.seats.length);
+    const dealt = order.every(({ c, seats }) => {
+      const room = seats.filter((x) => hands[x].length < s.hands[x].length);
+      if (!room.length) return false;
+      // Weighted by space left, which keeps the deal close to uniform.
+      let r = rand() * room.reduce<number>((n, x) => n + s.hands[x].length - hands[x].length, 0);
+      const to = room.find((x) => (r -= s.hands[x].length - hands[x].length) < 0) ?? room[room.length - 1];
+      hands[to].push(c);
+      return true;
+    });
+    if (dealt) break;
+  }
+  return { ...s, hands };
+}
+
+/** Copy enough of a state to play the hand out on it. */
+const fork = (s: HeartsState): HeartsState => ({
+  ...s,
+  hands: s.hands.map((h) => h.slice()),
+  trick: s.trick.slice(),
+  taken: s.taken.map((t) => t.slice()),
+  voids: s.voids?.slice(),
+  scores: s.scores.slice(),
+  history: s.history.slice(),
+});
+
+/** Try each legal card against imagined layouts of the unseen cards; keep the best on average. */
+function lookAhead(s: HeartsState, seat: Seat, legal: Card[], rand: () => number, samples: number): Card {
+  const totals = legal.map(() => 0);
+  for (let i = 0; i < samples; i++) {
+    const world = imagine(s, seat, rand);
+    legal.forEach((card, k) => {
+      const w = fork(world);
+      playCard(w, seat, card);
+      while (w.phase === 'play') {
+        const turn = w.turn;
+        const options = legalPlays(w, turn);
+        playCard(w, turn, options.length === 1 ? options[0] : byRules(w, turn, options, rand, PLAYOUT));
+      }
+      const pts = handPoints(w).points;
+      // Own points against the others' average, so shooting the moon counts as a win.
+      totals[k] += pts[seat] - (pts.reduce((a, b) => a + b, 0) - pts[seat]) / 3;
+    });
+  }
+  let best = 0;
+  totals.forEach((t, k) => t < totals[best] && (best = k));
+  return legal[best];
+}
+
+/** The considered play by rules of thumb alone. */
+function byRules(s: HeartsState, seat: Seat, legal: Card[], rand: () => number, skill: Skill): Card {
 
   const gone = playedCards(s);
   const queenOut = !gone.some(isQueenOfSpades) && !s.hands[seat].some(isQueenOfSpades);

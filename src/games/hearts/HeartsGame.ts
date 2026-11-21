@@ -5,7 +5,7 @@ import { CardLayer, type Placement } from '../../ui/cardLayer';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { flash } from '../../ui/fx';
 import { settings } from '../../ui/settings';
-import { ADVISOR, OPPONENT, chooseCard, choosePassCards } from './ai';
+import { ADVISOR, chooseCard, choosePassCards, skillFor } from './ai';
 import {
   type HeartsOptions,
   type HeartsState,
@@ -228,7 +228,7 @@ export class HeartsGame extends TableGame<HeartsState> {
     if (s.phase === 'play' && s.turn !== 0) {
       this.after('next', this.speed() * (0.8 + Math.random() * 0.5), () => {
         const seat = s.turn;
-        this.play(seat, chooseCard(s, seat, Math.random, OPPONENT));
+        this.play(seat, chooseCard(s, seat, Math.random, skillFor(s.seed, seat)));
       });
     } else if (s.phase === 'handOver' || s.phase === 'gameOver') {
       this.after('next', 300, () => this.showRound());
@@ -288,7 +288,7 @@ export class HeartsGame extends TableGame<HeartsState> {
     const s = this.state;
     if (s.phase !== 'pass' || this.selected.size !== 3) return;
     const mine = s.hands[0].filter((c) => this.selected.has(c.id));
-    for (const seat of [1, 2, 3] as Seat[]) choosePass(s, seat, choosePassCards(s.hands[seat], Math.random));
+    for (const seat of [1, 2, 3] as Seat[]) choosePass(s, seat, choosePassCards(s.hands[seat], Math.random, skillFor(s.seed, seat)));
     choosePass(s, 0, mine);
     this.selected.clear();
     // Hold a moment: the cards that arrived stay lifted so the player sees what they got.
