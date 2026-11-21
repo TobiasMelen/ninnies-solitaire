@@ -7,14 +7,12 @@ import {
   completeRuns,
   dealBlocked,
   findMoves,
-  isWon,
-  freshMoves,
   newGame,
-  positionKey,
   replay,
   runStart,
   type SpiderState,
 } from './rules';
+import { plan } from './hint';
 
 let nextId = 1000;
 const c = (rank: number, suit: Suit = 'S', faceUp = true): Card => ({ id: nextId++, rank, suit, faceUp });
@@ -75,7 +73,7 @@ describe('moves', () => {
   });
 
   it('blocks dealing onto an empty column', () => {
-    const s = board([[c(5)]], [c(1), c(2)]);
+    const s = board([Array.from({ length: 10 }, () => c(5))], [c(1), c(2)]);
     expect(dealBlocked(s)).toBe('empty-column');
     expect(dealBlocked(s, true)).toBeNull();
   });
@@ -114,31 +112,47 @@ describe('replay', () => {
   });
 });
 
-describe('freshMoves', () => {
-  it('never offers a move back to a position reached since the last deal', () => {
-    // A run that can sit on either of two equal parents is the classic back-and-forth.
-    const s = board([[c(9), c(5, 'H')], [c(9, 'D'), c(6, 'S')], [c(6, 'C')]]);
-    const seen = new Set([positionKey(s)]);
-    expect(findMoves(s).length).toBeGreaterThan(0);
-    const first = freshMoves(s, seen)[0];
-    applyAction(s, { t: 'move', ...first });
-    seen.add(positionKey(s));
-    expect(freshMoves(s, seen).some((m) => m.to === first.from)).toBe(false);
+describe('hint planner', () => {
+  const hidden = (s: SpiderState) => s.columns.flat().filter((x) => !x.faceUp).length;
+  /** Plays a game doing exactly what the hint says, replanning whenever a card turns over. */
+  function follow(seed: number, suits: 1 | 2 | 4) {
+    const s = newGame(seed, suits);
+    for (let steps = 0; steps < 1000; ) {
+      const line = plan(s);
+      if (!line.length) break;
+      for (const a of line) {
+        const before = hidden(s);
+        expect(a.t === 'deal' ? dealBlocked(s) : !canMove(s, a.from, a.index, a.to)).toBeFalsy();
+        applyAction(s, a);
+        completeRuns(s);
+        steps++;
+        if (s.foundations.length === 8) return true;
+        if (hidden(s) !== before) break;
+      }
+    }
+    return false;
+  }
+
+  it('only suggests legal moves and wins most one-suit games', () => {
+    let won = 0;
+    for (let i = 1; i <= 20; i++) if (follow(i * 7919, 1)) won++;
+    expect(won).toBeGreaterThanOrEqual(14);
   });
 
-  it('following the hint plays a 2-suit game to the end without looping', () => {
-    const s = newGame(15838, 2);
-    let seen = new Set([positionKey(s)]);
-    let steps = 0;
-    for (; steps < 1500 && !isWon(s); steps++) {
-      const m = freshMoves(s, seen)[0];
-      if (!m && dealBlocked(s, true)) break;
-      const a = m ? ({ t: 'move', from: m.from, index: m.index, to: m.to } as const) : ({ t: 'deal' } as const);
-      applyAction(s, a);
-      completeRuns(s);
-      if (a.t === 'deal') seen = new Set();
-      seen.add(positionKey(s));
-    }
-    expect(steps).toBeLessThan(1500);
+  it('wins a fair share of two-suit games', () => {
+    let won = 0;
+    for (let i = 1; i <= 20; i++) if (follow(i * 7919, 2)) won++;
+    expect(won).toBeGreaterThanOrEqual(5);
+  });
+
+  it('turns a card over when it can, and says to deal when nothing helps', () => {
+    const s = board([[c(9, 'S', false), c(5)], [c(6)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)]], [c(1)]);
+    expect(plan(s)[0]).toEqual({ t: 'move', from: 0, index: 1, to: 1 });
+    const stuck = board([[c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)]], [c(1)]);
+    expect(plan(stuck)).toEqual([{ t: 'deal' }]);
+  });
+
+  it('lets you deal when there are too few cards to fill every column', () => {
+    expect(dealBlocked(board([[c(13)], [c(5)]], [c(1)]))).toBeNull();
   });
 });

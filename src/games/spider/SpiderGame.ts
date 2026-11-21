@@ -17,13 +17,13 @@ import {
   completeRuns,
   dealBlocked,
   findMoves,
-  freshMoves,
   isWon,
   newGame,
-  positionsSinceDeal,
+  positionKey,
   replay,
   runStart,
 } from './rules';
+import { type Step, plan } from './hint';
 
 export interface Stats {
   played: Record<SuitCount, number>;
@@ -109,7 +109,9 @@ export class SpiderGame implements GameController {
   private msBefore = 0;
   private clockStart: number | null = null;
   private stuckNotified = -1;
-  private hintIndex = 0;
+  private hintLine: { key: string; steps: Step[] } | null = null;
+  /** The rest of the hinted line, valid once the player has made the hinted move. */
+  private hintAfter: { key: string; steps: Step[] } | null = null;
   private hintTimer = 0;
   private cascade: Cascade | null = null;
   private paused = false;
@@ -234,7 +236,6 @@ export class SpiderGame implements GameController {
     this.msBefore = 0;
     this.clockStart = null;
     this.stuckNotified = -1;
-    this.hintIndex = 0;
     this.save();
     this.dealIn();
     this.hooks.event?.('start');
@@ -254,7 +255,6 @@ export class SpiderGame implements GameController {
     this.stopCelebration();
     this.actions.pop();
     this.state = replay(this.state.seed, this.state.suitCount, this.actions);
-    this.hintIndex = 0;
     this.stuckNotified = -1;
     this.render();
     sfx.undo();
@@ -295,19 +295,18 @@ export class SpiderGame implements GameController {
     if (this.preview) return this.endPreview();
     this.flush();
     this.clearHint();
-    const moves = freshMoves(this.state, positionsSinceDeal(this.state, this.actions));
-    if (!moves.length) {
-      if (!dealBlocked(this.state, settings.dealWithEmpty)) {
-        flash(this.stockSlot, 'hint');
-        this.hooks.toast('No moves left — deal a new row');
-        this.hooks.hint?.({ from: (this.L.stockX + this.L.cw / 2) / this.L.W }, 'deal');
-      } else {
-        this.hooks.toast('No moves left');
-        this.hooks.hint?.(null, 'none');
-      }
+    const mv = this.nextHint();
+    if (!mv) {
+      this.hooks.toast('No moves left');
+      this.hooks.hint?.(null, 'none');
       return;
     }
-    const mv = moves[this.hintIndex++ % moves.length];
+    if (mv.t === 'deal') {
+      flash(this.stockSlot, 'hint');
+      this.hooks.toast('Time to deal a new row');
+      this.hooks.hint?.({ from: (this.L.stockX + this.L.cw / 2) / this.L.W }, 'deal');
+      return;
+    }
     const ids = this.state.columns[mv.from].slice(mv.index).map((c) => c.id);
     ids.forEach((id) => this.layer.els.get(id)!.classList.add('hinted'));
     this.showMarker(mv.to, 'hint');
@@ -315,6 +314,28 @@ export class SpiderGame implements GameController {
     this.hooks.hint?.({ from: this.colFraction(mv.from), to: this.colFraction(mv.to) }, 'move');
     // Long enough for the Hint Bunny to hop from the card to its destination.
     this.hintTimer = window.setTimeout(() => this.clearHint(), 2600);
+  }
+
+  /**
+   * The planner's advice for this position. Its line of moves is kept, so while the player
+   * follows it each next hint continues the same plan instead of starting over.
+   */
+  private nextHint(): Step | null {
+    const keyOf = (st: SpiderState) => `${positionKey(st)}/${st.stock.length}/${settings.dealWithEmpty}`;
+    const key = keyOf(this.state);
+    if (this.hintLine?.key !== key) {
+      this.hintLine = this.hintAfter?.key === key ? this.hintAfter : { key, steps: plan(this.state, settings.dealWithEmpty) };
+    }
+    this.hintAfter = null;
+    const [first, ...rest] = this.hintLine.steps;
+    if (!first) return null;
+    if (rest.length) {
+      const next = structuredClone(this.state);
+      const turned = applyAction(next, first).length + completeRuns(next).filter((c) => c.flipped !== null).length;
+      // New cards change everything, so the rest of the line only holds if none appeared.
+      if (first.t === 'move' && !turned) this.hintAfter = { key: keyOf(next), steps: rest };
+    }
+    return first;
   }
 
   /** Called when settings change. */
@@ -344,7 +365,6 @@ export class SpiderGame implements GameController {
   private commit(a: Action): number[] {
     this.clearHint();
     clearTimeout(this.stuckTimer);
-    this.hintIndex = 0;
     this.actions.push(a);
     const changed = applyAction(this.state, a);
     if (!this.counted) {
