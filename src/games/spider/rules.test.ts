@@ -7,7 +7,10 @@ import {
   completeRuns,
   dealBlocked,
   findMoves,
+  isWon,
+  freshMoves,
   newGame,
+  positionKey,
   replay,
   runStart,
   type SpiderState,
@@ -108,5 +111,34 @@ describe('replay', () => {
     applyAction(s, { t: 'deal' });
     completeRuns(s);
     expect(replay(3, 1, [{ t: 'deal' }])).toEqual(s);
+  });
+});
+
+describe('freshMoves', () => {
+  it('never offers a move back to a position reached since the last deal', () => {
+    // A run that can sit on either of two equal parents is the classic back-and-forth.
+    const s = board([[c(9), c(5, 'H')], [c(9, 'D'), c(6, 'S')], [c(6, 'C')]]);
+    const seen = new Set([positionKey(s)]);
+    expect(findMoves(s).length).toBeGreaterThan(0);
+    const first = freshMoves(s, seen)[0];
+    applyAction(s, { t: 'move', ...first });
+    seen.add(positionKey(s));
+    expect(freshMoves(s, seen).some((m) => m.to === first.from)).toBe(false);
+  });
+
+  it('following the hint plays a 2-suit game to the end without looping', () => {
+    const s = newGame(15838, 2);
+    let seen = new Set([positionKey(s)]);
+    let steps = 0;
+    for (; steps < 1500 && !isWon(s); steps++) {
+      const m = freshMoves(s, seen)[0];
+      if (!m && dealBlocked(s, true)) break;
+      const a = m ? ({ t: 'move', from: m.from, index: m.index, to: m.to } as const) : ({ t: 'deal' } as const);
+      applyAction(s, a);
+      completeRuns(s);
+      if (a.t === 'deal') seen = new Set();
+      seen.add(positionKey(s));
+    }
+    expect(steps).toBeLessThan(1500);
   });
 });

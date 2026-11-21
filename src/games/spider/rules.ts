@@ -197,6 +197,36 @@ export function findMoves(s: SpiderState): Move[] {
   return out.sort((a, b) => b.priority - a.priority);
 }
 
+/** Identifies a position by what's visible, so hints can tell when they'd lead back to one. */
+export const positionKey = (s: SpiderState) =>
+  s.columns.map((col) => col.map((c) => (c.faceUp ? c.suit + c.rank : '#')).join('')).join('|');
+
+/** Positions reached since the last deal (the current one included). */
+export function positionsSinceDeal(s: SpiderState, actions: Action[]): Set<string> {
+  const cur = newGame(s.seed, s.suitCount);
+  let seen = new Set([positionKey(cur)]);
+  for (const a of actions) {
+    applyAction(cur, a);
+    completeRuns(cur);
+    if (a.t === 'deal') seen = new Set();
+    seen.add(positionKey(cur));
+  }
+  return seen;
+}
+
+/**
+ * findMoves() without the moves that lead back to a position already reached since the last
+ * deal. Following hints could otherwise shuffle the same cards back and forth forever.
+ */
+export function freshMoves(s: SpiderState, seen: Set<string>): Move[] {
+  return findMoves(s).filter((m) => {
+    const next = structuredClone(s);
+    applyAction(next, { t: 'move', from: m.from, index: m.index, to: m.to });
+    completeRuns(next);
+    return !seen.has(positionKey(next));
+  });
+}
+
 /** Where a tapped run should go: same suit first, then any legal card, then an empty column. */
 export function bestTarget(s: SpiderState, from: number, index: number): number | null {
   if (!canPickUp(s, from, index)) return null;

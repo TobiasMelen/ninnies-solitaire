@@ -17,8 +17,10 @@ import {
   completeRuns,
   dealBlocked,
   findMoves,
+  freshMoves,
   isWon,
   newGame,
+  positionsSinceDeal,
   replay,
   runStart,
 } from './rules';
@@ -293,7 +295,7 @@ export class SpiderGame implements GameController {
     if (this.preview) return this.endPreview();
     this.flush();
     this.clearHint();
-    const moves = findMoves(this.state);
+    const moves = freshMoves(this.state, positionsSinceDeal(this.state, this.actions));
     if (!moves.length) {
       if (!dealBlocked(this.state, settings.dealWithEmpty)) {
         flash(this.stockSlot, 'hint');
