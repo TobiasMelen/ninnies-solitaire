@@ -168,6 +168,7 @@ function hooksFor(id: GameId): GameHooks {
   return {
     event: (e, x) => mine() && bunny.react(e, x),
     hint: (target, kind) => mine() && bunny.hint(target, kind),
+    occupied: (spans) => mine() && bunny.avoid(spans),
     hud: (h) => mine() && renderHud(h),
     toast: (m) => mine() && toast(m),
     finished: (r) => mine() && showResult(r),
@@ -207,6 +208,8 @@ function switchTo<T extends GameId>(id: T): GameOf<T> {
     game.setVisible(false);
   }
   game = g;
+  // Back to its usual corner; a game that needs it elsewhere says so when it lays out.
+  bunny.avoid([]);
   g.setVisible(true);
   store.set(LAST_KEY, id);
   return g as GameOf<T>;

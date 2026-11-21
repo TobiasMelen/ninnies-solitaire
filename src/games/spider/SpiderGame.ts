@@ -669,6 +669,14 @@ export class SpiderGame implements GameController {
     this.stockSlot.classList.toggle('empty', groups === 0);
     this.colSlots.forEach((slot, i) => slot.classList.toggle('empty', !s.columns[i].length));
     this.board.classList.toggle('can-deal', !dealBlocked(s, settings.dealWithEmpty));
+    // Tell the Hint Bunny how far down each column reaches, so it can sit out of the way.
+    this.hooks.occupied?.(
+      s.columns.map((col, c) => ({
+        x0: L.colX[c] / L.W,
+        x1: (L.colX[c] + L.cw) / L.W,
+        y: (col.length ? this.cardY(c, col.length - 1) + L.ch : L.tableTop) / L.H,
+      })),
+    );
   }
 
   /** Deal-in animation for a fresh game: everything starts on the stock. */

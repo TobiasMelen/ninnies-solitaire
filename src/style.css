@@ -1301,6 +1301,10 @@ html.large-print [data-deck='pips'] {
 .bunny.on {
   translate: 0 12%;
 }
+/* With cards in the way all along the bottom it ducks, just its ears peeking up. */
+.bunny.on.ducked {
+  translate: 0 72%;
+}
 /* In Hearts it sits behind the player's hand, peeking over it. */
 #board:has(.hearts-root:not([hidden])) .bunny {
   z-index: 500;

@@ -35,6 +35,11 @@ export interface GameHooks {
   event?(e: BunnyEvent, x?: number): void;
   /** A hint was shown: where it points (0–1 across the board), for the Hint Bunny to act out. */
   hint?(target: { from: number; to?: number } | null, kind: 'move' | 'deal' | 'none'): void;
+  /**
+   * Where cards reach down to along the bottom, so the Hint Bunny can sit out of the way: spans
+   * across the board (x0–x1, 0–1) and how far down their cards come (y, 0–1 from the top).
+   */
+  occupied?(spans: { x0: number; x1: number; y: number }[]): void;
 }
 
 /** What the app shell needs from every game. */

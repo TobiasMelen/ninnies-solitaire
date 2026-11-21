@@ -160,6 +160,8 @@ export class Bunny {
   private popTimer = 0;
   private busyUntil = 0;
   private poses = new Map<Pose, HTMLImageElement>();
+  /** Where it sits when not hinting: an offset from its corner, moved aside when cards are in the way. */
+  private homeDx = 0;
   /** Asked for when the bunny is tapped; returns where the hint is, or null when there's none. */
   onAskHint: () => void = () => {};
 
@@ -211,6 +213,29 @@ export class Bunny {
     } else {
       this.goHome();
     }
+  }
+
+  /**
+   * Keep clear of cards: find the spot along the bottom nearest its corner where no cards reach
+   * down into it. If there's none it ducks, leaving just its ears showing.
+   */
+  avoid(spans: { x0: number; x1: number; y: number }[]) {
+    const hostW = this.host.clientWidth;
+    const hostH = this.host.clientHeight;
+    const w = this.el.offsetWidth;
+    if (!hostW || !w) return;
+    // Top of its visible body when sitting (it sits 12% below its box; see .bunny.on).
+    const top = this.el.offsetTop + this.el.offsetHeight * 0.12;
+    const corner = this.el.offsetLeft;
+    const blocked = spans.filter((sp) => sp.y * hostH > top + 6).map((sp) => [sp.x0 * hostW, sp.x1 * hostW]);
+    const fits = (x: number) => x >= corner - 1 && x + w <= hostW + 1 && blocked.every(([a, b]) => x + w <= a || x >= b);
+    const spots = [corner, ...blocked.flatMap(([a, b]) => [b + 2, a - w - 2])].filter(fits);
+    const best = spots.length ? spots.reduce((a, b) => (Math.abs(b - corner) < Math.abs(a - corner) ? b : a)) : null;
+    this.el.classList.toggle('ducked', best === null);
+    const dx = best === null ? 0 : Math.round(best - corner);
+    if (dx === this.homeDx) return;
+    this.homeDx = dx;
+    if (performance.now() >= this.busyUntil) this.goHome();
   }
 
   get on() {
@@ -312,7 +337,7 @@ export class Bunny {
   }
 
   private goHome() {
-    this.el.style.setProperty('--walk', '0px');
+    this.el.style.setProperty('--walk', `${this.homeDx}px`);
     this.el.classList.add('facing-right');
     this.busyUntil = 0;
   }
