@@ -34,7 +34,7 @@ const wantedLang = () => (settings.lang === 'auto' ? deviceLang() : settings.lan
 setLang(wantedLang());
 translatePage();
 redrawText.push(() => {
-  home.querySelectorAll<HTMLElement>('[data-opponents-label]').forEach((b) => (b.textContent = tn('landscaper.opponents', Number(b.dataset.opponentsLabel))));
+  home.querySelectorAll<HTMLElement>('[data-opponents-label]').forEach((b) => b.setAttribute('aria-label', tn('landscaper.opponents', Number(b.dataset.opponentsLabel))));
   home.querySelectorAll<HTMLElement>('[data-suits-label]').forEach((b) => (b.textContent = tn('spider.suits', Number(b.dataset.suitsLabel))));
 });
 let shownLang = wantedLang();
@@ -399,7 +399,7 @@ home.querySelectorAll<HTMLElement>('[data-level]').forEach((btn) =>
 );
 home.querySelectorAll<HTMLElement>('[data-opponents]').forEach((btn) =>
   btn.addEventListener('click', () =>
-    setup('landscaper', t('landscaper.setupLine', { who: btn.querySelector('b')!.textContent! }), () => {
+    setup('landscaper', t('landscaper.setupLine', { who: `${btn.querySelector('small')!.textContent} · ${btn.getAttribute('aria-label')}` }), () => {
       const g = switchTo('landscaper');
       hideHome();
       g.newGame(Number(btn.dataset.opponents));

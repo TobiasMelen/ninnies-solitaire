@@ -936,7 +936,7 @@ html.large-print [data-deck='pips'] {
   font-size: 14px;
 }
 /* Start-screen tile art: three little tiles. */
-.landscaper-art {
+.tile-art.landscaper-art {
   display: flex;
   gap: 3px;
   align-items: center;
@@ -1260,6 +1260,14 @@ html.large-print [data-deck='pips'] {
 }
 .suit-pick.one {
   grid-template-columns: 1fr;
+}
+/* Landscaper: how many opponents, big, with the animals small underneath. */
+[data-game='landscaper'] .suit-pick button b {
+  font-size: 22px;
+}
+[data-game='landscaper'] .suit-pick button small {
+  font-size: 13px;
+  letter-spacing: -1px;
 }
 
 /* ───────────────────────── spite & malice ───────────────────────── */
