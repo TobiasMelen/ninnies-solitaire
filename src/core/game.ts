@@ -1,7 +1,7 @@
 import type { Key } from '../i18n';
 import type { BunnyEvent } from '../ui/bunny';
 
-export type GameId = 'spider' | 'hearts' | 'spite' | 'freecell';
+export type GameId = 'spider' | 'hearts' | 'spite' | 'freecell' | 'landscaper';
 
 export interface HudStat {
   label: string;

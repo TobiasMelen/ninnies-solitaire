@@ -42,7 +42,7 @@ export function t(key: Key, vars?: Record<string, string | number>): string {
 export const has = (key: string): key is Key => key in en;
 
 /** For counts: `key.one` for 1, `key.other` otherwise, with {n} filled in. */
-export function tn(key: 'moves' | 'spider.suits', n: number, vars?: Record<string, string | number>): string {
+export function tn(key: 'moves' | 'spider.suits' | 'landscaper.opponents', n: number, vars?: Record<string, string | number>): string {
   return t(`${key}.${n === 1 ? 'one' : 'other'}` as Key, { n, ...vars });
 }
 

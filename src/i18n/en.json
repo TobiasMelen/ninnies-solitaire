@@ -8,22 +8,18 @@
   "toolbar.menu": "Menu",
   "toolbar.hint": "Hint",
   "toolbar.undo": "Undo",
-
   "home.continue": "Continue",
   "home.newGame": "New game",
   "home.build": "Build {id}",
-
   "level.relaxed": "Relaxed",
   "level.easy": "Easy",
   "level.medium": "Medium",
   "level.hard": "Hard",
   "play": "Play",
-
   "animal.fox": "Fox",
   "animal.owl": "Owl",
   "animal.bear": "Bear",
   "you": "You",
-
   "spider.name": "Spider",
   "spider.blurb": "Build runs from King to Ace in a single suit.",
   "spider.suits.one": "{n} suit",
@@ -34,7 +30,6 @@
   "spider.fillEmpty": "Fill empty columns before dealing",
   "spider.timeToDeal": "Time to deal a new row",
   "spider.sameSuitOnly": "Only same-suit runs move together",
-
   "hearts.name": "Hearts",
   "hearts.blurb": "Dodge the hearts and the Q♠ against 🦊 Fox, 🦉 Owl and 🐻 Bear.",
   "hearts.players": "4 players",
@@ -61,7 +56,6 @@
   "hearts.passTo": "Pass 3 {arrow} {who}",
   "hearts.passToRight": "Pass 3 to {who} {arrow}",
   "hearts.broken": "Hearts broken",
-
   "spite.name": "Spite & Malice",
   "spite.blurb": "Race to empty your goal pile. Build 1 to 12; ★ is wild.",
   "spite.setupLine": "Against {who}",
@@ -77,7 +71,6 @@
   "spite.pileNeeds": "That pile needs {n}",
   "spite.playOrDiscard": "Play it, or drop it on a pile below to end your turn",
   "spite.wins": "{who} wins",
-
   "freecell.name": "FreeCell",
   "freecell.blurb": "Every card face up. Four free cells to plan your way home.",
   "freecell.sub": "Nearly every deal can be won",
@@ -87,7 +80,6 @@
   "freecell.noWin": "No winning way from here: try Undo",
   "freecell.altRunOnly": "Only an alternating-colour run moves together",
   "freecell.notEnoughCells": "Not enough free cells to move that many",
-
   "moves.one": "{n} move",
   "moves.other": "{n} moves",
   "noMovesLeft": "No moves left",
@@ -98,7 +90,6 @@
   "stat.time": "Time",
   "stat.won": "Won",
   "stat.best": "Best",
-
   "settings.title": "Settings",
   "settings.look": "Look",
   "settings.lookSub": "Cards, court cards, card back, table",
@@ -117,7 +108,6 @@
   "lang.auto": "Automatic",
   "lang.en": "English",
   "lang.sv": "Svenska",
-
   "deck.simple": "Simple",
   "deck.pips": "Classic",
   "back.crimson": "Crimson",
@@ -134,7 +124,6 @@
   "table.wine": "Wine",
   "table.midnight": "Midnight",
   "table.linen": "Linen",
-
   "opt.noMovesAlert": "Tell me when I’m stuck",
   "opt.noMovesAlert.hint": "Only when nothing can be moved or dealt; use Hint otherwise",
   "opt.tapToMove": "Tap to move",
@@ -171,29 +160,24 @@
   "opt.haptics": "Vibration",
   "opt.bunny": "Hint Bunny",
   "opt.bunny.hint": "Cheers you on with gestures; tap it for a hint",
-
   "setup.remember": "Remember settings",
   "setup.rememberSub": "Skip this step next time",
   "setup.rememberHint": "Skip the setup step",
   "setup.start": "Start",
-
   "menu.paused": "Paused",
   "menu.keepPlaying": "Keep playing",
   "menu.restartDeal": "Restart this deal",
   "menu.restartGame": "Restart this game",
   "menu.settings": "Settings",
   "menu.main": "Main menu",
-
   "win.won": "You won!",
   "win.dealAgain": "Deal again",
   "win.admire": "Admire the table",
-
   "stuck.title": "Out of moves",
   "stuck.text": "Nothing on the table can be moved and there are no cards left to deal.",
   "stuck.undo": "Undo last move",
   "stuck.new": "New game",
   "stuck.keepLooking": "Keep looking",
-
   "bunny.aria": "Hint Bunny: tap for a hint",
   "update.updating": "Updating…",
   "card.faceDown": "Face-down card",
@@ -206,5 +190,35 @@
   "suit.S": "spades",
   "suit.H": "hearts",
   "suit.D": "diamonds",
-  "suit.C": "clubs"
+  "suit.C": "clubs",
+  "landscaper.name": "Landscaper",
+  "landscaper.blurb": "Lay tiles to grow roads, cities and fields, and claim them with your followers.",
+  "landscaper.opponents.one": "{n} opponent",
+  "landscaper.opponents.other": "{n} opponents",
+  "landscaper.setupLine": "Against {who}",
+  "landscaper.saved": "Landscaper · you {pts} pts · {n} tiles left",
+  "landscaper.tilesLeft": "{n} tiles left",
+  "landscaper.pickSpot": "Tap a glowing square to lay your tile",
+  "landscaper.turnOrPlace": "Tap it again to turn it, then place it",
+  "landscaper.rotate": "Turn",
+  "landscaper.place": "Place",
+  "landscaper.pickFollower": "Tap a spot for a follower, or carry on",
+  "landscaper.noFollowers": "No followers left",
+  "landscaper.back": "Pick up",
+  "landscaper.done": "Done",
+  "landscaper.skip": "No follower",
+  "landscaper.thinking": "{who} is thinking…",
+  "landscaper.gameOver": "Final scoring",
+  "landscaper.wins": "{who} wins",
+  "landscaper.resultLine": "Landscaper · {n} tiles laid",
+  "landscaper.hintFollower": "Put a follower on the {part}",
+  "landscaper.hintNoFollower": "No follower this time",
+  "landscaper.part.city": "city",
+  "landscaper.part.road": "road",
+  "landscaper.part.field": "field",
+  "landscaper.part.cloister": "cloister",
+  "opt.landscaperFarmers": "Farmers",
+  "opt.landscaperFarmers.hint": "Followers can lie in fields; at the end they score 3 for each finished city their field borders",
+  "opt.landscaperFast": "Quick opponents",
+  "opt.landscaperFast.hint": "Opponents take their turns faster"
 }

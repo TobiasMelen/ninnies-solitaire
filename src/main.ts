@@ -5,6 +5,7 @@ import { SpiderGame } from './games/spider/SpiderGame';
 import type { Level } from './games/spite/ai';
 import { SpiteGame } from './games/spite/SpiteGame';
 import { FreeCellGame } from './games/freecell/FreeCellGame';
+import { LandscaperGame } from './games/landscaper/LandscaperGame';
 import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
@@ -33,6 +34,7 @@ const wantedLang = () => (settings.lang === 'auto' ? deviceLang() : settings.lan
 setLang(wantedLang());
 translatePage();
 redrawText.push(() => {
+  home.querySelectorAll<HTMLElement>('[data-opponents-label]').forEach((b) => (b.textContent = tn('landscaper.opponents', Number(b.dataset.opponentsLabel))));
   home.querySelectorAll<HTMLElement>('[data-suits-label]').forEach((b) => (b.textContent = tn('spider.suits', Number(b.dataset.suitsLabel))));
 });
 let shownLang = wantedLang();
@@ -150,14 +152,16 @@ for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
 
 // ───────── games ─────────
 
-type AnyGame = SpiderGame | HeartsGame | SpiteGame | FreeCellGame;
+type AnyGame = SpiderGame | HeartsGame | SpiteGame | FreeCellGame | LandscaperGame;
 type GameOf<T extends GameId> = T extends 'spider'
   ? SpiderGame
   : T extends 'hearts'
     ? HeartsGame
     : T extends 'spite'
       ? SpiteGame
-      : FreeCellGame;
+      : T extends 'freecell'
+        ? FreeCellGame
+        : LandscaperGame;
 const LAST_KEY = 'ninnies.lastGame';
 
 const bunny = new Bunny(board);
@@ -216,7 +220,9 @@ function getGame(id: GameId): AnyGame {
           ? new HeartsGame(layer, hooks)
           : id === 'spite'
             ? new SpiteGame(layer, hooks)
-            : new FreeCellGame(layer, hooks);
+            : id === 'freecell'
+              ? new FreeCellGame(layer, hooks)
+              : new LandscaperGame(layer, hooks);
     games[id] = g;
   }
   return g;
@@ -314,6 +320,7 @@ addEventListener('popstate', (e) => {
 function savedSummary(id: GameId): string | null {
   if (id === 'hearts') return HeartsGame.saved();
   if (id === 'spite') return SpiteGame.saved();
+  if (id === 'landscaper') return LandscaperGame.saved();
   if (id === 'freecell') {
     const f = FreeCellGame.saved();
     return f ? t('freecell.status', { moves: tn('moves', f.moves), time: fmtTime(f.ms) }) : null;
@@ -386,6 +393,16 @@ home.querySelectorAll<HTMLElement>('[data-level]').forEach((btn) =>
       const g = switchTo('spite');
       hideHome();
       g.newGame(btn.dataset.level as Level);
+      g.unpause();
+    }),
+  ),
+);
+home.querySelectorAll<HTMLElement>('[data-opponents]').forEach((btn) =>
+  btn.addEventListener('click', () =>
+    setup('landscaper', t('landscaper.setupLine', { who: btn.querySelector('b')!.textContent! }), () => {
+      const g = switchTo('landscaper');
+      hideHome();
+      g.newGame(Number(btn.dataset.opponents));
       g.unpause();
     }),
   ),
@@ -552,6 +569,8 @@ const TOGGLES: Toggle[] = [
   { key: 'heartsFast', group: 'play', games: ['hearts'] },
   { key: 'spiteShort', group: 'play', games: ['spite'] },
   { key: 'spiteFast', group: 'play', games: ['spite'] },
+  { key: 'landscaperFarmers', group: 'play', games: ['landscaper'] },
+  { key: 'landscaperFast', group: 'play', games: ['landscaper'] },
   { key: 'fourColour', group: 'cards' },
   { key: 'largePrint', group: 'cards' },
   { key: 'sound', group: 'feel' },
@@ -583,6 +602,7 @@ const GAME_OPTIONS: { id: GameId; remember: keyof Settings }[] = [
   { id: 'hearts', remember: 'rememberHearts' },
   { id: 'spite', remember: 'rememberSpite' },
   { id: 'freecell', remember: 'rememberFreecell' },
+  { id: 'landscaper', remember: 'rememberLandscaper' },
 ];
 const gameName = (id: GameId) => t(`${id}.name` as Key);
 

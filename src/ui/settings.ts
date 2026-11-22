@@ -53,6 +53,8 @@ export interface Settings {
   heartsOneTap: boolean;
   spiteShort: boolean;
   spiteFast: boolean;
+  landscaperFarmers: boolean;
+  landscaperFast: boolean;
   /** 'auto' follows the device's language. */
   lang: 'auto' | Lang;
   /** Skip the setup step when starting that game (the "Remember" box). */
@@ -60,6 +62,7 @@ export interface Settings {
   rememberHearts: boolean;
   rememberSpite: boolean;
   rememberFreecell: boolean;
+  rememberLandscaper: boolean;
 }
 
 const KEY = 'ninnies.settings.v1';
@@ -87,11 +90,14 @@ const DEFAULTS: Settings = {
   heartsOneTap: false,
   spiteShort: false,
   spiteFast: false,
+  landscaperFarmers: true,
+  landscaperFast: false,
   lang: 'auto',
   rememberSpider: false,
   rememberHearts: false,
   rememberSpite: false,
   rememberFreecell: false,
+  rememberLandscaper: false,
 };
 
 type Listener = (s: Settings) => void;
