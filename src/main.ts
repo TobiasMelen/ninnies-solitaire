@@ -236,6 +236,7 @@ function switchTo<T extends GameId>(id: T): GameOf<T> {
     game.setVisible(false);
   }
   game = g;
+  markPlayed(id);
   // Back to its usual corner; a game that needs it elsewhere says so when it lays out.
   bunny.avoid([]);
   g.setVisible(true);
@@ -244,6 +245,24 @@ function switchTo<T extends GameId>(id: T): GameOf<T> {
 }
 
 const lastGame = (): GameId => store.get<GameId>(LAST_KEY) ?? 'spider';
+
+/** Games in the order they were last played (most recent first), to sort the start screen by. */
+const RECENT_KEY = 'ninnies.recentGames';
+function markPlayed(id: GameId) {
+  const recent = (store.get<GameId[]>(RECENT_KEY) ?? []).filter((g) => g !== id);
+  store.set(RECENT_KEY, [id, ...recent]);
+}
+function sortGames() {
+  const recent = store.get<GameId[]>(RECENT_KEY) ?? [];
+  const list = home.querySelector<HTMLElement>('.games')!;
+  const tiles = [...list.querySelectorAll<HTMLElement>('.game-tile')];
+  // Played games first, most recent at the top; never-played ones keep their usual order.
+  const rank = (el: HTMLElement) => {
+    const i = recent.indexOf(el.dataset.game as GameId);
+    return i < 0 ? recent.length + tiles.indexOf(el) : i;
+  };
+  tiles.sort((a, b) => rank(a) - rank(b)).forEach((el) => list.appendChild(el));
+}
 
 // Dev-only handle for poking at the game from the console (stripped from production builds).
 if (import.meta.env.DEV) Object.assign(window, { ninnies: { get game() { return game ?? switchTo('spider'); } } });
@@ -331,6 +350,7 @@ function savedSummary(id: GameId): string | null {
 
 function showHome() {
   game?.pause();
+  sortGames();
   layoutDiag();
   const id = lastGame();
   const summary = savedSummary(id);
