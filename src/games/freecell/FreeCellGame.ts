@@ -452,6 +452,10 @@ export class FreeCellGame implements GameController {
       this.layer.place(card.id, { ...p, delay: opts.delay?.(card.id) ?? 0 }, animate);
     };
     this.where.clear();
+    // Like Spider: only the run at the bottom of each column can move; shade the rest.
+    const locked = new Set<number>();
+    if (settings.dimLocked) for (const col of s.cascades) col.slice(0, col.length - runLength(col)).forEach((c) => locked.add(c.id));
+    this.layer.els.forEach((el, id) => el.classList.toggle('locked', locked.has(id)));
     // Columns squeeze together when they'd run off the bottom.
     const room = L.bottom - L.tableTop - L.ch;
     // Tall screens fan the columns further apart, so ranks are easier to read.

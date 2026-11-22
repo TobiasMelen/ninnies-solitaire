@@ -506,7 +506,7 @@ const TOGGLES: Toggle[] = [
   { key: 'noMovesAlert', label: 'Tell me when I’m stuck', hint: 'Only when nothing can be moved or dealt; use Hint otherwise', group: 'play', games: ['spider', 'freecell'] },
   { key: 'tapToMove', label: 'Tap to move', hint: 'Double-tap a card to send it to the best spot', group: 'play', games: ['spider', 'freecell'] },
   { key: 'singleTap', label: 'Single tap is enough', hint: 'Move with one tap instead of two', group: 'play', games: ['spider', 'freecell'], needs: 'tapToMove' },
-  { key: 'dimLocked', label: 'Shade cards that can’t move', hint: 'Only the movable run in each column stays bright white', group: 'play', games: ['spider'] },
+  { key: 'dimLocked', label: 'Shade cards that can’t move', hint: 'Only the movable run in each column stays bright white', group: 'play', games: ['spider', 'freecell'] },
   { key: 'dealWithEmpty', label: 'Deal with empty columns', hint: 'Off follows the classic rule: fill every column before dealing', group: 'play', games: ['spider'] },
   { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging', group: 'play', games: ['spider', 'freecell'] },
   { key: 'heartsPassing', label: 'Pass cards', hint: 'Swap 3 cards before each hand (left, right, across, none)', group: 'play', games: ['hearts'] },

@@ -32,6 +32,8 @@ export const PLAYERS = [
 ];
 
 const SAVE_KEY = 'ninnies.hearts.save.v1';
+/** How far the back row of a two-row hand sits above the front row, in card heights. */
+const BACK_ROW = 0.52;
 /** How long the deal takes once it starts: 52 cards 18 ms apart, plus the last one's flight. */
 const DEAL_MS = 51 * 18 + MOVE_MS;
 const PASS_ARROW = { left: '←', right: '→', across: '↑', none: '' } as const;
@@ -42,8 +44,10 @@ interface Layout {
   H: number;
   cw: number;
   ch: number;
-  /** Top of the hand's cards (the fan's middle). */
+  /** Top of the hand's cards (the fan's middle); in portrait, of the front row. */
   handY: number;
+  /** Portrait: two rows, black suits behind and red in front. */
+  rows: 1 | 2;
   raise: number;
   opp: { x: number; y: number; dx: number; dy: number }[];
   oppScale: number;
@@ -556,14 +560,14 @@ export class HeartsGame extends TableGame<HeartsState> {
     const pad = 10;
     const portrait = H > W * 1.05;
     const cw = Math.round(
-      // Portrait: small enough that a fan of 13 shows each card's corner (0.38 of a card apart).
-      portrait ? clamp(Math.min((W - pad * 2) / (1 + 12 * 0.38), H * 0.14), 48, 118) : clamp(Math.min(H * 0.21, (W - pad * 2) / 6), 50, 110),
+      portrait ? clamp(Math.min((W - pad * 2) / 4.3, H * 0.14), 54, 118) : clamp(Math.min(H * 0.21, (W - pad * 2) / 6), 50, 110),
     );
     const ch = Math.round(cw * 1.4);
     const raise = Math.round(ch * 0.24);
     // The fan's ends dip a little below its middle; keep them on screen.
+    const rows = portrait ? 2 : 1;
     const handY = Math.round(H - pad - ch * 1.12);
-    const handTop = handY - raise;
+    const handTop = handY - (rows === 2 ? ch * BACK_ROW : 0) - raise;
 
     const oppScale = portrait ? 0.42 : 0.4;
     const ow = cw * oppScale;
@@ -606,7 +610,7 @@ export class HeartsGame extends TableGame<HeartsState> {
       { x: W / 2 + northW / 2 + 8, y: pad + oh / 2 - 14 },
       { x: W - pad - ow / 2, y: sideY + sideLen + 4 },
     ];
-    this.L = { W, H, cw, ch, handY, raise, opp, oppScale, trick, trickScale, pile, badge, center };
+    this.L = { W, H, cw, ch, handY, rows, raise, opp, oppScale, trick, trickScale, pile, badge, center };
     this.root.style.setProperty('--cw', `${cw}px`);
     this.root.style.setProperty('--ch', `${ch}px`);
     // The Hint Bunny (outside this layer) peeks over the top of the hand instead of covering it.
@@ -633,12 +637,23 @@ export class HeartsGame extends TableGame<HeartsState> {
     if (this.state && !this.cascade) this.render(false);
   }
 
-  /** Where each card in the player's hand sits: fanned across the bottom, like Spite & Malice. */
+  /**
+   * Where each card in the player's hand sits: fanned across the bottom, like Spite & Malice. In
+   * portrait there's room for bigger cards in two fans, black suits behind and red in front.
+   */
   private handSpots(hand: Card[]) {
-    const { W, cw, ch, handY } = this.L;
+    const { W, cw, ch, handY, rows } = this.L;
     const pad = 10;
-    const fan = fanHand(hand.length, { left: pad, width: W - pad * 2, y: handY }, cw, ch);
-    return new Map(hand.map((c, i) => [c.id, { ...fan[i], z: 600 + i }]));
+    const black = hand.filter((c) => c.suit === 'C' || c.suit === 'S');
+    const red = hand.filter((c) => c.suit === 'D' || c.suit === 'H');
+    const lines = rows === 2 && black.length && red.length ? [black, red] : [hand];
+    const spots = new Map<number, { x: number; y: number; rotate: number; z: number }>();
+    lines.forEach((line, r) => {
+      const y = lines.length === 2 && r === 0 ? handY - ch * BACK_ROW : handY;
+      const fan = fanHand(line.length, { left: pad, width: W - pad * 2, y }, cw, ch);
+      line.forEach((c, i) => spots.set(c.id, { ...fan[i], z: 600 + r * 40 + i }));
+    });
+    return spots;
   }
 
   protected render(animate = true) {
