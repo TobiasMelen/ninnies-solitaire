@@ -45,7 +45,16 @@ type Pose =
   | 'yawn'
   | 'nap'
   | 'surprised'
-  | 'hug';
+  | 'hug'
+  | 'plead'
+  | 'blush'
+  | 'wobble'
+  | 'grump'
+  | 'unsure'
+  | 'jump'
+  | 'yawn2'
+  | 'relax'
+  | 'shy';
 
 const POSE_URLS = import.meta.glob<string>('../assets/bunny/*.webp', { eager: true, query: '?url', import: 'default' });
 const poseUrl = (p: Pose) => POSE_URLS[`../assets/bunny/${p}.webp`];
@@ -77,6 +86,15 @@ const FALLBACK: Record<Pose, Pose> = {
   nap: 'sleep',
   surprised: 'shock',
   hug: 'love',
+  plead: 'sad',
+  blush: 'oops',
+  wobble: 'shock',
+  grump: 'angry',
+  unsure: 'thinking',
+  jump: 'cheer',
+  yawn2: 'yawn',
+  relax: 'bored',
+  shy: 'love',
 };
 const resolvePose = (p: Pose): Pose => (poseUrl(p) ? p : p === 'idle' ? p : resolvePose(FALLBACK[p]));
 
@@ -137,24 +155,26 @@ const GESTURE: Record<BunnyEvent, string> = {
  * The photos that suit each moment; one is picked at random (back to idle when the gesture
  * ends), so the same kind of move doesn't always get the same face.
  */
-const POSES: Record<BunnyEvent | 'idle' | 'tap' | 'hint' | 'hintTarget' | 'shrug' | 'sleep', Pose[]> = {
+const POSES: Record<BunnyEvent | 'idle' | 'tap' | 'hint' | 'hintTarget' | 'shrug' | 'bored' | 'yawn' | 'sleep', Pose[]> = {
   idle: ['idle', 'idle', 'idle2', 'idle3', 'idle4', 'idle5', 'idle6'],
-  start: ['love', 'happy', 'hug'],
+  start: ['love', 'happy', 'hug', 'shy'],
   move: ['aside', 'aside', 'idle', 'thinking', 'peek'],
-  reveal: ['aside', 'surprised', 'peek', 'idea', 'shock'],
-  suit: ['happy', 'love', 'proud', 'hug'],
-  complete: ['cheer', 'cheer', 'proud', 'happy', 'love'],
-  deal: ['aside', 'thinking', 'idle', 'peek'],
-  undo: ['sad', 'thinking', 'oops'],
-  invalid: ['angry', 'sad', 'shock', 'oops'],
-  blunder: ['oops', 'oops', 'thinking', 'surprised'],
-  stuck: ['sad', 'bored'],
-  win: ['cheer', 'cheer', 'happy', 'proud', 'love'],
-  scare: ['shock', 'surprised', 'angry'],
-  tap: ['thinking', 'love', 'hug'],
-  hint: ['point', 'point', 'idea', 'thinking'],
+  reveal: ['aside', 'surprised', 'peek', 'idea', 'shock', 'wobble'],
+  suit: ['happy', 'love', 'proud', 'hug', 'jump'],
+  complete: ['cheer', 'jump', 'proud', 'happy', 'love'],
+  deal: ['aside', 'thinking', 'idle', 'peek', 'grump'],
+  undo: ['sad', 'thinking', 'oops', 'blush'],
+  invalid: ['angry', 'sad', 'shock', 'oops', 'grump', 'wobble'],
+  blunder: ['oops', 'blush', 'unsure', 'thinking', 'surprised'],
+  stuck: ['sad', 'bored', 'plead'],
+  win: ['cheer', 'jump', 'happy', 'proud', 'love'],
+  scare: ['shock', 'surprised', 'angry', 'wobble'],
+  tap: ['thinking', 'love', 'hug', 'shy', 'unsure'],
+  hint: ['point', 'point', 'idea', 'thinking', 'unsure'],
   hintTarget: ['point', 'happy', 'proud'],
-  shrug: ['sad', 'thinking', 'oops'],
+  shrug: ['sad', 'thinking', 'oops', 'plead', 'unsure'],
+  bored: ['bored', 'relax'],
+  yawn: ['yawn', 'yawn2'],
   sleep: ['sleep', 'nap'],
 };
 
@@ -384,10 +404,10 @@ export class Bunny {
     // Never offers hints on its own: while the player thinks it just gets bored, then dozes off.
     this.idleTimer = window.setTimeout(() => {
       if (!this.enabled || document.hidden) return;
-      this.rest('bored');
+      this.rest(this.pick('bored'));
       this.idleTimer = window.setTimeout(() => {
         if (!this.enabled) return;
-        this.rest('yawn');
+        this.rest(this.pick('yawn'));
         this.idleTimer = window.setTimeout(() => this.enabled && this.rest(this.pick('sleep')), YAWN_MS);
       }, SLEEP_MS - BORED_MS - YAWN_MS);
     }, BORED_MS);
