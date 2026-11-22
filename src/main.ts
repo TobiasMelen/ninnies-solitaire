@@ -664,8 +664,8 @@ if (resumeSpot?.screen === 'game' && loadSaved(resumeSpot.id)) {
 }
 
 watchForUpdates({
-  spot() {
-    if (document.querySelector('dialog[open], .card.dragging')) return null;
+  spot(anyway) {
+    if (!anyway && document.querySelector('dialog[open], .card.dragging')) return null;
     if (homeOpen() || !game) return { screen: 'home' };
     return { screen: 'game', id: game.id };
   },

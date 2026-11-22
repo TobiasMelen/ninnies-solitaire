@@ -2618,3 +2618,38 @@ dialog.sheet.page form {
     transition-duration: 1ms !important;
   }
 }
+
+/* ───────────────────────── update splash ───────────────────────── */
+
+/* Covers the screen while a new version loads straight after opening the app. */
+.update-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+  background: var(--wood);
+  color: var(--ui-ink);
+  font-family: var(--display);
+  animation: splash-in 160ms ease both;
+}
+/* The app icon, rounded like it is on the home screen. */
+.update-splash img {
+  width: 96px;
+  height: 96px;
+  border-radius: 22%;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.35));
+}
+.update-splash p {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+@keyframes splash-in {
+  from {
+    opacity: 0;
+  }
+}

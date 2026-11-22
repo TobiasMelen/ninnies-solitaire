@@ -13,7 +13,9 @@ self.addEventListener('fetch', (e) => {
 
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
+      // Always ask the server (the HTTP cache may hold the page for minutes), so opening the
+      // app gets the newest deploy straight away; offline, the stored copy answers.
+      fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' })
         .then((res) => {
           const copy = res.clone();
           caches.open(CACHE).then((c) => c.put(req, copy));
