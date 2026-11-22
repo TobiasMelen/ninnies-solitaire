@@ -163,6 +163,10 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   protected settle() {
     this.thinking = false;
     this.aiShow = null;
+    if (this.counting) {
+      this.counting = null;
+      this.countingPart = null;
+    }
   }
 
   protected cascadeCards() {
@@ -236,16 +240,63 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     this.after('next', s.scored.length ? 1000 : 450, () => this.step());
   }
 
+  /** Scores shown while the final scoring counts up (null otherwise). */
+  private counting: number[] | null = null;
+  /** The kind of feature being counted right now, for the panel. */
+  private countingPart: Part | null = null;
+
+  /**
+   * The end of the game: unfinished roads, then cities, cloisters and fields, counted one by one.
+   * Each lights up and shows what it scores while the totals count up; then the result.
+   */
   private finish() {
     const s = this.state;
+    this.clearSave();
+    const order: Part[] = ['road', 'city', 'cloister', 'field'];
+    const steps = s.scored.filter((x) => x.final).sort((a, b) => order.indexOf(a.part) - order.indexOf(b.part));
+    this.counting = [...s.scores];
+    for (const sc of steps) for (const p of sc.players) this.counting[p] -= sc.points;
     this.render();
-    for (const sc of s.scored.filter((x) => x.final)) this.popScore(sc.tiles, sc.points, sc.players);
+    this.emitHud();
+    // Quicker per feature when there are many, so it never drags.
+    const per = Math.max(320, Math.min(700, 10000 / Math.max(1, steps.length)));
+    let i = 0;
+    const next = () => {
+      const sc = steps[i++];
+      if (!sc) return this.endCount();
+      const fresh = sc.part !== this.countingPart;
+      this.countingPart = sc.part;
+      this.tileEls.forEach((el, k) => el.classList.toggle('counting', sc.tiles.includes(k)));
+      const mid = sc.tiles.reduce((m, k) => ({ x: m.x + s.tiles[k].x / sc.tiles.length, y: m.y + s.tiles[k].y / sc.tiles.length }), { x: 0, y: 0 });
+      this.reveal(Math.round(mid.x), Math.round(mid.y));
+      this.popScore(sc.tiles, sc.points, sc.players);
+      for (const p of sc.players) this.counting![p] += sc.points;
+      sfx.move(1);
+      if (fresh) this.renderPanel();
+      this.emitHud();
+      // A beat longer when moving on to the next kind of feature.
+      this.after('count', steps[i] && steps[i].part !== sc.part ? per + 500 : per, next);
+    };
+    this.after('count', 900, next);
+  }
+
+  private endCount() {
+    this.cancel('count');
+    this.counting = null;
+    this.countingPart = null;
+    this.tileEls.forEach((el) => el.classList.remove('counting'));
+    this.render();
+    this.emitHud();
+    this.showResult();
+  }
+
+  private showResult() {
+    const s = this.state;
     const best = leaders(s);
     const youWon = best.includes(0);
     if (youWon) sfx.win();
     this.hooks.event?.(youWon ? 'win' : 'stuck');
-    this.clearSave();
-    this.after('result', 1600, () =>
+    this.after('result', 900, () =>
       this.hooks.finished({
         title: youWon ? t('win.won') : `${PLAYERS[best[0]].emoji} ${t('landscaper.wins', { who: t(PLAYERS[best[0]].key) })}`,
         line: t('landscaper.resultLine', { n: s.tiles.length }),
@@ -258,7 +309,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   protected emitHud() {
     const s = this.state;
     if (!s) return;
-    const stats: HudStat[] = s.scores.map((n, p) => ({
+    const stats: HudStat[] = (this.counting ?? s.scores).map((n, p) => ({
       label: `${p ? PLAYERS[p].emoji : t('you')} · ${s.followers[p]}♟`,
       value: String(n),
       hot: !s.over && s.turn === p,
@@ -312,6 +363,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     unlockAudio();
     const st = this.stage;
     const act = btn.dataset.act;
+    if (act === 'skip' && this.counting) return this.endCount();
     if (act === 'rotate') return this.rotate();
     if (act === 'place' && st.at === 'lay' && st.ghost) {
       const { x, y, r } = st.ghost;
@@ -611,7 +663,10 @@ export class LandscaperGame extends TableGame<LandscaperState> {
 
     const left = t('landscaper.tilesLeft', { n: s.pile.length + (s.current ? 1 : 0) });
     let body = '';
-    if (s.over) body = `<p>${t('landscaper.gameOver')}</p>`;
+    if (s.over && this.counting)
+      body = `<p>${t('landscaper.gameOver')}${this.countingPart ? ` · ${t(`landscaper.count.${this.countingPart}` as Key)}` : ''}</p>
+        <div class="ls-actions"><button type="button" class="btn" data-act="skip">${t('landscaper.skipCount')}</button></div>`;
+    else if (s.over) body = `<p>${t('landscaper.gameOver')}</p>`;
     else if (s.turn !== 0) body = `<p>${t('landscaper.thinking', { who: `${PLAYERS[s.turn].emoji} ${t(`landscaper.style.${styleFor(s.seed, s.turn).id}` as Key)}` })}</p>`;
     else if (st.at === 'lay')
       body = `<p>${st.ghost ? t('landscaper.turnOrPlace') : t('landscaper.pickSpot')}</p>

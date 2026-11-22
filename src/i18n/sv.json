@@ -226,5 +226,10 @@
   "landscaper.style.builder": "Byggaren",
   "landscaper.style.saboteur": "Sabotören",
   "landscaper.style.longGame": "Långsiktiga bonden",
-  "landscaper.style.opportunist": "Opportunisten"
+  "landscaper.style.opportunist": "Opportunisten",
+  "landscaper.count.road": "Vägar",
+  "landscaper.count.city": "Städer",
+  "landscaper.count.cloister": "Kloster",
+  "landscaper.count.field": "Fält",
+  "landscaper.skipCount": "Hoppa till resultatet"
 }

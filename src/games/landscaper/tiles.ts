@@ -202,7 +202,8 @@ export const KINDS: TileKind[] = [
 ];
 
 /**
- * The river expansion: twelve tiles laid first, from the spring to the lake, before the rest.
+ * The river expansion: thirteen tiles (the classic twelve plus an extra bend) laid first, from
+ * the spring to the lake, before the rest.
  * Ids start with 'r'.
  */
 export const RIVER_KINDS: TileKind[] = [
@@ -222,7 +223,7 @@ export const RIVER_KINDS: TileKind[] = [
   },
   {
     id: 'rC',
-    count: 2,
+    count: 3,
     edges: [W, W, F, F],
     cities: [],
     roads: [],

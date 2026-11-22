@@ -226,5 +226,10 @@
   "landscaper.style.builder": "the Builder",
   "landscaper.style.saboteur": "the Saboteur",
   "landscaper.style.longGame": "the Long-game farmer",
-  "landscaper.style.opportunist": "the Opportunist"
+  "landscaper.style.opportunist": "the Opportunist",
+  "landscaper.count.road": "Roads",
+  "landscaper.count.city": "Cities",
+  "landscaper.count.cloister": "Cloisters",
+  "landscaper.count.field": "Fields",
+  "landscaper.skipCount": "Skip to results"
 }
