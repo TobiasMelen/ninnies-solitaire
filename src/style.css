@@ -1353,7 +1353,13 @@ html.large-print [data-deck='pips'] {
   opacity: 1;
 }
 /* Front-facing poses look the same either way; the side glance is shot looking right. */
-.bunny:not(.facing-right) .pose-aside {
+/* Side glances and pointing were shot facing right; mirrored to face the other way. */
+.bunny:not(.facing-right) :is(.pose-aside, .pose-point) {
+  scale: -1 1;
+}
+/* Peeking was shot looking out left from behind an edge; turned toward the table, it peeks
+   out from behind the screen's side instead. */
+.bunny.facing-right .pose-peek {
   scale: -1 1;
 }
 

@@ -36,7 +36,16 @@ type Pose =
   | 'aside'
   | 'shock'
   | 'love'
-  | 'sleep';
+  | 'sleep'
+  | 'idle6'
+  | 'oops'
+  | 'cheer'
+  | 'point'
+  | 'peek'
+  | 'yawn'
+  | 'nap'
+  | 'surprised'
+  | 'hug';
 
 const POSE_URLS = import.meta.glob<string>('../assets/bunny/*.webp', { eager: true, query: '?url', import: 'default' });
 const poseUrl = (p: Pose) => POSE_URLS[`../assets/bunny/${p}.webp`];
@@ -59,6 +68,15 @@ const FALLBACK: Record<Pose, Pose> = {
   shock: 'angry',
   love: 'happy',
   sleep: 'bored',
+  idle6: 'idle',
+  oops: 'sad',
+  cheer: 'happy',
+  point: 'idea',
+  peek: 'aside',
+  yawn: 'bored',
+  nap: 'sleep',
+  surprised: 'shock',
+  hug: 'love',
 };
 const resolvePose = (p: Pose): Pose => (poseUrl(p) ? p : p === 'idle' ? p : resolvePose(FALLBACK[p]));
 
@@ -119,24 +137,25 @@ const GESTURE: Record<BunnyEvent, string> = {
  * The photos that suit each moment; one is picked at random (back to idle when the gesture
  * ends), so the same kind of move doesn't always get the same face.
  */
-const POSES: Record<BunnyEvent | 'idle' | 'tap' | 'hint' | 'hintTarget' | 'shrug', Pose[]> = {
-  idle: ['idle', 'idle', 'idle2', 'idle3', 'idle4', 'idle5'],
-  start: ['love', 'happy'],
-  move: ['aside', 'aside', 'idle', 'thinking'],
-  reveal: ['aside', 'shock', 'idea'],
-  suit: ['happy', 'love', 'proud'],
-  complete: ['proud', 'happy', 'love'],
-  deal: ['aside', 'thinking', 'idle'],
-  undo: ['sad', 'thinking'],
-  invalid: ['angry', 'sad', 'shock'],
-  blunder: ['thinking', 'shock', 'sad'],
+const POSES: Record<BunnyEvent | 'idle' | 'tap' | 'hint' | 'hintTarget' | 'shrug' | 'sleep', Pose[]> = {
+  idle: ['idle', 'idle', 'idle2', 'idle3', 'idle4', 'idle5', 'idle6'],
+  start: ['love', 'happy', 'hug'],
+  move: ['aside', 'aside', 'idle', 'thinking', 'peek'],
+  reveal: ['aside', 'surprised', 'peek', 'idea', 'shock'],
+  suit: ['happy', 'love', 'proud', 'hug'],
+  complete: ['cheer', 'cheer', 'proud', 'happy', 'love'],
+  deal: ['aside', 'thinking', 'idle', 'peek'],
+  undo: ['sad', 'thinking', 'oops'],
+  invalid: ['angry', 'sad', 'shock', 'oops'],
+  blunder: ['oops', 'oops', 'thinking', 'surprised'],
   stuck: ['sad', 'bored'],
-  win: ['happy', 'proud', 'love'],
-  scare: ['shock', 'angry'],
-  tap: ['thinking', 'love'],
-  hint: ['idea', 'thinking'],
-  hintTarget: ['happy', 'proud'],
-  shrug: ['sad', 'thinking'],
+  win: ['cheer', 'cheer', 'happy', 'proud', 'love'],
+  scare: ['shock', 'surprised', 'angry'],
+  tap: ['thinking', 'love', 'hug'],
+  hint: ['point', 'point', 'idea', 'thinking'],
+  hintTarget: ['point', 'happy', 'proud'],
+  shrug: ['sad', 'thinking', 'oops'],
+  sleep: ['sleep', 'nap'],
 };
 
 const IMPORTANT = new Set<string>(['blunder', 'complete', 'stuck', 'win', 'scare', 'tap', 'hint', 'hintTarget', 'hintDeal', 'invalid']);
@@ -144,6 +163,8 @@ const IMPORTANT = new Set<string>(['blunder', 'complete', 'stuck', 'win', 'scare
 const IDLE_SHIFT_MS = 12_000;
 const BORED_MS = 40_000;
 const SLEEP_MS = 120_000;
+/** It yawns for a moment before dozing off. */
+const YAWN_MS = 2_400;
 const QUIET_MS = 4_000;
 
 export interface HintTarget {
@@ -364,7 +385,11 @@ export class Bunny {
     this.idleTimer = window.setTimeout(() => {
       if (!this.enabled || document.hidden) return;
       this.rest('bored');
-      this.idleTimer = window.setTimeout(() => this.enabled && this.rest('sleep'), SLEEP_MS - BORED_MS);
+      this.idleTimer = window.setTimeout(() => {
+        if (!this.enabled) return;
+        this.rest('yawn');
+        this.idleTimer = window.setTimeout(() => this.enabled && this.rest(this.pick('sleep')), YAWN_MS);
+      }, SLEEP_MS - BORED_MS - YAWN_MS);
     }, BORED_MS);
   }
 
