@@ -5,7 +5,7 @@ import { type Key, t } from '../../i18n';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
 import { ADVISOR, chooseMove, skillFor } from './ai';
-import { PLAYER_COLOURS, followerSvg, spotOf, tileSvg, turnedSpot } from './render';
+import { PLAYER_COLOURS, VARIANTS, followerSvg, spotOf, tileSvg, turnedSpot } from './render';
 import { type LandscaperState, type Move, type Part, analyse, followerSpots, leaders, newGame, placements, play } from './rules';
 
 /** You, then the animals in the order they join. */
@@ -39,6 +39,17 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   private pinch: { dist: number; zoom: number } | null = null;
   private panned = false;
   private thinking = false;
+  /** An opponent's chosen move, shown hovering over its spot before it's laid. */
+  private aiShow: { m: Move; r: number } | null = null;
+  /** Tiles already on the board, by index, so new ones can animate in. */
+  private tileEls: HTMLElement[] = [];
+  /** Followers shown last time (by tile index), to pop in new ones and float off scored ones. */
+  private shownFollowers = new Map<number, { x: number; y: number; html: string }>();
+  /** Which tile the panel last drew, so a newly drawn one flips in. */
+  private drawnKey = '';
+  /** Where the next tile flies in from (board pixels), when it comes from the panel. */
+  private flyFrom: { x: number; y: number } | null = null;
+  private followersEl!: HTMLElement;
 
   constructor(root: HTMLElement, hooks: GameHooks) {
     super(root, hooks, SAVE_KEY);
@@ -47,7 +58,8 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     this.tilesEl = document.createElement('div');
     this.marksEl = document.createElement('div');
     this.popsEl = document.createElement('div');
-    this.world.append(this.tilesEl, this.marksEl, this.popsEl);
+    this.followersEl = document.createElement('div');
+    this.world.append(this.tilesEl, this.followersEl, this.marksEl, this.popsEl);
     this.panel = this.el('ls-panel');
     this.panel.addEventListener('click', (e) => this.onPanel(e));
     root.addEventListener('pointerdown', (e) => this.onDown(e));
@@ -134,6 +146,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
 
   protected settle() {
     this.thinking = false;
+    this.aiShow = null;
   }
 
   protected cascadeCards() {
@@ -159,10 +172,32 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     if (s.turn === 0) return;
     this.thinking = true;
     this.after('ai', this.speed(), () => {
-      this.thinking = false;
       const m = chooseMove(s, Math.random, skillFor(s.seed, s.turn));
-      this.commit(m);
+      // Out of the panel to hover over its spot, turning into place...
+      this.flyFrom = this.panelSpot();
+      this.aiShow = { m, r: 0 };
+      this.reveal(m.x, m.y);
+      this.render();
+      this.after('ai-turn', 380, () => {
+        if (!this.aiShow) return;
+        this.aiShow.r = m.r;
+        this.render();
+        // ...then down it goes.
+        this.after('ai-lay', 420, () => {
+          this.aiShow = null;
+          this.thinking = false;
+          this.commit(m);
+        });
+      });
     });
+  }
+
+  /** The middle of the panel's tile, in board pixels: where drawn tiles fly out from. */
+  private panelSpot() {
+    const el = this.panel.querySelector<HTMLElement>('.ls-preview');
+    const r = (el ?? this.panel).getBoundingClientRect();
+    const w = this.toWorld(r.left + r.width / 2, r.top + r.height / 2);
+    return { x: w.x * TILE, y: w.y * TILE };
   }
 
   /** Play a move (anyone's), show what it scored, and carry on. */
@@ -170,6 +205,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     const s = this.state;
     const who = s.turn;
     play(s, m);
+    if (s.scored.some((x) => !x.final)) window.setTimeout(() => sfx.complete(), 250);
     this.stage = { at: 'lay', ghost: null };
     sfx.drop();
     haptic(8);
@@ -179,7 +215,6 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     if (who !== 0) this.reveal(m.x, m.y);
     for (const sc of s.scored.filter((x) => !x.final)) this.popScore(sc.tiles, sc.points, sc.players);
     if (s.scored.some((x) => !x.final && x.players.includes(0))) {
-      sfx.complete();
       this.hooks.event?.('complete', 0.5);
     } else if (who === 0) this.hooks.event?.(m.f ? 'suit' : 'move', 0.5);
     this.after('next', s.scored.length ? 700 : 250, () => this.step());
@@ -229,6 +264,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     const fits = this.legal().filter((p) => p.x === x && p.y === y);
     if (!fits.length) return;
     if (st.ghost && st.ghost.x === x && st.ghost.y === y) return this.rotate();
+    if (!st.ghost) this.flyFrom = this.panelSpot();
     this.stage = { at: 'lay', ghost: fits[0] };
     sfx.pick();
     haptic(5);
@@ -281,7 +317,11 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     if ((e.target as HTMLElement).closest('.ls-panel')) return;
     unlockAudio();
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY });
-    this.root.setPointerCapture(e.pointerId);
+    try {
+      this.root.setPointerCapture(e.pointerId);
+    } catch {
+      /* the pointer is already gone; a tap still works without capture */
+    }
     if (this.pointers.size === 1) this.panned = false;
     if (this.pointers.size === 2) {
       const [a, b] = [...this.pointers.values()];
@@ -386,52 +426,151 @@ export class LandscaperGame extends TableGame<LandscaperState> {
 
   // ───────────────────────── drawing ─────────────────────────
 
-  protected render(_animate = true) {
+  /** Each spot on the board gets one of the tile's looks, so repeats don't look stamped. */
+  private look(x: number, y: number) {
+    return (((x * 7 + y * 13) % VARIANTS) + VARIANTS) % VARIANTS;
+  }
+
+  private tileEl(k: string, x: number, y: number, r: number, cls = '') {
+    const el = document.createElement('div');
+    el.className = `ls-tile ${cls}`;
+    el.style.cssText = `left:${x * TILE}px;top:${y * TILE}px;width:${TILE}px;height:${TILE}px`;
+    el.innerHTML = `<div class="ls-face" style="rotate:${r * 90}deg">${tileSvg(k, this.look(x, y), r)}</div>`;
+    return el;
+  }
+
+  /** Animate a tile in: flying from the panel if it came from there, else dropping into place. */
+  private arrive(el: HTMLElement, x: number, y: number) {
+    if (this.flyFrom) {
+      el.style.setProperty('--fx', `${this.flyFrom.x - (x + 0.5) * TILE}px`);
+      el.style.setProperty('--fy', `${this.flyFrom.y - (y + 0.5) * TILE}px`);
+      el.classList.add('fly');
+      this.flyFrom = null;
+    } else {
+      el.classList.add('drop');
+    }
+  }
+
+  protected render(animate = true) {
     const s = this.state;
     if (!s) return;
     const st = this.stage;
-    const tileHtml = (k: string, x: number, y: number, r: number, cls = '') =>
-      `<div class="ls-tile ${cls}" style="left:${x * TILE}px;top:${y * TILE}px;width:${TILE}px;height:${TILE}px"><div class="ls-face" style="rotate:${r * 90}deg">${tileSvg(k)}</div></div>`;
-    const follower = (k: string, x: number, y: number, r: number, f: { p: number; part: Part; i: number }, cls = '') => {
-      const [fx, fy] = turnedSpot(spotOf(k, f.part, f.i), r);
-      return `<div class="ls-follower ${cls}" style="left:${x * TILE + (fx / 100) * TILE}px;top:${y * TILE + (fy / 100) * TILE}px">${followerSvg(f.p, f.part)}</div>`;
-    };
 
-    let html = '';
-    const last = s.tiles.length - 1;
+    // Tiles: a new game (or a resumed one) starts over; otherwise only new tiles are added.
+    if (this.tileEls.length > s.tiles.length || !animate) {
+      this.tilesEl.innerHTML = '';
+      this.tileEls = [];
+      this.shownFollowers.clear();
+    }
+    for (let i = this.tileEls.length; i < s.tiles.length; i++) {
+      const tile = s.tiles[i];
+      const el = this.tileEl(tile.k, tile.x, tile.y, tile.r);
+      if (animate && i > 0) this.arrive(el, tile.x, tile.y);
+      this.tilesEl.appendChild(el);
+      this.tileEls.push(el);
+    }
+    this.tileEls.forEach((el, i) => el.classList.toggle('latest', i === s.tiles.length - 1 && i > 0));
+
+    // Followers: new ones pop in; ones that scored float away.
+    const now = new Map<number, { x: number; y: number; html: string }>();
     s.tiles.forEach((tile, i) => {
-      html += tileHtml(tile.k, tile.x, tile.y, tile.r, i === last && s.tiles.length > 1 ? 'latest' : '');
-      if (tile.f) html += follower(tile.k, tile.x, tile.y, tile.r, tile.f);
+      if (!tile.f) return;
+      const [fx, fy] = turnedSpot(spotOf(tile.k, tile.f.part, tile.f.i), tile.r);
+      now.set(i, { x: tile.x * TILE + (fx / 100) * TILE, y: tile.y * TILE + (fy / 100) * TILE, html: followerSvg(tile.f.p, tile.f.part) });
     });
+    this.followersEl.innerHTML = [...now]
+      .map(([i, f]) => `<div class="ls-follower${animate && !this.shownFollowers.has(i) ? ' pop' : ''}" style="left:${f.x}px;top:${f.y}px">${f.html}</div>`)
+      .join('');
+    if (animate) {
+      for (const [i, f] of this.shownFollowers) {
+        if (now.has(i)) continue;
+        const el = document.createElement('div');
+        el.className = 'ls-follower leave';
+        el.style.cssText = `left:${f.x}px;top:${f.y}px`;
+        el.innerHTML = f.html;
+        this.popsEl.appendChild(el);
+        window.setTimeout(() => el.remove(), 900);
+      }
+    }
+    this.shownFollowers = now;
 
-    let marks = '';
+    // Marks: where your tile fits, your tile hovering, follower spots, an opponent's tile.
+    this.marksEl.innerHTML = '';
+    const mark = (el: HTMLElement) => this.marksEl.appendChild(el);
     const myTurn = s.turn === 0 && !s.over && !this.thinking && !!s.current;
     if (myTurn && st.at === 'lay') {
       const cells = new Map<string, { x: number; y: number }>();
       for (const p of this.legal()) cells.set(`${p.x},${p.y}`, p);
-      for (const c of cells.values()) marks += `<div class="ls-open" style="left:${c.x * TILE}px;top:${c.y * TILE}px;width:${TILE}px;height:${TILE}px"></div>`;
-      if (st.ghost) marks += tileHtml(s.current!, st.ghost.x, st.ghost.y, st.ghost.r, 'ghost');
+      for (const c of cells.values()) {
+        const el = document.createElement('div');
+        el.className = 'ls-open';
+        el.style.cssText = `left:${c.x * TILE}px;top:${c.y * TILE}px;width:${TILE}px;height:${TILE}px`;
+        mark(el);
+      }
+      if (st.ghost) {
+        // The same element while it stays on one square, so turning it animates.
+        const at = `${st.ghost.x},${st.ghost.y}`;
+        let g = this.ghostEl;
+        if (g && g.dataset.at === at) g.querySelector<HTMLElement>('.ls-face')!.style.rotate = `${st.ghost.r * 90}deg`;
+        else {
+          g = this.tileEl(s.current!, st.ghost.x, st.ghost.y, st.ghost.r, 'ghost');
+          g.dataset.at = at;
+          if (this.flyFrom) this.arrive(g, st.ghost.x, st.ghost.y);
+          this.ghostEl = g;
+        }
+        mark(g);
+      } else this.ghostEl = null;
     }
     if (myTurn && st.at === 'follow') {
-      marks += tileHtml(s.current!, st.x, st.y, st.r, 'ghost placed');
+      mark(this.tileEl(s.current!, st.x, st.y, st.r, 'ghost placed'));
       const laid = this.laid(st.x, st.y, st.r);
       for (const sp of followerSpots(laid, analyse(laid))) {
         const [fx, fy] = turnedSpot(spotOf(s.current!, sp.part, sp.i), st.r);
         const on = st.pick?.part === sp.part && st.pick.i === sp.i;
-        marks += `<div class="ls-spot${on ? ' on' : ''}" data-part="${sp.part}" data-i="${sp.i}" style="left:${st.x * TILE + (fx / 100) * TILE}px;top:${st.y * TILE + (fy / 100) * TILE}px">${on ? followerSvg(0, sp.part) : ''}</div>`;
+        const el = document.createElement('div');
+        el.className = `ls-spot${on ? ' on' : ''}`;
+        el.dataset.part = sp.part;
+        el.dataset.i = String(sp.i);
+        el.style.cssText = `left:${st.x * TILE + (fx / 100) * TILE}px;top:${st.y * TILE + (fy / 100) * TILE}px`;
+        el.innerHTML = on ? followerSvg(0, sp.part) : '';
+        mark(el);
       }
     }
-    this.tilesEl.innerHTML = html;
-    this.marksEl.innerHTML = marks;
+    if (this.aiShow && s.current) {
+      const { m, r } = this.aiShow;
+      const el = this.tileEl(s.current, m.x, m.y, r, 'ghost hover');
+      if (this.flyFrom) this.arrive(el, m.x, m.y);
+      // Keep the element between steps so the turn animates.
+      const prev = this.hoverEl;
+      if (prev && prev.dataset.at === `${m.x},${m.y}`) {
+        prev.querySelector<HTMLElement>('.ls-face')!.style.rotate = `${r * 90}deg`;
+        mark(prev);
+      } else {
+        el.dataset.at = `${m.x},${m.y}`;
+        this.hoverEl = el;
+        mark(el);
+      }
+    } else {
+      this.hoverEl = null;
+    }
     this.renderPanel();
     this.applyView();
   }
+
+  private hoverEl: HTMLElement | null = null;
+  private ghostEl: HTMLElement | null = null;
 
   private renderPanel() {
     const s = this.state;
     const st = this.stage;
     const left = t('landscaper.tilesLeft', { n: s.pile.length + (s.current ? 1 : 0) });
-    const preview = s.current ? `<div class="ls-preview" style="rotate:${(st.at === 'lay' ? (st.ghost?.r ?? 0) : st.r) * 90}deg">${tileSvg(s.current)}</div>` : '';
+    const key = `${s.tiles.length}:${s.current}`;
+    const fresh = key !== this.drawnKey;
+    this.drawnKey = key;
+    const shown = this.aiShow ? null : s.current;
+    const turned = (st.at === 'lay' ? (st.ghost?.r ?? 0) : st.r) * (s.turn === 0 ? 1 : 0);
+    const pile = `<div class="ls-pile" aria-hidden="true">${'<i></i>'.repeat(Math.min(4, Math.ceil(s.pile.length / 18)))}</div>`;
+    const preview = `${pile}<div class="ls-preview${shown ? '' : ' empty'}${fresh ? ' draw' : ''}" style="rotate:${turned * 90}deg">${shown ? tileSvg(shown) : ''}</div>`;
     let body = '';
     if (s.over) body = `<p>${t('landscaper.gameOver')}</p>`;
     else if (s.turn !== 0) body = `<p>${t('landscaper.thinking', { who: PLAYERS[s.turn].emoji })}</p>`;
