@@ -37,22 +37,61 @@ const MID = [
 
 const turn = (deg: number) => (deg ? ` transform="rotate(${deg} 50 50)"` : '');
 
-/** A city part's shape: its filled area, and the open wall line (not along the tile's edges). */
-function cityShape(edges: number[]): { fill: string; wall: string; deg: number } {
+type Pt = [number, number];
+type Curve = [Pt, Pt, Pt, Pt];
+
+/**
+ * A city part's shape: its filled area, the wall curves (inside the tile, not along its edges),
+ * where towers stand on them (as fractions along each curve), and the turn that puts it in place.
+ */
+function cityShape(edges: number[]): { fill: string; walls: Curve[]; towers: number[]; deg: number } {
   const e = [...edges].sort();
-  if (e.length === 4) return { fill: 'M0 0H100V100H0Z', wall: '', deg: 0 };
+  if (e.length === 4) return { fill: 'M0 0H100V100H0Z', walls: [], towers: [], deg: 0 };
   if (e.length === 3) {
     const missing = [0, 1, 2, 3].find((x) => !e.includes(x))!;
-    return { fill: 'M0 0H100V100C70 68 30 68 0 100Z', wall: 'M100 100C70 68 30 68 0 100', deg: (missing - 2) * 90 };
+    return { fill: 'M0 0H100V100C70 68 30 68 0 100Z', walls: [[[100, 100], [70, 68], [30, 68], [0, 100]]], towers: [0.3, 0.7], deg: (missing - 2) * 90 };
   }
   if (e.length === 2 && (e[1] - e[0]) % 2 === 0) {
-    return { fill: 'M0 0C30 28 70 28 100 0V100C70 72 30 72 0 100Z', wall: 'M0 0C30 28 70 28 100 0M100 100C70 72 30 72 0 100', deg: e[0] === 0 ? 90 : 0 };
+    return {
+      fill: 'M0 0C30 28 70 28 100 0V100C70 72 30 72 0 100Z',
+      walls: [
+        [[0, 0], [30, 28], [70, 28], [100, 0]],
+        [[100, 100], [70, 72], [30, 72], [0, 100]],
+      ],
+      towers: [0.5],
+      deg: e[0] === 0 ? 90 : 0,
+    };
   }
   if (e.length === 2) {
     const first = e[0] === 0 && e[1] === 3 ? 3 : e[0];
-    return { fill: 'M0 0H100C60 25 25 60 0 100Z', wall: 'M100 0C60 25 25 60 0 100', deg: ((first - 3 + 4) % 4) * 90 };
+    return { fill: 'M0 0H100C60 25 25 60 0 100Z', walls: [[[100, 0], [60, 25], [25, 60], [0, 100]]], towers: [0.3, 0.7], deg: ((first - 3 + 4) % 4) * 90 };
   }
-  return { fill: 'M0 0H100C78 32 22 32 0 0Z', wall: 'M100 0C78 32 22 32 0 0', deg: e[0] * 90 };
+  return { fill: 'M0 0H100C78 32 22 32 0 0Z', walls: [[[100, 0], [78, 32], [22, 32], [0, 0]]], towers: [0.5], deg: e[0] * 90 };
+}
+
+const curveD = ([a, b, c, d]: Curve) => `M${a[0]} ${a[1]}C${b[0]} ${b[1]} ${c[0]} ${c[1]} ${d[0]} ${d[1]}`;
+function onCurve([a, b, c, d]: Curve, t: number): Pt {
+  const u = 1 - t;
+  const w = [u * u * u, 3 * u * u * t, 3 * u * t * t, t * t * t];
+  return [w[0] * a[0] + w[1] * b[0] + w[2] * c[0] + w[3] * d[0], w[0] * a[1] + w[1] * b[1] + w[2] * c[1] + w[3] * d[1]];
+}
+
+/** Points along a road's middle, for pebbles. */
+function roadPoints(edges: number[], k: TileKind, n: number): Pt[] {
+  const [a, b] = edges;
+  const [x1, y1] = MID[a];
+  const end: Pt =
+    b !== undefined ? [MID[b][0], MID[b][1]] : (() => {
+      const stop = k.cloister ? 0.7 : k.roads.length === 1 ? 0.5 : 1;
+      return [x1 + (50 - x1) * stop, y1 + (50 - y1) * stop];
+    })();
+  const curved = b !== undefined && (b - a) % 2 !== 0;
+  return Array.from({ length: n }, (_, i) => {
+    const t = (i + 0.5) / n;
+    if (!curved) return [x1 + (end[0] - x1) * t, y1 + (end[1] - y1) * t];
+    const u = 1 - t;
+    return [u * u * x1 + 2 * u * t * 50 + t * t * end[0], u * u * y1 + 2 * u * t * 50 + t * t * end[1]];
+  });
 }
 
 function roadPath(edges: number[], k: TileKind): string {
@@ -92,10 +131,41 @@ function countryside(rand: () => number) {
     const y = 10 + rand() * 80;
     out += `<g><ellipse cx="${f1(x + 1)}" cy="${f1(y + 2.5)}" rx="5" ry="2" fill="rgba(0,0,0,.15)"/><circle cx="${f1(x - 2)}" cy="${f1(y)}" r="3" fill="${COL.bush}"/><circle cx="${f1(x + 2)}" cy="${f1(y - 0.5)}" r="3.4" fill="${COL.bush}"/><circle cx="${f1(x + 0.6)}" cy="${f1(y - 1.6)}" r="2" fill="${COL.bushLight}"/></g>`;
   }
+  if (rand() < 0.25) {
+    // A strip of crops, rows and all.
+    const x = 14 + rand() * 50;
+    const y = 14 + rand() * 50;
+    const tilt = Math.round(rand() * 40 - 20);
+    out += `<g transform="rotate(${tilt} ${f1(x + 12)} ${f1(y + 8)})"><rect x="${f1(x)}" y="${f1(y)}" width="24" height="16" rx="2" fill="#d9c36a"/>${[3, 7, 11].map((d) => `<path d="M${f1(x + 2)} ${f1(y + d + 0.5)}h20" stroke="#bfa24a" stroke-width="1.4" stroke-linecap="round"/>`).join('')}</g>`;
+  }
+  if (rand() < 0.16) {
+    const x = 18 + rand() * 64;
+    const y = 18 + rand() * 64;
+    out += `<g><ellipse cx="${f1(x)}" cy="${f1(y)}" rx="9" ry="5.5" fill="#6ea1c4" stroke="#5a8a4a" stroke-width="1.4"/><ellipse cx="${f1(x - 2.5)}" cy="${f1(y - 1.5)}" rx="4" ry="1.4" fill="#a9d0e8" opacity=".8"/><circle cx="${f1(x + 5)}" cy="${f1(y + 1)}" r="1.3" fill="#7fbf6a"/></g>`;
+  }
+  for (let i = 0; i < 4; i++) {
+    const x = 8 + rand() * 84;
+    const y = 8 + rand() * 84;
+    const c = blooms[Math.floor(rand() * blooms.length)];
+    out += [0, 1, 2].map((j) => `<circle cx="${f1(x + Math.cos(j * 2.1) * 1.8)}" cy="${f1(y + Math.sin(j * 2.1) * 1.8)}" r="1" fill="${c}"/>`).join('');
+  }
   if (rand() < 0.7) {
     const x = 12 + rand() * 76;
     const y = 14 + rand() * 72;
-    out += `<g><ellipse cx="${f1(x + 2)}" cy="${f1(y + 7)}" rx="6" ry="2.2" fill="rgba(0,0,0,.18)"/><rect x="${f1(x - 1)}" y="${f1(y + 1)}" width="2" height="6" rx=".6" fill="${COL.trunk}"/><circle cx="${f1(x)}" cy="${f1(y - 2)}" r="6" fill="${COL.bush}"/><circle cx="${f1(x - 1.8)}" cy="${f1(y - 3.6)}" r="3.2" fill="${COL.bushLight}"/></g>`;
+    out +=
+      rand() < 0.5
+        ? `<g><ellipse cx="${f1(x + 2)}" cy="${f1(y + 7)}" rx="6" ry="2.2" fill="rgba(0,0,0,.18)"/><rect x="${f1(x - 1)}" y="${f1(y + 1)}" width="2" height="6" rx=".6" fill="${COL.trunk}"/><circle cx="${f1(x)}" cy="${f1(y - 2)}" r="6" fill="${COL.bush}"/><circle cx="${f1(x - 1.8)}" cy="${f1(y - 3.6)}" r="3.2" fill="${COL.bushLight}"/></g>`
+        : `<g><ellipse cx="${f1(x + 2)}" cy="${f1(y + 6)}" rx="5" ry="2" fill="rgba(0,0,0,.18)"/><path d="M${f1(x)} ${f1(y - 9)}L${f1(x + 5)} ${f1(y + 1)}H${f1(x - 5)}Z" fill="#4f7f37"/><path d="M${f1(x)} ${f1(y - 5)}L${f1(x + 6)} ${f1(y + 5)}H${f1(x - 6)}Z" fill="#5c8f3d"/><rect x="${f1(x - 0.8)}" y="${f1(y + 5)}" width="1.6" height="2.4" fill="${COL.trunk}"/></g>`;
+  }
+  if (rand() < 0.3) {
+    // A sheep or two.
+    const n = 1 + Math.floor(rand() * 2);
+    for (let i = 0; i < n; i++) {
+      const x = 15 + rand() * 70;
+      const y = 15 + rand() * 70;
+      const flip = rand() < 0.5 ? -1 : 1;
+      out += `<g transform="translate(${f1(x)} ${f1(y)}) scale(${flip} 1)"><ellipse cx="0" cy="2.6" rx="3.4" ry="1" fill="rgba(0,0,0,.15)"/><ellipse cx="0" cy="0" rx="3.2" ry="2.3" fill="#fbf8f0" stroke="#bdb6a6" stroke-width=".4"/><ellipse cx="3" cy="-.6" rx="1.3" ry="1.1" fill="#3b332b"/><path d="M-1.6 2v1.2M1.4 2v1.2" stroke="#3b332b" stroke-width=".6"/></g>`;
+    }
   }
   return out;
 }
@@ -109,7 +179,8 @@ function townHouses(rand: () => number, big: boolean) {
       const jy = y + (rand() - 0.5) * 3;
       const w = 8 + rand() * 3;
       const roof = COL.roofs[Math.floor(rand() * COL.roofs.length)];
-      out += `<g><rect x="${f1(jx)}" y="${f1(jy + 3)}" width="${f1(w)}" height="6" fill="${COL.house}" stroke="${COL.wall}" stroke-width=".6"/><path d="M${f1(jx - 1)} ${f1(jy + 3.4)}L${f1(jx + w / 2)} ${f1(jy - 1.5)}L${f1(jx + w + 1)} ${f1(jy + 3.4)}Z" fill="${roof}" stroke="${COL.wall}" stroke-width=".6" stroke-linejoin="round"/><rect x="${f1(jx + w / 2 - 0.9)}" y="${f1(jy + 5.6)}" width="1.8" height="3.4" fill="${COL.wall}"/></g>`;
+      const chimney = rand() < 0.5 ? `<rect x="${f1(jx + w * 0.7)}" y="${f1(jy - 0.6)}" width="1.4" height="2.6" fill="${COL.wall}"/>` : '';
+      out += `<g>${chimney}<rect x="${f1(jx)}" y="${f1(jy + 3)}" width="${f1(w)}" height="6" fill="${COL.house}" stroke="${COL.wall}" stroke-width=".6"/><path d="M${f1(jx - 1)} ${f1(jy + 3.4)}L${f1(jx + w / 2)} ${f1(jy - 1.5)}L${f1(jx + w + 1)} ${f1(jy + 3.4)}Z" fill="${roof}" stroke="${COL.wall}" stroke-width=".6" stroke-linejoin="round"/><path d="M${f1(jx + w / 2)} ${f1(jy - 1.5)}L${f1(jx + w + 1)} ${f1(jy + 3.4)}H${f1(jx + w / 2)}Z" fill="rgba(0,0,0,.14)"/><rect x="${f1(jx + w / 2 - 0.9)}" y="${f1(jy + 5.6)}" width="1.8" height="3.4" fill="${COL.wall}"/><rect x="${f1(jx + 1.2)}" y="${f1(jy + 4.6)}" width="1.6" height="1.6" fill="#f6d983"/></g>`;
     }
   }
   if (big) {
@@ -119,13 +190,16 @@ function townHouses(rand: () => number, big: boolean) {
 }
 
 function shield(x: number, y: number) {
-  return `<g transform="translate(${f1(x)} ${f1(y)})"><path d="M-5 -6h10v6c0 4.2-5 7-5 7s-5-2.8-5-7z" fill="${COL.shield}" stroke="#fff" stroke-width="1.2"/><path d="M-4.2 -1.2L4.2 -4.6V-2.6L-4.2 .8Z" fill="#fff" opacity=".85"/></g>`;
+  return `<g transform="translate(${f1(x)} ${f1(y)})"><path d="M-5 -6h10v6c0 4.2-5 7-5 7s-5-2.8-5-7z" fill="${COL.shield}" stroke="#e8c45a" stroke-width="1.3"/><path d="M-4.2 -1.2L4.2 -4.6V-2.6L-4.2 .8Z" fill="#fff" opacity=".85"/></g>`;
 }
 
 /** The chapel in the middle of a cloister tile: nave, bell tower, cross, and a vegetable garden. */
 const CHAPEL = `<g stroke="${COL.wall}" stroke-width=".8" stroke-linejoin="round">
   <ellipse cx="50" cy="66" rx="20" ry="4" fill="rgba(0,0,0,.18)" stroke="none"/>
+  <path d="M51 66Q49 74 50 82" stroke="#d9c79c" stroke-width="3.5" fill="none" stroke-linecap="round"/>
   <rect x="26" y="66" width="14" height="12" rx="1.5" fill="#7b5a36"/><path d="M28 69h10M28 72h10M28 75h10" stroke="#9ccf6b" stroke-width="1.3"/>
+  <path d="M24.5 64.5h17v15h-17z" fill="none" stroke="#f3ead2" stroke-width=".9" stroke-dasharray="1.6 1.2"/>
+  <circle cx="68" cy="70" r="1.2" fill="#f2a5b5" stroke="none"/><circle cx="71" cy="72" r="1.2" fill="#f6d55c" stroke="none"/><circle cx="66" cy="73" r="1.2" fill="#fff8e6" stroke="none"/>
   <rect x="40" y="48" width="22" height="18" fill="#f0e4c6"/><path d="M38 49L51 38L64 49Z" fill="${COL.roofs[0]}"/>
   <rect x="54" y="36" width="9" height="30" fill="#e9dcbd"/><path d="M52.5 36.5L58.5 26L64.5 36.5Z" fill="${COL.roofs[2]}"/>
   <path d="M58.5 26V20M56.4 22.2h4.2" stroke="${COL.wall}" stroke-width="1.1" fill="none"/>
@@ -165,8 +239,32 @@ export function tileSvg(id: string, variant = 0, r = 0): string {
         <g fill="${COL.cobble}" opacity=".6">${Array.from({ length: 30 }, () => `<rect x="${f1(rand() * 100)}" y="${f1(rand() * 100)}" width="3" height="2" rx=".8"/>`).join('')}</g>
         ${townHouses(rand, big)}
       </g>
-      ${shape.wall ? `<g fill="none"${turn(shape.deg)}><path d="${shape.wall}" stroke="${COL.wall}" stroke-width="5.5" stroke-linecap="round"/><path d="${shape.wall}" stroke="${COL.wallTop}" stroke-width="2.6" stroke-dasharray="3.2 1.8"/></g>` : ''}`;
+      ${
+        shape.walls.length
+          ? `<g${turn(shape.deg)}><g fill="none">${shape.walls
+              .map(
+                (w) =>
+                  `<path d="${curveD(w)}" stroke="${COL.wall}" stroke-width="6.5" stroke-linecap="round"/><path d="${curveD(w)}" stroke="#b9a57c" stroke-width="4.2"/><path d="${curveD(w)}" stroke="${COL.wallTop}" stroke-width="4.2" stroke-dasharray="2.4 2.2"/>`,
+              )
+              .join('')}</g>${shape.walls
+              .flatMap((w) => shape.towers.map((t) => onCurve(w, t)))
+              .map(([x, y]) => `<g><circle cx="${f1(x)}" cy="${f1(y)}" r="4.6" fill="${COL.wallTop}" stroke="${COL.wall}" stroke-width="1"/><circle cx="${f1(x)}" cy="${f1(y)}" r="3" fill="${COL.roofs[2]}" stroke="${COL.wall}" stroke-width=".5"/><circle cx="${f1(x - 0.9)}" cy="${f1(y - 0.9)}" r=".9" fill="rgba(255,255,255,.4)"/></g>`)
+              .join('')}</g>`
+          : ''
+      }`;
     })
+    .join('');
+  // A road running into a city on this tile goes through a gatehouse.
+  const gates =
+    k.cities.length && !k.cloister && k.roads.length === 1
+      ? k.roads
+          .filter((r) => r.edges.length === 1)
+          .map((r) => `<g transform="rotate(${(r.edges[0] - 2) * 90} 50 50)"><rect x="43.5" y="69" width="13" height="8" rx="1" fill="${COL.wallTop}" stroke="${COL.wall}" stroke-width="1"/><path d="M46.5 77v-4a3.5 3.5 0 0 1 7 0v4z" fill="#4a3a26"/><path d="M43.5 69v-2h2v2M48 69v-2h2v2M52.5 69v-2h2v2" fill="${COL.wallTop}" stroke="${COL.wall}" stroke-width=".7"/></g>`)
+          .join('')
+      : '';
+  const pebbles = k.roads
+    .flatMap((r) => roadPoints(r.edges, k, 9))
+    .map(([x, y]) => `<circle cx="${f1(x + (rand() - 0.5) * 7)}" cy="${f1(y + (rand() - 0.5) * 7)}" r="${f1(0.5 + rand() * 0.5)}" fill="#bba98a"/>`)
     .join('');
   const shields = k.cities
     .filter((c) => c.shield)
@@ -179,11 +277,14 @@ export function tileSvg(id: string, variant = 0, r = 0): string {
   <rect width="100" height="100" fill="${COL.field}"/>
   <circle cx="${f1(20 + rand() * 60)}" cy="${f1(20 + rand() * 60)}" r="38" fill="${COL.fieldLight}" opacity=".45"/>
   ${countryside(rand)}
-  ${roads.length ? `${roadLayer(COL.roadEdge, 15)}${roadLayer(COL.road, 11)}${roadLayer(COL.rut, 1.1, ' stroke-dasharray="2.4 3"')}` : ''}
+  ${roads.length ? `${roadLayer('rgba(70,110,40,.3)', 19)}${roadLayer(COL.roadEdge, 15)}${roadLayer(COL.road, 11)}${roadLayer(COL.rut, 1.1, ' stroke-dasharray="2.4 3"')}${pebbles}` : ''}
   ${k.roads.length > 2 ? level(WELL) : ''}
   ${cities}
+  ${gates}
   ${shields}
   ${k.cloister ? level(CHAPEL) : ''}
+  <radialGradient id="lv"><stop offset=".62" stop-color="#2a1d0e" stop-opacity="0"/><stop offset="1" stop-color="#2a1d0e" stop-opacity=".2"/></radialGradient>
+  <rect width="100" height="100" fill="url(#lv)"/>
   <rect x=".6" y=".6" width="98.8" height="98.8" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="1.2"/>
   <rect width="100" height="100" fill="none" stroke="rgba(0,0,0,.22)" stroke-width=".8"/>
 </svg>`;

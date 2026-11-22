@@ -839,9 +839,6 @@ html.large-print [data-deck='pips'] {
   width: 64px;
   height: 64px;
   border-radius: 6px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-  transition: rotate 220ms var(--ease-out);
 }
 /* The face-down pile beside your tile: a little stack that shrinks as the game goes on. */
 .ls-pile {
@@ -868,18 +865,51 @@ html.large-print [data-deck='pips'] {
   background: rgba(0, 0, 0, 0.08);
   box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.12);
 }
-/* A newly drawn tile flips up off the pile. */
-.ls-preview.draw {
-  animation: ls-draw 520ms cubic-bezier(0.25, 0.9, 0.3, 1.05) both;
+/* The tile in the tray: a card that's pulled off the pile and flips face up, then turns with you. */
+.ls-preview {
+  perspective: 500px;
+  transition: rotate 340ms cubic-bezier(0.3, 1.35, 0.5, 1);
+}
+.ls-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+}
+.ls-card-front,
+.ls-card-back {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  backface-visibility: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.ls-card-back {
+  transform: rotateY(180deg);
+  background: linear-gradient(135deg, #6f8f4d, #4d6b33);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.ls-preview.empty .ls-card {
+  visibility: hidden;
+}
+.ls-card-front svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ls-card.draw {
+  animation: ls-draw 620ms cubic-bezier(0.25, 0.9, 0.3, 1) both;
 }
 @keyframes ls-draw {
   from {
-    transform: translate(-34px, 10px) scale(0.45) rotateY(90deg);
-    opacity: 0;
+    transform: translate(-40px, 14px) scale(0.5) rotateY(180deg);
+  }
+  55% {
+    transform: translate(-8px, -10px) scale(1.12) rotateY(40deg);
   }
   to {
     transform: none;
-    opacity: 1;
   }
 }
 .ls-info {
