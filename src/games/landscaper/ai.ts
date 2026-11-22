@@ -13,10 +13,10 @@ export interface Skill {
   followerValue: number;
 }
 
-// Tuned so a casual player has a fair game: even the sharp one judges with a little noise.
-export const EASY: Skill = { noise: 14, followerValue: 0.3 };
-export const STEADY: Skill = { noise: 6, followerValue: 0.9 };
-export const SHARP: Skill = { noise: 2.5, followerValue: 1.3 };
+// Between full strength and the gentlest tuning: a real challenge, still beatable.
+export const EASY: Skill = { noise: 9, followerValue: 0.45 };
+export const STEADY: Skill = { noise: 3.5, followerValue: 1.05 };
+export const SHARP: Skill = { noise: 1.2, followerValue: 1.4 };
 /** The Hint Bunny's advice: the best it can see, no noise. */
 export const ADVISOR: Skill = { noise: 0, followerValue: 1.5 };
 
