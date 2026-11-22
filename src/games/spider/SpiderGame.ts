@@ -23,7 +23,7 @@ import {
   replay,
   runStart,
 } from './rules';
-import { type Step, plan } from './hint';
+import { type Step, moveCost, plan } from './hint';
 
 export interface Stats {
   played: Record<SuitCount, number>;
@@ -92,6 +92,8 @@ const DOUBLE_TAP_MS = 380;
 
 
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+/** How much a move may cost (in the planner's points, about two suited links) before it counts as a mistake. */
+const MISTAKE = 25;
 
 export class SpiderGame implements GameController {
   readonly id = 'spider' as const;
@@ -281,8 +283,10 @@ export class SpiderGame implements GameController {
       this.colSlots.forEach((s, i) => !this.state.columns[i].length && flash(s, 'attention'));
       return;
     }
+    const before = structuredClone(this.state);
     const ids = this.commit({ t: 'deal' });
     this.hooks.event?.('deal', 1);
+    this.judge(before, { t: 'deal' }, 1);
     const step = this.fast ? 20 : 55;
     ids.forEach((_, i) => sfx.deal((i * step) / 1000));
     haptic(10);
@@ -388,11 +392,26 @@ export class SpiderGame implements GameController {
     if (fromDrag) sfx.drop();
     else sfx.move(ids.length, landAt);
     haptic(8);
+    const before = structuredClone(this.state);
     const flipped = this.commit({ t: 'move', from, index, to });
     if (flipped.length) sfx.flip(fromDrag ? 0.1 : landAt + 0.05);
     this.render({ delay: (id) => (fromDrag ? 0 : Math.max(0, ids.indexOf(id)) * 18) });
     this.hooks.event?.(flipped.length ? 'reveal' : sameSuit ? 'suit' : 'move', this.colFraction(to));
     this.settleLater(fromDrag ? 200 : 260 + ids.length * 18);
+    if (!flipped.length) this.judge(before, { t: 'move', from, index, to }, this.colFraction(to));
+  }
+
+  /**
+   * After the move has landed, the Hint Bunny looks it over and frowns at one that threw away
+   * something better (breaking up a run for nothing, filling an empty column, dealing with good
+   * moves still on the table). Hinted moves are never frowned at.
+   */
+  private judge(before: SpiderState, a: Step, x: number) {
+    const moves = this.actions.length;
+    window.setTimeout(() => {
+      if (this.actions.length !== moves || this.celebrating) return;
+      if (moveCost(before, a) > MISTAKE) this.hooks.event?.('blunder', x);
+    }, 450);
   }
 
   /** Completed runs fly off after the move has visibly landed. */

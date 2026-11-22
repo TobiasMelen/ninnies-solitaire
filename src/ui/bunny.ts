@@ -14,6 +14,7 @@ export type BunnyEvent =
   | 'deal'
   | 'undo'
   | 'invalid'
+  | 'blunder'
   | 'stuck'
   | 'win'
   | 'scare';
@@ -73,6 +74,7 @@ const POPS: Record<BunnyEvent | 'tap' | 'hint' | 'hintTarget' | 'hintDeal', Pop[
   deal: [{ icon: '🃏' }],
   undo: [{ icon: '🙈' }],
   invalid: [{ icon: '💔' }],
+  blunder: [{ icon: '🤔' }, { icon: '😬' }],
   stuck: [{ icon: '😵' }, { icon: '💧' }, { icon: '😿' }],
   win: [{ icon: '🏆', big: true, burst: true }, { icon: '🌈', big: true, burst: true }],
   scare: [{ icon: '😱', big: true }],
@@ -92,6 +94,7 @@ const CHANCE: Record<BunnyEvent, number> = {
   deal: 0.35,
   undo: 0.6,
   invalid: 0.8,
+  blunder: 0.8,
   stuck: 1,
   win: 1,
   scare: 1,
@@ -106,6 +109,7 @@ const GESTURE: Record<BunnyEvent, string> = {
   deal: 'twitch',
   undo: 'tilt',
   invalid: 'shake',
+  blunder: 'tilt',
   stuck: 'sad',
   win: 'party',
   scare: 'shake',
@@ -125,6 +129,7 @@ const POSES: Record<BunnyEvent | 'idle' | 'tap' | 'hint' | 'hintTarget' | 'shrug
   deal: ['aside', 'thinking', 'idle'],
   undo: ['sad', 'thinking'],
   invalid: ['angry', 'sad', 'shock'],
+  blunder: ['thinking', 'shock', 'sad'],
   stuck: ['sad', 'bored'],
   win: ['happy', 'proud', 'love'],
   scare: ['shock', 'angry'],
@@ -134,7 +139,7 @@ const POSES: Record<BunnyEvent | 'idle' | 'tap' | 'hint' | 'hintTarget' | 'shrug
   shrug: ['sad', 'thinking'],
 };
 
-const IMPORTANT = new Set<string>(['complete', 'stuck', 'win', 'scare', 'tap', 'hint', 'hintTarget', 'hintDeal', 'invalid']);
+const IMPORTANT = new Set<string>(['blunder', 'complete', 'stuck', 'win', 'scare', 'tap', 'hint', 'hintTarget', 'hintDeal', 'invalid']);
 /** Left alone, it gets bored, and a while later falls asleep (until anything happens). */
 const IDLE_SHIFT_MS = 12_000;
 const BORED_MS = 40_000;

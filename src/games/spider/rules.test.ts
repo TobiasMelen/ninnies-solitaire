@@ -12,7 +12,7 @@ import {
   runStart,
   type SpiderState,
 } from './rules';
-import { plan } from './hint';
+import { moveCost, plan } from './hint';
 
 let nextId = 1000;
 const c = (rank: number, suit: Suit = 'S', faceUp = true): Card => ({ id: nextId++, rank, suit, faceUp });
@@ -154,5 +154,26 @@ describe('hint planner', () => {
 
   it('lets you deal when there are too few cards to fill every column', () => {
     expect(dealBlocked(board([[c(13)], [c(5)]], [c(1)]))).toBeNull();
+  });
+});
+
+describe('spotting mistakes', () => {
+  it('never counts the hinted move as a mistake', () => {
+    for (const seed of [11, 22, 33]) {
+      const s = newGame(seed, 2);
+      for (let k = 0; k < 15; k++) {
+        const [step] = plan(s);
+        if (!step) break;
+        expect(moveCost(s, step)).toBeLessThan(1);
+        applyAction(s, step);
+        completeRuns(s);
+      }
+    }
+  });
+
+  it('counts dealing as a mistake when a card could have been turned over first', () => {
+    const cols = [[c(9, 'S', false), c(5)], [c(6)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)], [c(13)]];
+    const s = board(cols, Array.from({ length: 10 }, () => c(1)));
+    expect(moveCost(s, { t: 'deal' })).toBeGreaterThan(25);
   });
 });

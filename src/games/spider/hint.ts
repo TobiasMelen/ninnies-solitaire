@@ -1,4 +1,4 @@
-import { type SpiderState, dealBlocked } from './rules';
+import { type SpiderState, applyAction, completeRuns, dealBlocked } from './rules';
 
 /**
  * The Hint Bunny's planner for Spider.
@@ -174,8 +174,8 @@ function expand(n: Node, out: Node[]) {
   }
 }
 
-/** The moves to the best position within reach, or none if the current one is already the best. */
-export function bestLine(s: SpiderState, width = BEAM_WIDTH, maxDepth = MAX_DEPTH): Step[] {
+/** Searches from a position for the best one within reach; null when it's the position itself. */
+function search(s: SpiderState, width: number, maxDepth: number) {
   const root = rootOf(s);
   const seen = new Set<number>([keyOf(root)]);
   let best: Node | null = null;
@@ -202,9 +202,31 @@ export function bestLine(s: SpiderState, width = BEAM_WIDTH, maxDepth = MAX_DEPT
     }
     level = next;
   }
+  return { best: best as Node | null, bestValue };
+}
+
+/** The moves to the best position within reach, or none if the current one is already the best. */
+export function bestLine(s: SpiderState, width = BEAM_WIDTH, maxDepth = MAX_DEPTH): Step[] {
   const line: Step[] = [];
-  for (let n = best; n?.move; n = n.parent) line.unshift(n.move);
+  for (let n = search(s, width, maxDepth).best; n?.move; n = n.parent) line.unshift(n.move);
   return line;
+}
+
+/** How good a position is, counting the best it can lead to without new cards turning up. */
+const potential = (s: SpiderState) => search(s, BEAM_WIDTH, MAX_DEPTH).bestValue;
+
+/**
+ * How much worse a move left things than they could have been: 0 for a fine move, more the
+ * worse it was. Moves that turn a card over aren't judged (what turned up changes everything),
+ * nor are deals while no better move was there to make.
+ */
+export function moveCost(before: SpiderState, a: Step): number {
+  const could = potential(before);
+  if (a.t === 'deal') return Math.max(0, could - rootOf(before).ev);
+  const after = structuredClone(before);
+  if (applyAction(after, a).length) return 0;
+  if (completeRuns(after).some((c) => c.flipped !== null)) return 0;
+  return Math.max(0, could - potential(after));
 }
 
 /**
