@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import { type Card, type Suit, mulberry32, shuffle } from '../../core/cards';
 
 /** 0 = you (south), then clockwise: 1 = west, 2 = north, 3 = east. Play also goes in this order. */
@@ -172,11 +173,11 @@ export function legalPlays(s: HeartsState, seat: Seat): Card[] {
 /** Why a card can't be played right now, for a friendly message. */
 export function whyIllegal(s: HeartsState, seat: Seat, card: Card): string | null {
   if (legalPlays(s, seat).some((c) => c.id === card.id)) return null;
-  if (s.turn !== seat) return 'Wait for your turn';
-  if (!s.trick.length && s.trickNo === 0) return 'The 2♣ leads the first trick';
-  if (!s.trick.length) return 'Hearts aren’t broken yet';
-  if (s.hands[seat].some((c) => c.suit === s.trick[0].card.suit)) return 'You must follow suit';
-  return 'No points on the first trick';
+  if (s.turn !== seat) return t('hearts.waitTurn');
+  if (!s.trick.length && s.trickNo === 0) return t('hearts.lead2c');
+  if (!s.trick.length) return t('hearts.notBroken');
+  if (s.hands[seat].some((c) => c.suit === s.trick[0].card.suit)) return t('hearts.followSuit');
+  return t('hearts.noPointsFirst');
 }
 
 export function winnerOf(trick: Play[]): Seat {

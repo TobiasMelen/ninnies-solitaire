@@ -1,30 +1,32 @@
-/** Card face styles: one big suit symbol, or pips laid out like a real card. */
+import type { Lang } from '../i18n';
+
+/** Card face styles: one big suit symbol, or pips laid out like a real card. Names are in i18n. */
 export const DECKS = [
-  { id: 'simple', label: 'Simple' },
-  { id: 'pips', label: 'Classic' },
+  { id: 'simple' },
+  { id: 'pips' },
 ] as const;
 
 export const BACKS = [
-  { id: 'crimson', label: 'Crimson' },
-  { id: 'navy', label: 'Navy' },
-  { id: 'forest', label: 'Forest' },
-  { id: 'plum', label: 'Plum' },
-  { id: 'gold', label: 'Gold' },
+  { id: 'crimson' },
+  { id: 'navy' },
+  { id: 'forest' },
+  { id: 'plum' },
+  { id: 'gold' },
 ] as const;
 
 export const COURTS = [
-  { id: 'knoll', label: 'Classic' },
-  { id: 'kennard', label: 'English' },
-  { id: 'atlas', label: 'Atlas' },
-  { id: 'letters', label: 'Letters' },
+  { id: 'knoll' },
+  { id: 'kennard' },
+  { id: 'atlas' },
+  { id: 'letters' },
 ] as const;
 
 export const TABLES = [
-  { id: 'felt', label: 'Green felt' },
-  { id: 'ocean', label: 'Ocean' },
-  { id: 'wine', label: 'Wine' },
-  { id: 'midnight', label: 'Midnight' },
-  { id: 'linen', label: 'Linen' },
+  { id: 'felt' },
+  { id: 'ocean' },
+  { id: 'wine' },
+  { id: 'midnight' },
+  { id: 'linen' },
 ] as const;
 
 export interface Settings {
@@ -51,6 +53,8 @@ export interface Settings {
   heartsOneTap: boolean;
   spiteShort: boolean;
   spiteFast: boolean;
+  /** 'auto' follows the device's language. */
+  lang: 'auto' | Lang;
   /** Skip the setup step when starting that game (the "Remember" box). */
   rememberSpider: boolean;
   rememberHearts: boolean;
@@ -83,6 +87,7 @@ const DEFAULTS: Settings = {
   heartsOneTap: false,
   spiteShort: false,
   spiteFast: false,
+  lang: 'auto',
   rememberSpider: false,
   rememberHearts: false,
   rememberSpite: false,

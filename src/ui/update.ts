@@ -7,6 +7,7 @@
  * Games save after every move, so a game in progress carries on exactly where it was.
  */
 import type { GameId } from '../core/game';
+import { t } from '../i18n';
 
 export type Spot = { screen: 'home' } | { screen: 'game'; id: GameId };
 
@@ -45,7 +46,7 @@ export function takeResumeSpot(): Spot | null {
 function splash() {
   const el = document.createElement('div');
   el.className = 'update-splash';
-  el.innerHTML = '<img src="icon.svg" alt="" /><p>Updating…</p>';
+  el.innerHTML = `<img src="icon.svg" alt="" /><p>${t('update.updating')}</p>`;
   document.body.appendChild(el);
 }
 

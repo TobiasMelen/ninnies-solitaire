@@ -1,3 +1,4 @@
+import { type Key, t } from '../i18n';
 import { type Cascade, type CascadeCard, runCascade } from '../ui/cascade';
 import { sfx } from '../ui/feedback';
 import type { GameController, GameHooks, GameId } from './game';
@@ -15,7 +16,7 @@ import { store } from './game';
  */
 export abstract class TableGame<S> implements GameController {
   abstract readonly id: GameId;
-  abstract readonly restartLabel: string;
+  abstract readonly restartLabel: Key;
 
   protected state!: S;
   protected paused = true;
@@ -166,7 +167,7 @@ export abstract class TableGame<S> implements GameController {
     sfx.win();
     this.hooks.event?.('win');
     this.celebrate(() => {
-      this.hooks.toast('Tap to return to your game');
+      this.hooks.toast(t('tapToReturn'));
       this.root.addEventListener(
         'pointerdown',
         () => {

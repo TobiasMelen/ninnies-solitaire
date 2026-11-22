@@ -1,3 +1,4 @@
+import { t, tn } from '../../i18n';
 import { type Card, randomSeed } from '../../core/cards';
 import { type GameController, type GameHooks, INTRO_MS, fmtTime, store } from '../../core/game';
 import { CardLayer, MOVE_MS, MOVE_MS_REDUCED, type Placement } from '../../ui/cardLayer';
@@ -97,7 +98,7 @@ const MISTAKE = 25;
 
 export class SpiderGame implements GameController {
   readonly id = 'spider' as const;
-  readonly restartLabel = 'Restart this deal';
+  readonly restartLabel = 'menu.restartDeal' as const;
 
   private state!: SpiderState;
   private actions: Action[] = [];
@@ -141,7 +142,7 @@ export class SpiderGame implements GameController {
     }
     this.stockSlot = this.el('slot stock-slot');
     this.stockSlot.setAttribute('role', 'button');
-    this.stockSlot.setAttribute('aria-label', 'Deal a new row');
+    this.stockSlot.setAttribute('aria-label', t('spider.dealRow'));
     this.stockBadge = this.el('stock-badge');
 
     this.bindInput();
@@ -189,8 +190,7 @@ export class SpiderGame implements GameController {
   }
 
   status() {
-    const s = this.state.suitCount;
-    return `Spider · ${s} suit${s > 1 ? 's' : ''} · ${this.state.moves} moves · ${fmtTime(this.elapsed())}`;
+    return t('spider.status', { suits: tn('spider.suits', this.state.suitCount), moves: tn('moves', this.state.moves), time: fmtTime(this.elapsed()) });
   }
 
   key(e: KeyboardEvent) {
@@ -272,11 +272,11 @@ export class SpiderGame implements GameController {
     this.flush();
     const blocked = dealBlocked(this.state, settings.dealWithEmpty);
     if (blocked === 'empty-stock') {
-      this.hooks.toast('No more cards to deal');
+      this.hooks.toast(t('spider.noMoreCards'));
       return;
     }
     if (blocked === 'empty-column') {
-      this.hooks.toast('Fill empty columns before dealing');
+      this.hooks.toast(t('spider.fillEmpty'));
       sfx.invalid();
       haptic([18, 50, 18]);
       this.hooks.event?.('invalid', 1);
@@ -301,13 +301,13 @@ export class SpiderGame implements GameController {
     this.clearHint();
     const mv = this.nextHint();
     if (!mv) {
-      this.hooks.toast('No moves left');
+      this.hooks.toast(t('noMovesLeft'));
       this.hooks.hint?.(null, 'none');
       return;
     }
     if (mv.t === 'deal') {
       flash(this.stockSlot, 'hint');
-      this.hooks.toast('Time to deal a new row');
+      this.hooks.toast(t('spider.timeToDeal'));
       this.hooks.hint?.({ from: (this.L.stockX + this.L.cw / 2) / this.L.W }, 'deal');
       return;
     }
@@ -488,12 +488,12 @@ export class SpiderGame implements GameController {
     this.hooks.event?.('win');
     this.save();
     const result = {
-      title: 'You won!',
-      line: `${s} suit${s > 1 ? 's' : ''} · ${this.state.moves} moves · ${fmtTime(ms)}${best ? ' · new best time!' : ''}`,
+      title: t('win.won'),
+      line: `${tn('spider.suits', s)} · ${tn('moves', this.state.moves)} · ${fmtTime(ms)}${best ? t('newBest') : ''}`,
       stats: [
-        { label: 'Score', value: String(this.state.score) },
-        { label: 'Won', value: `${st.won[s]}/${st.played[s]}` },
-        { label: 'Best', value: st.bestMs[s] !== undefined ? fmtTime(st.bestMs[s]!) : '–' },
+        { label: t('stat.score'), value: String(this.state.score) },
+        { label: t('stat.won'), value: `${st.won[s]}/${st.played[s]}` },
+        { label: t('stat.best'), value: st.bestMs[s] !== undefined ? fmtTime(st.bestMs[s]!) : '–' },
       ],
       celebrate: true,
     };
@@ -549,9 +549,9 @@ export class SpiderGame implements GameController {
     if (!this.state) return;
     this.hooks.hud({
       stats: [
-        { label: 'Score', value: String(this.state.score) },
-        { label: 'Moves', value: String(this.state.moves) },
-        { label: 'Time', value: fmtTime(this.elapsed()) },
+        { label: t('stat.score'), value: String(this.state.score) },
+        { label: t('stat.moves'), value: String(this.state.moves) },
+        { label: t('stat.time'), value: fmtTime(this.elapsed()) },
       ],
       canUndo: this.actions.length > 0 && !this.celebrating,
       hasUndo: true,
@@ -752,7 +752,7 @@ export class SpiderGame implements GameController {
       const card = this.state.columns[now.col][now.index];
       this.layer.wiggle([id]);
       haptic(15);
-      if (card.faceUp) this.hooks.toast('Only same-suit runs move together');
+      if (card.faceUp) this.hooks.toast(t('spider.sameSuitOnly'));
       return;
     }
 
@@ -972,7 +972,7 @@ export class SpiderGame implements GameController {
     this.render({ animate: false });
     sfx.win();
     this.hooks.event?.('win');
-    this.celebrate(() => this.hooks.toast('Tap to return to your game'));
+    this.celebrate(() => this.hooks.toast(t('tapToReturn')));
   }
 
   private endPreview() {

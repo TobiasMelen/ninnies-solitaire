@@ -606,6 +606,16 @@ html.large-print [data-deck='pips'] {
   inset: 0;
 }
 
+/* Language picker: a flag (or globe for automatic) in the swatch frame. */
+.mini-lang {
+  width: 100%;
+  height: 50px;
+  display: grid;
+  place-items: center;
+  font-size: 30px;
+  line-height: 1;
+}
+
 /* ───────────────────────── freecell ───────────────────────── */
 
 /* Free cells: darker hollows. Foundations show their suit until the ace arrives. */
@@ -699,8 +709,9 @@ html.large-print [data-deck='pips'] {
 .hearts-seat.you .emo {
   display: none;
 }
+/* The word comes from the translations (set by the game). */
 .hearts-seat.you::before {
-  content: 'You';
+  content: attr(data-you);
   margin-right: 2px;
   font: 700 13px/1 system-ui, sans-serif;
   opacity: 0.8;

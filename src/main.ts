@@ -9,6 +9,7 @@ import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
 import { navigate } from './ui/nav';
+import { type Key, LANGS, deviceLang, has, setLang, t, tn, translatePage } from './i18n';
 import { takeResumeSpot, watchForUpdates } from './ui/update';
 import { audioLatency, canVibrate, sfx, unlockAudio } from './ui/feedback';
 import { BACKS, COURTS, DECKS, TABLES, type Settings, onSettings, settings, updateSettings } from './ui/settings';
@@ -23,6 +24,27 @@ const dlgWin = $<HTMLDialogElement>('#dlg-win');
 const dlgStuck = $<HTMLDialogElement>('#dlg-stuck');
 const dlgMenu = $<HTMLDialogElement>('#dlg-menu');
 const dlgSetup = $<HTMLDialogElement>('#dlg-setup');
+
+// ───────── language ─────────
+
+/** Text built in code, redrawn when the language changes. */
+const redrawText: (() => void)[] = [];
+const wantedLang = () => (settings.lang === 'auto' ? deviceLang() : settings.lang);
+setLang(wantedLang());
+translatePage();
+redrawText.push(() => {
+  home.querySelectorAll<HTMLElement>('[data-suits-label]').forEach((b) => (b.textContent = tn('spider.suits', Number(b.dataset.suitsLabel))));
+});
+let shownLang = wantedLang();
+onSettings(() => {
+  if (wantedLang() === shownLang) return;
+  shownLang = wantedLang();
+  setLang(shownLang);
+  translatePage();
+  redrawText.forEach((fn) => fn());
+  if (homeOpen()) showHome();
+  Object.values(games).forEach((g) => g?.refresh());
+});
 
 
 let toastTimer = 0;
@@ -294,10 +316,10 @@ function savedSummary(id: GameId): string | null {
   if (id === 'spite') return SpiteGame.saved();
   if (id === 'freecell') {
     const f = FreeCellGame.saved();
-    return f ? `FreeCell · ${f.moves} moves · ${fmtTime(f.ms)}` : null;
+    return f ? t('freecell.status', { moves: tn('moves', f.moves), time: fmtTime(f.ms) }) : null;
   }
   const s = SpiderGame.saved();
-  return s ? `Spider · ${s.suitCount} suit${s.suitCount > 1 ? 's' : ''} · ${s.moves} moves · ${fmtTime(s.ms)}` : null;
+  return s ? t('spider.status', { suits: tn('spider.suits', s.suitCount), moves: tn('moves', s.moves), time: fmtTime(s.ms) }) : null;
 }
 
 function showHome() {
@@ -351,7 +373,7 @@ home.querySelectorAll<HTMLElement>('[data-suits]').forEach((btn) =>
   ),
 );
 $('#hearts-play').addEventListener('click', () =>
-  setup('hearts', 'Against 🦊 Fox, 🦉 Owl and 🐻 Bear', () => {
+  setup('hearts', t('hearts.setupLine'), () => {
     const g = switchTo('hearts');
     hideHome();
     g.newGame();
@@ -360,7 +382,7 @@ $('#hearts-play').addEventListener('click', () =>
 );
 home.querySelectorAll<HTMLElement>('[data-level]').forEach((btn) =>
   btn.addEventListener('click', () =>
-    setup('spite', `Against ${btn.querySelector('b')!.textContent} ${btn.querySelector('small')!.textContent}`, () => {
+    setup('spite', t('spite.setupLine', { who: `${btn.querySelector('b')!.textContent} ${btn.querySelector('small')!.textContent}` }), () => {
       const g = switchTo('spite');
       hideHome();
       g.newGame(btn.dataset.level as Level);
@@ -369,7 +391,7 @@ home.querySelectorAll<HTMLElement>('[data-level]').forEach((btn) =>
   ),
 );
 $('#freecell-play').addEventListener('click', () =>
-  setup('freecell', 'Every card face up: plan your way home', () => {
+  setup('freecell', t('freecell.setupLine'), () => {
     const g = switchTo('freecell');
     hideHome();
     g.newGame();
@@ -391,7 +413,7 @@ $('#btn-preview-win').addEventListener('click', () => {
   window.setTimeout(() => game?.previewWin(), 600);
 });
 
-$('#build-id').textContent = `Build ${__BUILD_ID__}`;
+redrawText.push(() => ($('#build-id').textContent = t('home.build', { id: __BUILD_ID__ })));
 
 // ───────── toolbar ─────────
 
@@ -407,7 +429,7 @@ function openMenu() {
   if (!game?.active) return;
   game.pause();
   $('#menu-line').textContent = game.status();
-  $('#menu-restart').textContent = game.restartLabel;
+  $('#menu-restart').textContent = t(game.restartLabel);
   open(dlgMenu);
 }
 
@@ -454,18 +476,24 @@ document.addEventListener('keydown', (e) => {
 
 // ───────── settings sheet ─────────
 
-function swatches<K extends 'deck' | 'back' | 'table' | 'courts'>(
+/** A row of picture buttons for one setting; labels come from the translations (`<key>.<id>`). */
+function swatches<K extends 'deck' | 'back' | 'table' | 'courts' | 'lang'>(
   key: K,
-  list: readonly { id: Settings[K]; label: string }[],
+  list: readonly { id: Settings[K] }[],
   preview: (id: string) => string,
 ) {
   const root = $(`#opt-${key}`);
-  root.innerHTML = list
-    .map(
-      (o) => `<button type="button" class="swatch" data-v="${o.id}" aria-label="${o.label}">
-        ${preview(o.id)}<span>${o.label}</span></button>`,
-    )
-    .join('');
+  const draw = () => {
+    root.innerHTML = list
+      .map((o) => {
+        const label = t(`${key}.${o.id}` as Key);
+        return `<button type="button" class="swatch" data-v="${o.id}" aria-label="${label}" aria-pressed="${o.id === settings[key]}">
+        ${preview(o.id)}<span>${label}</span></button>`;
+      })
+      .join('');
+  };
+  draw();
+  redrawText.push(draw);
   root.addEventListener('click', (e) => {
     const btn = (e.target as HTMLElement).closest<HTMLElement>('.swatch');
     if (btn) updateSettings({ [key]: btn.dataset.v } as Partial<Settings>);
@@ -491,70 +519,90 @@ swatches('courts', COURTS, (id) =>
 );
 swatches('back', BACKS, (id) => `<span class="mini-back" data-back="${id}"></span>`);
 swatches('table', TABLES, (id) => `<span class="mini-table" data-table="${id}"></span>`);
+swatches(
+  'lang',
+  [{ id: 'auto' }, ...Object.keys(LANGS).map((id) => ({ id: id as keyof typeof LANGS }))],
+  (id) => `<span class="mini-lang">${id === 'auto' ? '🌐' : id === 'sv' ? '🇸🇪' : '🇬🇧'}</span>`,
+);
 
 type Toggle = {
   key: keyof Settings;
-  label: string;
-  hint: string;
+  /** Translation key under `opt.` (defaults to the setting's key); `.hint` is the line below. */
+  text?: string;
   group: 'cards' | 'play' | 'feel';
   /** Options for one game: listed in its Settings section and its setup step. */
   games?: GameId[];
   show?: () => boolean;
   needs?: keyof Settings;
+  /** A ready-made label instead of translation keys. */
+  label?: [string, string];
 };
 const TOGGLES: Toggle[] = [
-  { key: 'noMovesAlert', label: 'Tell me when I’m stuck', hint: 'Only when nothing can be moved or dealt; use Hint otherwise', group: 'play', games: ['spider', 'freecell'] },
-  { key: 'tapToMove', label: 'Tap to move', hint: 'Double-tap a card to send it to the best spot', group: 'play', games: ['spider', 'freecell'] },
-  { key: 'singleTap', label: 'Single tap is enough', hint: 'Move with one tap instead of two', group: 'play', games: ['spider', 'freecell'], needs: 'tapToMove' },
-  { key: 'dimLocked', label: 'Shade cards that can’t move', hint: 'Only the movable run in each column stays bright white', group: 'play', games: ['spider', 'freecell'] },
-  { key: 'dealWithEmpty', label: 'Deal with empty columns', hint: 'Off follows the classic rule: fill every column before dealing', group: 'play', games: ['spider'] },
-  { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging', group: 'play', games: ['spider', 'freecell'] },
-  { key: 'heartsPassing', label: 'Pass cards', hint: 'Swap 3 cards before each hand (left, right, across, none)', group: 'play', games: ['hearts'] },
-  { key: 'heartsOneTap', label: 'Play with one tap', hint: 'Off: tap to lift a card, tap again to play it', group: 'play', games: ['hearts'] },
-  { key: 'dimLocked', label: 'Shade cards you can’t play', hint: 'On your turn, only playable cards stay bright', group: 'play', games: ['hearts'] },
-  { key: 'heartsShort', label: 'Short game', hint: 'Play to 50 points instead of 100 (from the next game)', group: 'play', games: ['hearts'] },
-  { key: 'heartsMoonSubtract', label: 'Moon subtracts 26', hint: 'Shooting the moon takes 26 off your score instead of adding 26 to everyone else', group: 'play', games: ['hearts'] },
-  { key: 'heartsFast', label: 'Quick opponents', hint: 'Fox, Owl and Bear play faster', group: 'play', games: ['hearts'] },
-  { key: 'spiteShort', label: 'Short game', hint: '13-card goal piles instead of 20 (from the next game)', group: 'play', games: ['spite'] },
-  { key: 'spiteFast', label: 'Quick opponent', hint: 'Fox plays faster', group: 'play', games: ['spite'] },
-  { key: 'fourColour', label: 'Four-colour suits', hint: 'Blue diamonds and green clubs, so no two suits share a colour', group: 'cards' },
-  { key: 'largePrint', label: 'Large print', hint: 'Bigger, bolder corner numbers', group: 'cards' },
-  { key: 'sound', label: 'Sound', hint: '', group: 'feel' },
-  { key: 'haptics', label: 'Vibration', hint: '', group: 'feel', show: canVibrate },
-  { key: 'bunny', label: 'Hint Bunny', hint: 'Cheers you on with gestures; tap it for a hint', group: 'feel' },
+  { key: 'noMovesAlert', group: 'play', games: ['spider', 'freecell'] },
+  { key: 'tapToMove', group: 'play', games: ['spider', 'freecell'] },
+  { key: 'singleTap', group: 'play', games: ['spider', 'freecell'], needs: 'tapToMove' },
+  { key: 'dimLocked', group: 'play', games: ['spider', 'freecell'] },
+  { key: 'dealWithEmpty', group: 'play', games: ['spider'] },
+  { key: 'showTargets', group: 'play', games: ['spider', 'freecell'] },
+  { key: 'heartsPassing', group: 'play', games: ['hearts'] },
+  { key: 'heartsOneTap', group: 'play', games: ['hearts'] },
+  { key: 'dimLocked', text: 'dimLockedHearts', group: 'play', games: ['hearts'] },
+  { key: 'heartsShort', group: 'play', games: ['hearts'] },
+  { key: 'heartsMoonSubtract', group: 'play', games: ['hearts'] },
+  { key: 'heartsFast', group: 'play', games: ['hearts'] },
+  { key: 'spiteShort', group: 'play', games: ['spite'] },
+  { key: 'spiteFast', group: 'play', games: ['spite'] },
+  { key: 'fourColour', group: 'cards' },
+  { key: 'largePrint', group: 'cards' },
+  { key: 'sound', group: 'feel' },
+  { key: 'haptics', group: 'feel', show: canVibrate },
+  { key: 'bunny', group: 'feel' },
 ];
 
+const toggleText = (tg: Toggle): [string, string] => {
+  if (tg.label) return tg.label;
+  const k = `opt.${tg.text ?? tg.key}`;
+  return [t(k as Key), has(`${k}.hint`) ? t(`${k}.hint` as Key) : ''];
+};
 const toggleRows = (list: Toggle[]) =>
   list
-    .filter((t) => !t.show || t.show())
-    .map(
-      (t) => `<label class="toggle${t.needs ? ' sub' : ''}" ${t.needs ? `data-needs="${t.needs}"` : ''}>
-      <span><b>${t.label}</b>${t.hint ? `<small>${t.hint}</small>` : ''}</span>
-      <input type="checkbox" role="switch" data-k="${t.key}" />
-    </label>`,
-    )
+    .filter((tg) => !tg.show || tg.show())
+    .map((tg) => {
+      const [label, hint] = toggleText(tg);
+      return `<label class="toggle${tg.needs ? ' sub' : ''}" ${tg.needs ? `data-needs="${tg.needs}"` : ''}>
+      <span><b>${label}</b>${hint ? `<small>${hint}</small>` : ''}</span>
+      <input type="checkbox" role="switch" data-k="${tg.key}" />
+    </label>`;
+    })
     .join('');
 const gameToggles = (id: GameId) => TOGGLES.filter((t) => t.games?.includes(id));
 
 /** Games with options get a Settings section and a setup step before a new game. */
-const GAME_OPTIONS: { id: GameId; name: string; remember: keyof Settings }[] = [
-  { id: 'spider', name: 'Spider', remember: 'rememberSpider' },
-  { id: 'hearts', name: 'Hearts', remember: 'rememberHearts' },
-  { id: 'spite', name: 'Spite & Malice', remember: 'rememberSpite' },
-  { id: 'freecell', name: 'FreeCell', remember: 'rememberFreecell' },
+const GAME_OPTIONS: { id: GameId; remember: keyof Settings }[] = [
+  { id: 'spider', remember: 'rememberSpider' },
+  { id: 'hearts', remember: 'rememberHearts' },
+  { id: 'spite', remember: 'rememberSpite' },
+  { id: 'freecell', remember: 'rememberFreecell' },
 ];
+const gameName = (id: GameId) => t(`${id}.name` as Key);
 
-$('#opt-cards').innerHTML = toggleRows(TOGGLES.filter((t) => t.group === 'cards'));
-$('#opt-feel').innerHTML = toggleRows(TOGGLES.filter((t) => t.group === 'feel'));
-$('#opt-games').innerHTML = GAME_OPTIONS.map(
-  (g) => `<details class="group" data-sec="${g.id}">
-    <summary><b>${g.name}</b><small>Options for new ${g.name} games</small></summary>
+function drawToggles() {
+  $('#opt-cards').innerHTML = toggleRows(TOGGLES.filter((tg) => tg.group === 'cards'));
+  $('#opt-feel').innerHTML = toggleRows(TOGGLES.filter((tg) => tg.group === 'feel'));
+  const open = new Set([...document.querySelectorAll<HTMLDetailsElement>('#opt-games details[open]')].map((d) => d.dataset.sec));
+  $('#opt-games').innerHTML = GAME_OPTIONS.map(
+    (g) => `<details class="group" data-sec="${g.id}"${open.has(g.id) ? ' open' : ''}>
+    <summary><b>${gameName(g.id)}</b><small>${t('settings.gameSub', { name: gameName(g.id) })}</small></summary>
     <div class="toggles">${toggleRows(gameToggles(g.id))}</div>
     <div class="toggles remember">${toggleRows([
-      { key: g.remember, label: 'Remember settings', hint: 'Skip the setup step', group: 'play' },
+      { key: g.remember, group: 'play', label: [t('setup.remember'), t('setup.rememberHint')] },
     ])}</div>
   </details>`,
-).join('');
+  ).join('');
+  syncToggles(settings);
+}
+drawToggles();
+redrawText.push(drawToggles);
 
 // Every switch on any page writes straight to settings.
 for (const d of [dlgSettings, dlgSetup]) {
@@ -583,7 +631,7 @@ function setup(id: GameId, line: string, start: () => void) {
   const g = GAME_OPTIONS.find((o) => o.id === id);
   if (!g || settings[g.remember]) return go(start);
   pendingStart = start;
-  $('#setup-title').textContent = g.name;
+  $('#setup-title').textContent = gameName(id);
   $('#setup-line').textContent = line;
   $('#setup-opts').innerHTML = toggleRows(gameToggles(id));
   $<HTMLInputElement>('#setup-remember').checked = false;
@@ -625,7 +673,7 @@ onSettings((s) => {
   } catch {
     /* ignore */
   }
-  for (const key of ['deck', 'back', 'table', 'courts'] as const) {
+  for (const key of ['deck', 'back', 'table', 'courts', 'lang'] as const) {
     $(`#opt-${key}`)
       .querySelectorAll<HTMLElement>('.swatch')
       .forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === s[key])));
@@ -652,6 +700,7 @@ onSettings((s) => {
   $('#btn-hint').hidden = s.bunny;
 });
 
+redrawText.forEach((fn) => fn());
 showHome();
 // Back from an update reload: straight to the game that was on the table.
 const resumeSpot = takeResumeSpot();

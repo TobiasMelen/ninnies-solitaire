@@ -30,43 +30,43 @@
   </head>
   <body>
     <div id="app">
-      <main id="board" aria-label="Spider Solitaire table"></main>
-      <nav id="toolbar" aria-label="Game controls">
+      <main id="board" data-i18n-aria="aria.board" aria-label="Card table"></main>
+      <nav id="toolbar" data-i18n-aria="aria.toolbar" aria-label="Game controls">
         <button id="btn-menu" class="tool" type="button" aria-haspopup="dialog">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
-          <span>Menu</span>
+          <span data-i18n="toolbar.menu">Menu</span>
         </button>
         <div id="stats" aria-live="off"></div>
         <button id="btn-hint" class="tool" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.4 1 1.1 1 1.8V16h5v-.3c0-.7.4-1.4 1-1.8A6 6 0 0 0 12 3z" /></svg>
-          <span>Hint</span>
+          <span data-i18n="toolbar.hint">Hint</span>
         </button>
         <button id="btn-undo" class="tool" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></svg>
-          <span>Undo</span>
+          <span data-i18n="toolbar.undo">Undo</span>
         </button>
       </nav>
     </div>
 
-    <section id="home" aria-label="Start">
+    <section id="home" data-i18n-aria="aria.start" aria-label="Start">
       <div class="home-inner">
         <header class="home-head">
           <img src="icon.svg" alt="" class="home-logo" />
-          <h1>Ninnies Solitaire</h1>
-          <button id="home-settings" class="home-gear" type="button" aria-label="Settings">
+          <h1 data-i18n="app.title">Ninnies Solitaire</h1>
+          <button id="home-settings" class="home-gear" type="button" data-i18n-aria="aria.settings" aria-label="Settings">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
           </button>
         </header>
 
         <div id="home-resume" hidden>
           <button id="home-continue" class="continue" type="button">
-            <span><b>Continue</b><small id="home-continue-sub"></small></span>
+            <span><b data-i18n="home.continue">Continue</b><small id="home-continue-sub"></small></span>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z" /></svg>
           </button>
-          <button id="home-restart" class="link-btn" type="button">Restart this deal</button>
+          <button id="home-restart" class="link-btn" type="button" data-i18n="menu.restartDeal">Restart this deal</button>
         </div>
 
-        <h2 class="home-label">New game</h2>
+        <h2 class="home-label" data-i18n="home.newGame">New game</h2>
         <div class="games">
           <article class="game-tile" data-game="spider">
             <div class="tile-art mini-deck" id="spider-art">
@@ -76,12 +76,12 @@
               <span class="mini-card" data-suit="H"><b>10</b><i>♥&#xFE0E;</i></span>
             </div>
             <div class="tile-body">
-              <h3>Spider</h3>
-              <p>Build runs from King to Ace in a single suit.</p>
+              <h3 data-i18n="spider.name">Spider</h3>
+              <p data-i18n="spider.blurb">Build runs from King to Ace in a single suit.</p>
               <div class="suit-pick">
-                <button type="button" data-suits="1"><b>1 suit</b><small>Relaxed</small></button>
-                <button type="button" data-suits="2"><b>2 suits</b><small>Medium</small></button>
-                <button type="button" data-suits="4"><b>4 suits</b><small>Hard</small></button>
+                <button type="button" data-suits="1"><b data-suits-label="1">1 suit</b><small data-i18n="level.relaxed">Relaxed</small></button>
+                <button type="button" data-suits="2"><b data-suits-label="2">2 suits</b><small data-i18n="level.medium">Medium</small></button>
+                <button type="button" data-suits="4"><b data-suits-label="4">4 suits</b><small data-i18n="level.hard">Hard</small></button>
               </div>
             </div>
           </article>
@@ -93,10 +93,10 @@
               <span class="mini-card" data-suit="H"><b>7</b><i>♥&#xFE0E;</i></span>
             </div>
             <div class="tile-body">
-              <h3>Hearts</h3>
-              <p>Dodge the hearts and the Q♠ against 🦊 Fox, 🦉 Owl and 🐻 Bear.</p>
+              <h3 data-i18n="hearts.name">Hearts</h3>
+              <p data-i18n="hearts.blurb">Dodge the hearts and the Q♠ against 🦊 Fox, 🦉 Owl and 🐻 Bear.</p>
               <div class="suit-pick one">
-                <button type="button" id="hearts-play"><b>Play</b><small>4 players</small></button>
+                <button type="button" id="hearts-play"><b data-i18n="play">Play</b><small data-i18n="hearts.players">4 players</small></button>
               </div>
             </div>
           </article>
@@ -108,12 +108,12 @@
               <span class="mini-num" data-band="star">★</span>
             </div>
             <div class="tile-body">
-              <h3>Spite &amp; Malice</h3>
-              <p>Race to empty your goal pile. Build 1 to 12; ★ is wild.</p>
+              <h3 data-i18n="spite.name">Spite &amp; Malice</h3>
+              <p data-i18n="spite.blurb">Race to empty your goal pile. Build 1 to 12; ★ is wild.</p>
               <div class="suit-pick animals">
-                <button type="button" data-level="easy"><b>🐻</b><small>Easy</small></button>
-                <button type="button" data-level="medium"><b>🦊</b><small>Medium</small></button>
-                <button type="button" data-level="hard"><b>🦉</b><small>Hard</small></button>
+                <button type="button" data-level="easy"><b>🐻</b><small data-i18n="level.easy">Easy</small></button>
+                <button type="button" data-level="medium"><b>🦊</b><small data-i18n="level.medium">Medium</small></button>
+                <button type="button" data-level="hard"><b>🦉</b><small data-i18n="level.hard">Hard</small></button>
               </div>
             </div>
           </article>
@@ -125,10 +125,10 @@
               <span class="mini-card" data-suit="D"><b>10</b><i>♦&#xFE0E;</i></span>
             </div>
             <div class="tile-body">
-              <h3>FreeCell</h3>
-              <p>Every card face up. Four free cells to plan your way home.</p>
+              <h3 data-i18n="freecell.name">FreeCell</h3>
+              <p data-i18n="freecell.blurb">Every card face up. Four free cells to plan your way home.</p>
               <div class="suit-pick one">
-                <button type="button" id="freecell-play"><b>Play</b><small>Nearly every deal can be won</small></button>
+                <button type="button" id="freecell-play"><b data-i18n="play">Play</b><small data-i18n="freecell.sub">Nearly every deal can be won</small></button>
               </div>
             </div>
           </article>
@@ -146,64 +146,69 @@
     <dialog id="dlg-settings" class="sheet page">
       <form method="dialog">
         <div class="page-head">
-          <button value="close" class="icon-btn" aria-label="Back">‹</button>
-          <h2>Settings</h2>
+          <button value="close" class="icon-btn" data-i18n-aria="aria.back" aria-label="Back">‹</button>
+          <h2 data-i18n="settings.title">Settings</h2>
         </div>
 
         <details class="group" data-sec="look">
-          <summary><b>Look</b><small>Cards, court cards, card back, table</small></summary>
-          <h4>Cards</h4>
+          <summary><b data-i18n="settings.look">Look</b><small data-i18n="settings.lookSub">Cards, court cards, card back, table</small></summary>
+          <h4 data-i18n="settings.cards">Cards</h4>
           <div class="swatches" id="opt-deck"></div>
-          <h4>Easier to read</h4>
+          <h4 data-i18n="settings.easier">Easier to read</h4>
           <div class="toggles" id="opt-cards"></div>
-          <h4>Court cards</h4>
+          <h4 data-i18n="settings.courts">Court cards</h4>
           <div class="swatches" id="opt-courts"></div>
-          <h4>Card back</h4>
+          <h4 data-i18n="settings.back">Card back</h4>
           <div class="swatches" id="opt-back"></div>
-          <h4>Table</h4>
+          <h4 data-i18n="settings.table">Table</h4>
           <div class="swatches" id="opt-table"></div>
         </details>
 
         <details class="group" data-sec="feel">
-          <summary><b>Sound &amp; feel</b><small>Sound, vibration, Hint Bunny</small></summary>
+          <summary><b data-i18n="settings.feel">Sound &amp; feel</b><small data-i18n="settings.feelSub">Sound, vibration, Hint Bunny</small></summary>
           <div class="toggles" id="opt-feel"></div>
-          <button type="button" id="btn-preview-win" class="btn preview-btn">🏆 Preview win animation</button>
+          <button type="button" id="btn-preview-win" class="btn preview-btn" data-i18n="settings.previewWin">🏆 Preview win animation</button>
+        </details>
+
+        <details class="group" data-sec="language">
+          <summary><b data-i18n="settings.language">Language</b><small data-i18n="settings.languageSub">English or Swedish</small></summary>
+          <div class="swatches" id="opt-lang"></div>
         </details>
 
         <div id="opt-games"></div>
 
-        <p class="muted foot">Your game is saved on this device automatically.</p>
+        <p class="muted foot" data-i18n="settings.saved">Your game is saved on this device automatically.</p>
       </form>
     </dialog>
 
     <dialog id="dlg-setup" class="sheet page">
       <form method="dialog">
         <div class="page-head">
-          <button value="close" class="icon-btn" aria-label="Back">‹</button>
+          <button value="close" class="icon-btn" data-i18n-aria="aria.back" aria-label="Back">‹</button>
           <h2 id="setup-title"></h2>
         </div>
         <p id="setup-line" class="muted"></p>
         <div class="toggles" id="setup-opts"></div>
         <div class="toggles remember">
           <label class="toggle">
-            <span><b>Remember settings</b><small>Skip this step next time</small></span>
+            <span><b data-i18n="setup.remember">Remember settings</b><small data-i18n="setup.rememberSub">Skip this step next time</small></span>
             <input type="checkbox" role="switch" id="setup-remember" />
           </label>
         </div>
-        <button value="start" class="btn primary start-btn">Start</button>
+        <button value="start" class="btn primary start-btn" data-i18n="setup.start">Start</button>
       </form>
     </dialog>
 
     <dialog id="dlg-menu" class="sheet">
       <form method="dialog">
         <div class="grab" aria-hidden="true"></div>
-        <h2>Paused</h2>
+        <h2 data-i18n="menu.paused">Paused</h2>
         <p id="menu-line" class="muted"></p>
         <div class="menu-list">
-          <button value="resume" class="btn primary">Keep playing</button>
+          <button value="resume" class="btn primary" data-i18n="menu.keepPlaying">Keep playing</button>
           <button value="restart" class="btn" id="menu-restart">Restart this deal</button>
-          <button value="settings" class="btn">Settings</button>
-          <button value="home" class="btn ghost">Main menu</button>
+          <button value="settings" class="btn" data-i18n="menu.settings">Settings</button>
+          <button value="home" class="btn ghost" data-i18n="menu.main">Main menu</button>
         </div>
       </form>
     </dialog>
@@ -215,21 +220,21 @@
         <p id="win-line" class="muted"></p>
         <div class="win-stats" id="win-stats"></div>
         <div class="actions">
-          <button value="new" class="btn primary">Deal again</button>
-          <button value="home" class="btn">Main menu</button>
-          <button value="close" class="btn ghost">Admire the table</button>
+          <button value="new" class="btn primary" data-i18n="win.dealAgain">Deal again</button>
+          <button value="home" class="btn" data-i18n="menu.main">Main menu</button>
+          <button value="close" class="btn ghost" data-i18n="win.admire">Admire the table</button>
         </div>
       </form>
     </dialog>
 
     <dialog id="dlg-stuck" class="sheet center">
       <form method="dialog">
-        <h2>Out of moves</h2>
-        <p class="muted">Nothing on the table can be moved and there are no cards left to deal.</p>
+        <h2 data-i18n="stuck.title">Out of moves</h2>
+        <p class="muted" data-i18n="stuck.text">Nothing on the table can be moved and there are no cards left to deal.</p>
         <div class="actions">
-          <button value="undo" class="btn primary">Undo last move</button>
-          <button value="new" class="btn">New game</button>
-          <button value="close" class="btn ghost">Keep looking</button>
+          <button value="undo" class="btn primary" data-i18n="stuck.undo">Undo last move</button>
+          <button value="new" class="btn" data-i18n="stuck.new">New game</button>
+          <button value="close" class="btn ghost" data-i18n="stuck.keepLooking">Keep looking</button>
         </div>
       </form>
     </dialog>

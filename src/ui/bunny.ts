@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 /**
  * Hint Bunny: a companion peeking over the bottom edge of the table. It never talks; it reacts
  * with photo poses, motion gestures and pop-up stamps (stars, hearts and rainbows for good things,
@@ -215,7 +216,7 @@ export class Bunny {
     this.el = document.createElement('div');
     this.el.className = 'bunny';
     this.el.setAttribute('role', 'button');
-    this.el.setAttribute('aria-label', 'Hint Bunny: tap for a hint');
+    this.el.setAttribute('aria-label', t('bunny.aria'));
     // Photo poses (see assets/bunny/CREDITS.txt), all stacked and preloaded so a mood change is a
     // crossfade; gestures are done with motion on top.
     this.el.innerHTML = `<div class="bunny-pop" aria-hidden="true"></div><div class="bunny-body"></div>`;

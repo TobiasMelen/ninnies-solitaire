@@ -1,3 +1,4 @@
+import { t, tn } from '../../i18n';
 import { type Card, randomSeed } from '../../core/cards';
 import { type GameController, type GameHooks, INTRO_MS, fmtTime, store } from '../../core/game';
 import { CardLayer, MOVE_MS, MOVE_MS_REDUCED, type Placement } from '../../ui/cardLayer';
@@ -79,7 +80,7 @@ const sameLoc = (a: Loc | null, b: Loc | null) => !!a && !!b && a.t === b.t && a
 
 export class FreeCellGame implements GameController {
   readonly id = 'freecell' as const;
-  readonly restartLabel = 'Restart this deal';
+  readonly restartLabel = 'menu.restartDeal' as const;
 
   private state!: FreeCellState;
   private moves: Move[] = [];
@@ -157,7 +158,7 @@ export class FreeCellGame implements GameController {
   }
 
   status() {
-    return `FreeCell · ${this.state.moves} moves · ${fmtTime(this.elapsed())}`;
+    return t('freecell.status', { moves: tn('moves', this.state.moves), time: fmtTime(this.elapsed()) });
   }
 
   key() {
@@ -258,12 +259,12 @@ export class FreeCellGame implements GameController {
     this.clearHint();
     const at = this.moves.length;
     const known = this.hints.peek(this.state);
-    if (known === undefined) this.hooks.toast('Thinking…');
+    if (known === undefined) this.hooks.toast(t('freecell.thinking'));
     const line = known === undefined ? await this.hints.line(this.state) : known;
     if (this.moves.length !== at || this.paused) return;
     const m = line?.[0];
     if (!m) {
-      this.hooks.toast(legalMoves(this.state).length ? 'No winning way from here: try Undo' : 'No moves left');
+      this.hooks.toast(legalMoves(this.state).length ? t('freecell.noWin') : t('noMovesLeft'));
       this.hooks.hint?.(null, 'none');
       return;
     }
@@ -365,12 +366,12 @@ export class FreeCellGame implements GameController {
     this.hooks.event?.('win');
     this.save();
     const result = {
-      title: 'You won!',
-      line: `${this.state.moves} moves · ${fmtTime(ms)}${best ? ' · new best time!' : ''}`,
+      title: t('win.won'),
+      line: `${tn('moves', this.state.moves)} · ${fmtTime(ms)}${best ? t('newBest') : ''}`,
       stats: [
-        { label: 'Moves', value: String(this.state.moves) },
-        { label: 'Won', value: `${st.won}/${st.played}` },
-        { label: 'Best', value: st.bestMs !== undefined ? fmtTime(st.bestMs) : '–' },
+        { label: t('stat.moves'), value: String(this.state.moves) },
+        { label: t('stat.won'), value: `${st.won}/${st.played}` },
+        { label: t('stat.best'), value: st.bestMs !== undefined ? fmtTime(st.bestMs) : '–' },
       ],
       celebrate: true,
     };
@@ -401,8 +402,8 @@ export class FreeCellGame implements GameController {
     if (!this.state) return;
     this.hooks.hud({
       stats: [
-        { label: 'Moves', value: String(this.state.moves) },
-        { label: 'Time', value: fmtTime(this.elapsed()) },
+        { label: t('stat.moves'), value: String(this.state.moves) },
+        { label: t('stat.time'), value: fmtTime(this.elapsed()) },
       ],
       canUndo: this.moves.length > 0 && !this.celebrating,
       hasUndo: true,
@@ -534,7 +535,7 @@ export class FreeCellGame implements GameController {
       if (n > runLength(col)) {
         this.layer.wiggle([id]);
         haptic(15);
-        this.hooks.toast('Only an alternating-colour run moves together');
+        this.hooks.toast(t('freecell.altRunOnly'));
         return;
       }
     }
@@ -668,7 +669,7 @@ export class FreeCellGame implements GameController {
       sfx.invalid();
       this.hooks.event?.('invalid', this.locFraction(d.from));
       haptic([15, 40, 15]);
-      if (d.n > maxMove(this.state, false)) this.hooks.toast('Not enough free cells to move that many');
+      if (d.n > maxMove(this.state, false)) this.hooks.toast(t('freecell.notEnoughCells'));
       return;
     }
     this.move({ from: d.from, to, n: d.n }, false);
@@ -762,7 +763,7 @@ export class FreeCellGame implements GameController {
     this.render({ animate: false });
     sfx.win();
     this.hooks.event?.('win');
-    this.celebrate(() => this.hooks.toast('Tap to return to your game'));
+    this.celebrate(() => this.hooks.toast(t('tapToReturn')));
   }
 
   private endPreview() {

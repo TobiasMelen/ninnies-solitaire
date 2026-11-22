@@ -1,3 +1,4 @@
+import { t } from '../i18n';
 import { type Card, PIPS, SUIT_NAME, SUIT_SYMBOL, cardName, rankLabel } from '../core/cards';
 
 const COURT_NAME: Record<number, string> = { 11: 'jack', 12: 'queen', 13: 'king' };
@@ -79,7 +80,7 @@ export class CardLayer {
       el.dataset.fig = card.rank > 10 ? courtName(card) : '';
       this.applyFigure(el);
     }
-    el.setAttribute('aria-label', card.faceUp ? cardName(card) : 'Face-down card');
+    el.setAttribute('aria-label', card.faceUp ? cardName(card) : t('card.faceDown'));
     return el;
   }
 
@@ -93,7 +94,7 @@ export class CardLayer {
       el.querySelector('.front')!.innerHTML =
         `<span class="n-corner">${n}</span><span class="n-big">${n}</span><span class="n-corner n-flip">${n}</span>`;
     }
-    el.setAttribute('aria-label', card.faceUp ? (card.star ? 'Star (wild)' : String(card.rank)) : 'Face-down card');
+    el.setAttribute('aria-label', card.faceUp ? (card.star ? t('card.star') : String(card.rank)) : t('card.faceDown'));
     return el;
   }
 

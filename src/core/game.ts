@@ -1,3 +1,4 @@
+import type { Key } from '../i18n';
 import type { BunnyEvent } from '../ui/bunny';
 
 export type GameId = 'spider' | 'hearts' | 'spite' | 'freecell';
@@ -47,7 +48,7 @@ export interface GameController {
   readonly id: GameId;
   readonly active: boolean;
   /** Label for the pause menu's restart action. */
-  readonly restartLabel: string;
+  readonly restartLabel: Key;
   /** Load the saved game; false when there's nothing to continue. */
   resume(): boolean;
   pause(): void;

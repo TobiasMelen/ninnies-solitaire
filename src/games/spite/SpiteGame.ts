@@ -1,3 +1,4 @@
+import { type Key, t } from '../../i18n';
 import { randomSeed } from '../../core/cards';
 import { type GameHooks, type HudStat, INTRO_MS, store } from '../../core/game';
 import { TableGame } from '../../core/tableGame';
@@ -25,10 +26,17 @@ import {
 
 const SAVE_KEY = 'ninnies.spite.save.v1';
 /** Each difficulty is a different animal: Bear is easy, Fox medium, Owl hard. */
+const foe = (key: Key, emoji: string) => ({
+  emoji,
+  /** In the current language. */
+  get name() {
+    return t(key);
+  },
+});
 export const FOES: Record<Level, { name: string; emoji: string }> = {
-  easy: { name: 'Bear', emoji: '🐻' },
-  medium: { name: 'Fox', emoji: '🦊' },
-  hard: { name: 'Owl', emoji: '🦉' },
+  easy: foe('animal.bear', '🐻'),
+  medium: foe('animal.fox', '🦊'),
+  hard: foe('animal.owl', '🦉'),
 };
 
 interface Layout {
@@ -86,7 +94,7 @@ const goalSize = () => (settings.spiteShort ? 13 : 20);
 
 export class SpiteGame extends TableGame<SpiteState> {
   readonly id = 'spite' as const;
-  readonly restartLabel = 'Restart this game';
+  readonly restartLabel = 'menu.restartGame' as const;
 
   private layer: CardLayer;
   private L!: Layout;
@@ -160,7 +168,7 @@ export class SpiteGame extends TableGame<SpiteState> {
   static saved(): string | null {
     const s = store.get<SpiteState>(SAVE_KEY);
     if (!s || s.winner !== null || s.stalemate) return null;
-    return `Spite & Malice · you ${s.seats[0].goal.length} left · ${FOES[s.level ?? 'easy'].emoji} ${s.seats[1].goal.length}`;
+    return t('spite.saved', { mine: s.seats[0].goal.length, foe: FOES[s.level ?? 'easy'].emoji, theirs: s.seats[1].goal.length });
   }
 
   /** The level of the saved (or current) game, for the start screen. */
@@ -174,7 +182,7 @@ export class SpiteGame extends TableGame<SpiteState> {
 
   status() {
     const s = this.state;
-    return `Spite & Malice · goal cards left: you ${s.seats[0].goal.length}, ${this.foe.emoji} ${s.seats[1].goal.length}`;
+    return t('spite.status', { mine: s.seats[0].goal.length, foe: this.foe.emoji, theirs: s.seats[1].goal.length });
   }
 
   newGame(level: Level = this.level, seed = randomSeed()) {
@@ -225,12 +233,12 @@ export class SpiteGame extends TableGame<SpiteState> {
   hint() {
     const s = this.state;
     if (!s || s.turn !== 0 || s.winner !== null || this.cascade || this.starting) {
-      this.hooks.toast('Wait for your turn');
+      this.hooks.toast(t('hearts.waitTurn'));
       return;
     }
     const m = chooseBuild(s, 0, Math.random, ADVISOR) ?? chooseDiscard(s, 0, Math.random, ADVISOR);
     if (m.t === 'pass') {
-      this.hooks.toast('Nothing to play: pass');
+      this.hooks.toast(t('spite.nothingToPlay'));
       return;
     }
     const src: Source = m.t === 'build' ? m.source : { from: 'hand', index: m.index };
@@ -347,9 +355,9 @@ export class SpiteGame extends TableGame<SpiteState> {
     this.clearSave();
     const won = s.winner === 0;
     const result = {
-      title: s.stalemate ? 'Stalemate' : won ? 'You won!' : `${this.foe.emoji} ${this.foe.name} wins`,
-      line: `Spite & Malice · goal pile of ${s.options.goalSize}`,
-      stats: s.seats.map((seat, i) => ({ label: i === 0 ? 'You left' : `${this.foe.emoji} left`, value: String(seat.goal.length) })),
+      title: s.stalemate ? t('spite.stalemate') : won ? t('win.won') : `${this.foe.emoji} ${t('spite.wins', { who: this.foe.name })}`,
+      line: t('spite.resultLine', { n: s.options.goalSize }),
+      stats: s.seats.map((seat, i) => ({ label: i === 0 ? t('spite.youLeft') : t('spite.foeLeft', { who: this.foe.emoji }), value: String(seat.goal.length) })),
       celebrate: won,
     };
     if (won) {
@@ -373,7 +381,7 @@ export class SpiteGame extends TableGame<SpiteState> {
     const s = this.state;
     if (!s) return;
     const stats: HudStat[] = s.seats.map((seat, i) => ({
-      label: i === 0 ? 'You' : this.foe.emoji,
+      label: i === 0 ? t('you') : this.foe.emoji,
       value: String(seat.goal.length),
       hot: s.turn === i && !this.starting,
     }));
@@ -403,7 +411,7 @@ export class SpiteGame extends TableGame<SpiteState> {
     if (!spot) return this.select(null);
     e.preventDefault();
     if (s.turn !== 0) {
-      this.hooks.toast(`${this.foe.emoji} is playing…`);
+      this.hooks.toast(t('spite.foePlaying', { who: this.foe.emoji }));
       return;
     }
     if (this.completing) return;
@@ -418,7 +426,7 @@ export class SpiteGame extends TableGame<SpiteState> {
 
     const src = this.sourceAt(spot);
     if (!src) {
-      if (spot.at === 'discard' && spot.player === 0) this.hooks.toast('Pick a card from your hand first');
+      if (spot.at === 'discard' && spot.player === 0) this.hooks.toast(t('spite.pickFirst'));
       return this.select(null);
     }
     // Could become a drag; decided on move or release.
@@ -456,7 +464,7 @@ export class SpiteGame extends TableGame<SpiteState> {
     this.layer.wiggle([card.id]);
     sfx.invalid();
     haptic([15, 40, 15]);
-    this.hooks.toast(`That pile needs ${needs(s.builds[pile])}`);
+    this.hooks.toast(t('spite.pileNeeds', { n: needs(s.builds[pile]) }));
     this.hooks.event?.('invalid', this.fraction(this.L.centerX[pile + 1]));
   }
 
@@ -671,7 +679,7 @@ export class SpiteGame extends TableGame<SpiteState> {
     }
 
     this.mySlots.count.textContent = String(me.goal.length);
-    this.helpEl.textContent = yourTurn && this.selected?.from === 'hand' ? 'Play it, or drop it on a pile below to end your turn' : '';
+    this.helpEl.textContent = yourTurn && this.selected?.from === 'hand' ? t('spite.playOrDiscard') : '';
     this.placeArrow();
   }
 

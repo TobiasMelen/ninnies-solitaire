@@ -1,3 +1,4 @@
+import { t } from '../../i18n';
 import { type Card, randomSeed } from '../../core/cards';
 import { type GameHooks, type HudStat, INTRO_MS, store } from '../../core/game';
 import { TableGame } from '../../core/tableGame';
@@ -24,12 +25,20 @@ import {
   whyIllegal,
 } from './rules';
 
-export const PLAYERS = [
-  { name: 'You', emoji: '🙂' },
-  { name: 'Fox', emoji: '🦊' },
-  { name: 'Owl', emoji: '🦉' },
-  { name: 'Bear', emoji: '🐻' },
-];
+export const PLAYERS = (
+  [
+    ['you', '🙂'],
+    ['animal.fox', '🦊'],
+    ['animal.owl', '🦉'],
+    ['animal.bear', '🐻'],
+  ] as const
+).map(([key, emoji]) => ({
+  emoji,
+  /** In the current language. */
+  get name() {
+    return t(key);
+  },
+}));
 
 const SAVE_KEY = 'ninnies.hearts.save.v1';
 /** How far the back row of a two-row hand sits above the front row, in card heights. */
@@ -66,7 +75,7 @@ const options = (): HeartsOptions => ({
 
 export class HeartsGame extends TableGame<HeartsState> {
   readonly id = 'hearts' as const;
-  readonly restartLabel = 'Restart this game';
+  readonly restartLabel = 'menu.restartGame' as const;
 
   private layer: CardLayer;
   private L!: Layout;
@@ -110,7 +119,7 @@ export class HeartsGame extends TableGame<HeartsState> {
       root.appendChild(b);
       this.badges.push(b);
     }
-    this.brokenEl = this.el('hearts-broken', '<span class="heart">♥︎</span> Hearts broken');
+    this.brokenEl = this.el('hearts-broken', '<span class="heart">♥︎</span> <span class="label"></span>');
 
     this.passBar = this.el('hearts-pass', '<span class="pass-text"></span><button type="button" class="btn primary pass-btn" disabled>Pass</button>');
     this.passText = this.passBar.querySelector('.pass-text')!;
@@ -140,12 +149,12 @@ export class HeartsGame extends TableGame<HeartsState> {
   static saved(): string | null {
     const s = store.get<HeartsState>(SAVE_KEY);
     if (!s || s.phase === 'gameOver') return null;
-    return `Hearts · hand ${s.handNo + 1} · you ${s.scores[0]} pts`;
+    return t('hearts.saved', { n: s.handNo + 1, pts: s.scores[0] });
   }
 
   status() {
     const s = this.state;
-    return `Hearts · hand ${s.handNo + 1} · ${SEATS.map((i) => `${PLAYERS[i].emoji} ${s.scores[i]}`).join('  ')}`;
+    return t('hearts.status', { n: s.handNo + 1, scores: SEATS.map((i) => `${PLAYERS[i].emoji} ${s.scores[i]}`).join('  ') });
   }
 
   newGame(seed = randomSeed()) {
@@ -200,7 +209,7 @@ export class HeartsGame extends TableGame<HeartsState> {
       return;
     }
     if (s.phase !== 'play' || s.turn !== 0 || this.sweeping) {
-      this.hooks.toast('Wait for your turn');
+      this.hooks.toast(t('hearts.waitTurn'));
       return;
     }
     const card = chooseCard(s, 0, Math.random, ADVISOR);
@@ -386,16 +395,16 @@ export class HeartsGame extends TableGame<HeartsState> {
   private showRound() {
     const s = this.state;
     const last = s.history.at(-1)!;
-    const moon = s.moon !== null ? `<p class="moon">🌙 ${PLAYERS[s.moon].emoji} ${s.moon === 0 ? 'You shot' : `${PLAYERS[s.moon].name} shot`} the moon!</p>` : '';
+    const moon = s.moon !== null ? `<p class="moon">🌙 ${PLAYERS[s.moon].emoji} ${s.moon === 0 ? t('hearts.youShotMoon') : t('hearts.shotMoon', { who: PLAYERS[s.moon].name })}</p>` : '';
     const over = s.phase === 'gameOver';
     const best = leaders(s);
     const rows = SEATS.map(
       (i) => `<tr class="${best.includes(i) ? 'lead' : ''}"><td>${PLAYERS[i].emoji} ${PLAYERS[i].name}</td><td>${last[i] > 0 ? '+' : ''}${last[i]}</td><td><b>${s.scores[i]}</b></td></tr>`,
     ).join('');
     this.dialog.innerHTML = `<form method="dialog">
-      <h2>${over ? 'Final scores' : `Hand ${s.handNo + 1}`}</h2>${moon}
-      <table class="round-table"><thead><tr><th></th><th>Hand</th><th>Total</th></tr></thead><tbody>${rows}</tbody></table>
-      <div class="actions"><button value="next" class="btn primary">${over ? 'See results' : 'Next hand'}</button></div>
+      <h2>${over ? t('hearts.finalScores') : t('hearts.handN', { n: s.handNo + 1 })}</h2>${moon}
+      <table class="round-table"><thead><tr><th></th><th>${t('hearts.colHand')}</th><th>${t('hearts.colTotal')}</th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="actions"><button value="next" class="btn primary">${over ? t('hearts.seeResults') : t('hearts.nextHand')}</button></div>
     </form>`;
     if (s.moon === 0) this.hooks.event?.('win');
     else if (last[0] === 0) this.hooks.event?.('complete', 0.5);
@@ -420,8 +429,8 @@ export class HeartsGame extends TableGame<HeartsState> {
     const best = leaders(s);
     const youWon = best.includes(0);
     const result = {
-      title: youWon ? 'You won!' : `${best.map((i) => PLAYERS[i].emoji).join(' ')} ${PLAYERS[best[0]].name} wins`,
-      line: `Hearts · ${s.handNo + 1} hands · first to ${s.options.target} loses`,
+      title: youWon ? t('win.won') : `${best.map((i) => PLAYERS[i].emoji).join(' ')} ${t('hearts.wins', { who: PLAYERS[best[0]].name })}`,
+      line: t('hearts.resultLine', { n: s.handNo + 1, target: s.options.target }),
       stats: SEATS.map((i) => ({ label: PLAYERS[i].emoji, value: String(s.scores[i]) })),
       celebrate: youWon,
     };
@@ -454,7 +463,7 @@ export class HeartsGame extends TableGame<HeartsState> {
     const s = this.state;
     if (!s) return;
     const stats: HudStat[] = SEATS.map((i) => ({
-      label: i === 0 ? 'You' : PLAYERS[i].emoji,
+      label: i === 0 ? t('you') : PLAYERS[i].emoji,
       value: String(s.scores[i]),
       hot: s.phase === 'play' && s.turn === i && !this.sweeping,
     }));
@@ -536,7 +545,7 @@ export class HeartsGame extends TableGame<HeartsState> {
       const from = SEATS.find((seat) => seat !== 0 && (seat + PASS_TO[s.passDir]) % 4 === 0) ?? 0;
       this.passBar.hidden = false;
       this.passBtn.hidden = true;
-      this.passText.textContent = `From ${PLAYERS[from].emoji}`;
+      this.passText.textContent = t('hearts.from', { who: PLAYERS[from].emoji });
       return;
     }
     const show = s.phase === 'pass' && !this.paused;
@@ -545,10 +554,9 @@ export class HeartsGame extends TableGame<HeartsState> {
     if (!show) return;
     const to = PASS_TO[s.passDir];
     const arrow = PASS_ARROW[s.passDir];
-    this.passText.textContent =
-      s.passDir === 'left' ? `Pass 3 ${arrow} ${PLAYERS[to].emoji}` : s.passDir === 'right' ? `Pass 3 to ${PLAYERS[to].emoji} ${arrow}` : `Pass 3 ${arrow} ${PLAYERS[to].emoji}`;
+    this.passText.textContent = t(s.passDir === 'right' ? 'hearts.passToRight' : 'hearts.passTo', { arrow, who: PLAYERS[to].emoji });
     this.passBtn.disabled = this.selected.size !== 3;
-    this.passBtn.textContent = this.selected.size === 3 ? 'Pass' : `${this.selected.size}/3`;
+    this.passBtn.textContent = this.selected.size === 3 ? t('hearts.pass') : `${this.selected.size}/3`;
   }
 
   // ───────────────────────── layout & render ─────────────────────────
@@ -722,6 +730,8 @@ export class HeartsGame extends TableGame<HeartsState> {
       b.classList.toggle('you', seat === 0);
     });
     this.brokenEl.classList.toggle('on', s.heartsBroken);
+    this.brokenEl.querySelector('.label')!.textContent = t('hearts.broken');
+    this.badges[0].dataset.you = t('you');
     this.updatePassBar();
   }
 

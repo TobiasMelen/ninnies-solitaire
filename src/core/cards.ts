@@ -1,3 +1,4 @@
+import { type Key, t } from '../i18n';
 export type Suit = 'S' | 'H' | 'D' | 'C';
 
 export interface Card {
@@ -24,10 +25,10 @@ export const SUIT_NAME: Record<Suit, string> = {
 };
 
 const RANK_LABELS = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
-const RANK_NAMES = ['', 'Ace', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Jack', 'Queen', 'King'];
-
 export const rankLabel = (rank: number) => RANK_LABELS[rank];
-export const cardName = (c: Card) => `${RANK_NAMES[c.rank]} of ${SUIT_NAME[c.suit]}`;
+/** Spoken name, e.g. "Ace of spades", in the current language. */
+export const cardName = (c: Card) =>
+  t('card.name', { rank: c.rank === 1 || c.rank > 10 ? t(`rank.${c.rank}` as Key) : String(c.rank), suit: t(`suit.${c.suit}` as Key) });
 
 /** Deterministic PRNG so a deal can be restarted and saved as just a seed. */
 export function mulberry32(seed: number) {
