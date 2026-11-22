@@ -4,6 +4,7 @@ import { TableGame } from '../../core/tableGame';
 import { CardLayer, type Placement } from '../../ui/cardLayer';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { flash } from '../../ui/fx';
+import { CardDrag, fanHand } from '../../ui/hand';
 import { settings } from '../../ui/settings';
 import { ADVISOR, type Level, SKILL, bestPileFor, chooseBuild, chooseDiscard } from './ai';
 import {
@@ -78,16 +79,8 @@ type Spot =
   | { at: 'build'; pile: number }
   | { at: 'stock' };
 
-interface Drag {
-  pointerId: number;
-  src: Source;
-  id: number;
-  startX: number;
-  startY: number;
-  base: { x: number; y: number };
-  moved: boolean;
-  target: { kind: 'build' | 'discard'; pile: number } | null;
-}
+/** Where a dragged card can be dropped. */
+type Target = { kind: 'build' | 'discard'; pile: number };
 
 const goalSize = () => (settings.spiteShort ? 13 : 20);
 
@@ -99,7 +92,7 @@ export class SpiteGame extends TableGame<SpiteState> {
   private L!: Layout;
   private where = new Map<number, Spot>();
   private selected: Source | null = null;
-  private drag: Drag | null = null;
+  private drag: CardDrag<Source, Target>;
   private lastTap = { id: -1, at: 0 };
   /** The opening deal is still on screen: no taps, and opponents wait. */
   private starting = false;
@@ -141,9 +134,21 @@ export class SpiteGame extends TableGame<SpiteState> {
     this.helpEl = this.el('spite-status', {});
 
     root.addEventListener('pointerdown', (e) => this.onDown(e));
-    root.addEventListener('pointermove', (e) => this.onMove(e));
-    root.addEventListener('pointerup', (e) => this.onUp(e));
-    root.addEventListener('pointercancel', () => this.cancelDrag());
+    this.drag = new CardDrag<Source, Target>(root, this.layer, {
+      cardSize: () => this.L,
+      targets: (src) => [
+        ...this.buildSlots.map((el, pile) => ({ el, target: { kind: 'build' as const, pile } })),
+        // Only hand cards may be discarded.
+        ...(src.from === 'hand' ? this.mySlots.discards.map((el, pile) => ({ el, target: { kind: 'discard' as const, pile } })) : []),
+      ],
+      start: (src) => this.select(src),
+      tap: (src, id) => this.tap(src, id),
+      drop: (src, target) => {
+        if (target?.kind === 'build') return this.tryBuild(src, target.pile);
+        if (target?.kind === 'discard' && src.from === 'hand') return this.perform(0, { t: 'discard', index: src.index, pile: target.pile });
+        this.render(); // snap back
+      },
+    });
   }
 
   // ───────────────────────── controller ─────────────────────────
@@ -362,7 +367,6 @@ export class SpiteGame extends TableGame<SpiteState> {
     this.selected = null;
     this.completing = null;
     this.foeLift = null;
-    this.drag = null;
   }
 
   protected emitHud() {
@@ -394,7 +398,7 @@ export class SpiteGame extends TableGame<SpiteState> {
   private onDown(e: PointerEvent) {
     unlockAudio();
     const s = this.state;
-    if (!s || this.cascade || s.winner !== null || this.starting || this.drag) return;
+    if (!s || this.cascade || s.winner !== null || this.starting || this.drag.active) return;
     const spot = this.spotAt(e.target);
     if (!spot) return this.select(null);
     e.preventDefault();
@@ -418,62 +422,7 @@ export class SpiteGame extends TableGame<SpiteState> {
       return this.select(null);
     }
     // Could become a drag; decided on move or release.
-    const card = sourceCard(s, 0, src)!;
-    const pos = this.layer.pos(card.id) ?? { x: 0, y: 0 };
-    this.drag = { pointerId: e.pointerId, src, id: card.id, startX: e.clientX, startY: e.clientY, base: { x: pos.x, y: pos.y }, moved: false, target: null };
-    try {
-      this.root.setPointerCapture(e.pointerId);
-    } catch {
-      /* the pointer is already gone; the tap still works without capture */
-    }
-  }
-
-  private onMove(e: PointerEvent) {
-    const d = this.drag;
-    if (!d || d.pointerId !== e.pointerId) return;
-    const dx = e.clientX - d.startX;
-    const dy = e.clientY - d.startY;
-    if (!d.moved) {
-      if (Math.hypot(dx, dy) < 8) return;
-      d.moved = true;
-      this.select(d.src);
-      sfx.pick();
-      haptic(5);
-      this.layer.els.get(d.id)!.classList.add('dragging');
-    }
-    this.layer.drag(d.id, d.base.x + dx, d.base.y + dy, 3000);
-    // Drop target: the pile under the card's centre, with generous hit areas.
-    const rect = this.root.getBoundingClientRect();
-    const cx = rect.left + d.base.x + dx + this.L.cw / 2;
-    const cy = rect.top + d.base.y + dy + this.L.ch / 2;
-    const reach = this.L.cw * 0.35;
-    const hit = (el: HTMLElement) => {
-      const r = el.getBoundingClientRect();
-      return cx > r.left - reach && cx < r.right + reach && cy > r.top - reach && cy < r.bottom + reach;
-    };
-    let target: Drag['target'] = null;
-    this.buildSlots.forEach((el, pile) => {
-      if (!target && hit(el)) target = { kind: 'build', pile };
-    });
-    if (!target && d.src.from === 'hand')
-      this.mySlots.discards.forEach((el, pile) => {
-        if (!target && hit(el)) target = { kind: 'discard', pile };
-      });
-    d.target = target;
-    this.buildSlots.forEach((el, pile) => el.classList.toggle('hot', d.target?.kind === 'build' && d.target.pile === pile));
-    this.mySlots.discards.forEach((el, pile) => el.classList.toggle('hot', d.target?.kind === 'discard' && d.target.pile === pile));
-  }
-
-  private onUp(e: PointerEvent) {
-    const d = this.drag;
-    if (!d || d.pointerId !== e.pointerId) return;
-    this.endDrag();
-    if (d.moved) {
-      if (d.target?.kind === 'build') return this.tryBuild(d.src, d.target.pile);
-      if (d.target?.kind === 'discard' && d.src.from === 'hand') return this.perform(0, { t: 'discard', index: d.src.index, pile: d.target.pile });
-      return this.render(); // snap back
-    }
-    this.tap(d.src, d.id);
+    this.drag.begin(e, src, sourceCard(s, 0, src)!.id);
   }
 
   private tap(src: Source, id: number) {
@@ -495,18 +444,8 @@ export class SpiteGame extends TableGame<SpiteState> {
     haptic(5);
   }
 
-  private endDrag() {
-    const d = this.drag;
-    if (!d) return;
-    this.layer.els.get(d.id)?.classList.remove('dragging');
-    [...this.buildSlots, ...this.mySlots.discards].forEach((el) => el.classList.remove('hot'));
-    this.drag = null;
-  }
-
   private cancelDrag() {
-    if (!this.drag) return;
-    this.endDrag();
-    this.render();
+    if (this.drag.cancel()) this.render();
   }
 
   private tryBuild(src: Source, pile: number) {
@@ -711,20 +650,11 @@ export class SpiteGame extends TableGame<SpiteState> {
     if (this.foeLift !== null) this.layer.els.get(this.foeLift)?.classList.add('picked');
 
     // Your hand, fanned like cards held in a hand: a gentle arc, tilted outward.
-    const hand = me.hand;
-    const n = hand.length;
-    const step = n > 1 ? Math.min(L.cw * 0.82, (L.handW - L.cw) / (n - 1)) : 0;
-    const x0 = L.handX + (L.handW - (L.cw + step * (n - 1))) / 2;
-    hand.forEach((c, i) => {
-      const off = n > 1 ? i - (n - 1) / 2 : 0;
+    const fan = fanHand(me.hand.length, { left: L.handX, width: L.handW, y: L.handY }, L.cw, L.ch);
+    me.hand.forEach((c, i) => {
       const sel = this.selected?.from === 'hand' && this.selected.index === i;
-      put(c, { at: 'hand', index: i }, {
-        x: x0 + i * step,
-        y: L.handY + off * off * L.ch * 0.035 - (sel ? L.raise : 0),
-        z: 600 + i,
-        faceUp: true,
-        rotate: sel ? 0 : off * 5,
-      });
+      const f = fan[i];
+      put(c, { at: 'hand', index: i }, { x: f.x, y: f.y - (sel ? L.raise : 0), z: 600 + i, faceUp: true, rotate: sel ? 0 : f.rotate });
     });
 
     // Selection: glow the card and light up where it can go.

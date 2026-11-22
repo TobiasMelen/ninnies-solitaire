@@ -4,6 +4,7 @@ import { TableGame } from '../../core/tableGame';
 import { CardLayer, MOVE_MS, type Placement } from '../../ui/cardLayer';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { flash } from '../../ui/fx';
+import { CardDrag, fanHand } from '../../ui/hand';
 import { settings } from '../../ui/settings';
 import { ADVISOR, chooseCard, choosePassCards, skillFor } from './ai';
 import {
@@ -41,8 +42,8 @@ interface Layout {
   H: number;
   cw: number;
   ch: number;
-  rows: 1 | 2;
-  bottomY: number;
+  /** Top of the hand's cards (the fan's middle). */
+  handY: number;
   raise: number;
   opp: { x: number; y: number; dx: number; dy: number }[];
   oppScale: number;
@@ -87,6 +88,9 @@ export class HeartsGame extends TableGame<HeartsState> {
   private passBtn: HTMLButtonElement;
   private passText: HTMLElement;
   private brokenEl: HTMLElement;
+  /** Where a card dragged out of the hand is played: the middle of the table. */
+  private trickZone: HTMLElement;
+  private drag: CardDrag<Card, true>;
   private dialog: HTMLDialogElement;
 
   constructor(root: HTMLElement, hooks: GameHooks) {
@@ -115,7 +119,17 @@ export class HeartsGame extends TableGame<HeartsState> {
     document.body.appendChild(this.dialog);
     this.dialog.addEventListener('close', () => this.afterRound());
 
+    this.trickZone = this.el('hearts-trick-zone', '');
     root.addEventListener('pointerdown', (e) => this.onDown(e));
+    this.drag = new CardDrag<Card, true>(root, this.layer, {
+      cardSize: () => this.L,
+      targets: () => [{ el: this.trickZone, target: true }],
+      tap: (card) => this.tapToPlay(card),
+      drop: (card, onTable) => {
+        if (onTable && this.myTurnNow()) return this.play(0, card);
+        this.render(); // back into the hand
+      },
+    });
   }
 
   // ───────────────────────── controller ─────────────────────────
@@ -209,6 +223,7 @@ export class HeartsGame extends TableGame<HeartsState> {
 
   /** Pausing mid-moment: finish it now so the game resumes cleanly from the state alone. */
   protected settle() {
+    this.drag.cancel();
     this.review = false;
     this.announcing = false;
     this.showing = null;
@@ -477,7 +492,7 @@ export class HeartsGame extends TableGame<HeartsState> {
       return;
     }
 
-    if (s.phase !== 'play' || this.sweeping) return;
+    if (s.phase !== 'play' || this.sweeping || this.drag.active) return;
     const why = whyIllegal(s, 0, card);
     if (why) {
       this.layer.wiggle([card.id]);
@@ -489,7 +504,18 @@ export class HeartsGame extends TableGame<HeartsState> {
       }
       return;
     }
-    // First tap lifts the card, a second tap plays it (unless single tap is enough).
+    // A tap or a drag onto the table; decided on move or release.
+    this.drag.begin(e, card, card.id);
+  }
+
+  private myTurnNow() {
+    const s = this.state;
+    return s.phase === 'play' && s.turn === 0 && !this.sweeping && !this.paused;
+  }
+
+  /** First tap lifts the card, a second tap plays it (unless single tap is enough). */
+  private tapToPlay(card: Card) {
+    if (!this.myTurnNow()) return;
     if (this.raised === card.id || settings.heartsOneTap) {
       this.play(0, card);
     } else {
@@ -531,13 +557,14 @@ export class HeartsGame extends TableGame<HeartsState> {
     const pad = 10;
     const portrait = H > W * 1.05;
     const cw = Math.round(
-      portrait ? clamp(Math.min((W - pad * 2) / 4.3, H * 0.14), 54, 118) : clamp(Math.min(H * 0.21, (W - pad * 2) / 6), 50, 110),
+      // Portrait: small enough that a fan of 13 shows each card's corner (0.38 of a card apart).
+      portrait ? clamp(Math.min((W - pad * 2) / (1 + 12 * 0.38), H * 0.14), 48, 118) : clamp(Math.min(H * 0.21, (W - pad * 2) / 6), 50, 110),
     );
     const ch = Math.round(cw * 1.4);
-    const rows = portrait ? 2 : 1;
     const raise = Math.round(ch * 0.24);
-    const bottomY = H - pad - ch;
-    const handTop = (rows === 2 ? bottomY - ch * 0.52 : bottomY) - raise;
+    // The fan's ends dip a little below its middle; keep them on screen.
+    const handY = Math.round(H - pad - ch * 1.12);
+    const handTop = handY - raise;
 
     const oppScale = portrait ? 0.42 : 0.4;
     const ow = cw * oppScale;
@@ -580,12 +607,25 @@ export class HeartsGame extends TableGame<HeartsState> {
       { x: W / 2 + northW / 2 + 8, y: pad + oh / 2 - 14 },
       { x: W - pad - ow / 2, y: sideY + sideLen + 4 },
     ];
-    this.L = { W, H, cw, ch, rows, bottomY, raise, opp, oppScale, trick, trickScale, pile, badge, center };
+    this.L = { W, H, cw, ch, handY, raise, opp, oppScale, trick, trickScale, pile, badge, center };
     this.root.style.setProperty('--cw', `${cw}px`);
     this.root.style.setProperty('--ch', `${ch}px`);
     // The Hint Bunny (outside this layer) peeks over the top of the hand instead of covering it.
     this.root.parentElement?.style.setProperty('--bunny-lift', `${Math.round(H - handTop - raise * 0.6)}px`);
-    this.brokenEl.style.transform = `translate(${center.x - 10}px, ${top - 28}px)`;
+    // ...and sits clear of the side players' cards and badges.
+    const sideBottom = (sideY + sideLen + 30) / H;
+    this.hooks.occupied?.([
+      { x0: 0, x1: (pad + ow + 6) / W, y: sideBottom },
+      { x0: (W - pad - ow - 6) / W, x1: 1, y: sideBottom },
+    ]);
+    // Beside your badge, just above your hand: hearts being broken matters for your next lead.
+    // (Placed with `translate`, which the icon's pop-up `scale` doesn't stretch; `transform` it does.)
+    this.brokenEl.style.translate = `${badge[0].x - 26}px ${badge[0].y - 1}px`;
+    Object.assign(this.trickZone.style, {
+      transform: `translate(${tx - tw * 0.75}px, ${ty - th * 0.4}px)`,
+      width: `${tw * 2.5}px`,
+      height: `${th * 1.8}px`,
+    });
     this.passBar.style.setProperty('--pass-y', `${center.y}px`);
     this.badges.forEach((b, i) => {
       b.style.transform = `translate(${badge[i].x}px, ${badge[i].y}px)`;
@@ -594,22 +634,12 @@ export class HeartsGame extends TableGame<HeartsState> {
     if (this.state && !this.cascade) this.render(false);
   }
 
-  /** Where each card in the player's hand sits (two overlapping rows in portrait). */
+  /** Where each card in the player's hand sits: fanned across the bottom, like Spite & Malice. */
   private handSpots(hand: Card[]) {
-    const { W, cw, ch, rows, bottomY } = this.L;
+    const { W, cw, ch, handY } = this.L;
     const pad = 10;
-    const split = rows === 2 ? Math.ceil(hand.length / 2) : hand.length;
-    const lines = rows === 2 ? [hand.slice(0, split), hand.slice(split)] : [hand];
-    const spots = new Map<number, { x: number; y: number; z: number }>();
-    lines.forEach((line, r) => {
-      const n = line.length;
-      const maxStep = cw * 0.78;
-      const step = n > 1 ? Math.min(maxStep, (W - pad * 2 - cw) / (n - 1)) : 0;
-      const x0 = (W - (cw + (n - 1) * step)) / 2;
-      const y = rows === 2 && r === 0 ? bottomY - ch * 0.52 : bottomY;
-      line.forEach((c, i) => spots.set(c.id, { x: Math.round(x0 + i * step), y: Math.round(y), z: 600 + r * 40 + i }));
-    });
-    return spots;
+    const fan = fanHand(hand.length, { left: pad, width: W - pad * 2, y: handY }, cw, ch);
+    return new Map(hand.map((c, i) => [c.id, { ...fan[i], z: 600 + i }]));
   }
 
   protected render(animate = true) {
@@ -630,7 +660,7 @@ export class HeartsGame extends TableGame<HeartsState> {
     for (const c of s.hands[0]) {
       const p = spots.get(c.id)!;
       const up = this.selected.has(c.id) || this.raised === c.id || (this.review && fresh.has(c.id));
-      put(c, { x: p.x, y: p.y - (up ? L.raise : 0), z: p.z, faceUp: true });
+      put(c, { x: p.x, y: p.y - (up ? L.raise : 0), z: p.z, faceUp: true, rotate: up ? 0 : p.rotate });
       const el = this.layer.els.get(c.id)!;
       el.classList.toggle('locked', myTurn && settings.dimLocked && !legal.has(c.id));
       el.classList.toggle('received', fresh.has(c.id));
@@ -705,7 +735,7 @@ export class HeartsGame extends TableGame<HeartsState> {
         const delay = order.get(c.id) ?? 0;
         if (seat === 0) {
           const p = spots.get(c.id)!;
-          this.layer.place(c.id, { x: p.x, y: p.y, z: p.z, faceUp: true, delay }, true);
+          this.layer.place(c.id, { x: p.x, y: p.y, z: p.z, faceUp: true, rotate: p.rotate, delay }, true);
         } else {
           const o = L.opp[seat];
           this.layer.place(c.id, { x: o.x + i * o.dx, y: o.y + i * o.dy, z: 100 + i, faceUp: false, scale: L.oppScale, delay }, true);

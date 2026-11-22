@@ -867,6 +867,26 @@ html.large-print [data-deck='pips'] {
     0 0 18px var(--accent-glow);
 }
 
+/* Drop area for a card dragged out of the hand: lights up while a card is over it. */
+.hearts-trick-zone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 40;
+  border: 2.5px dashed transparent;
+  border-radius: 18px;
+  pointer-events: none;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+#board:has(.hearts-root .card.dragging) .hearts-trick-zone {
+  border-color: rgba(255, 255, 255, 0.28);
+}
+.hearts-trick-zone.hot {
+  border-color: var(--accent) !important;
+  border-style: solid;
+  background: rgba(255, 213, 74, 0.14);
+  box-shadow: 0 0 24px var(--accent-glow);
+}
 .hearts-broken {
   position: absolute;
   left: 0;
