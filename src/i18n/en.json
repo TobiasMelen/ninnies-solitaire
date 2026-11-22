@@ -220,5 +220,7 @@
   "opt.landscaperFarmers": "Farmers",
   "opt.landscaperFarmers.hint": "Followers can lie in fields; at the end they score 3 for each finished city their field borders",
   "opt.landscaperFast": "Quick opponents",
-  "opt.landscaperFast.hint": "Opponents take their turns faster"
+  "opt.landscaperFast.hint": "Opponents take their turns faster",
+  "opt.landscaperRiver": "The river",
+  "opt.landscaperRiver.hint": "Start with the river: it winds out from its spring to a lake before the rest of the map grows"
 }

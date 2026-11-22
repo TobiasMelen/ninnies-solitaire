@@ -1,5 +1,5 @@
 import { mulberry32, shuffle } from '../../core/cards';
-import { DIRS, KIND, KINDS, START, type TileKind, edgeAt, facingHalf } from './tiles';
+import { DIRS, KIND, KINDS, LAKE, RIVER_KINDS, SPRING, START, type TileKind, edgeAt, facingHalf } from './tiles';
 
 /**
  * Landscaper rules: lay tiles so edges match, put a follower on a road, city, cloister or field
@@ -43,6 +43,8 @@ export interface Scored {
 export interface LandscaperOptions {
   players: number;
   farmers: boolean;
+  /** Start with the river expansion. */
+  river?: boolean;
 }
 
 export interface LandscaperState {
@@ -60,19 +62,29 @@ export interface LandscaperState {
   /** What the last move (or the end of the game) scored. */
   scored: Scored[];
   over: boolean;
+  /** Which way the river last bent (1 right, 3 left), so it never doubles back on itself. */
+  riverBend?: number;
 }
 
 export const FOLLOWERS = 7;
 
 export function newGame(seed: number, options: LandscaperOptions): LandscaperState {
+  const rand = mulberry32(seed);
   const pile: string[] = [];
-  for (const k of KINDS) for (let n = 0; n < k.count - (k.id === START ? 1 : 0); n++) pile.push(k.id);
-  shuffle(pile, mulberry32(seed));
+  // With the river, the spring starts the map and the usual start tile goes in the pile.
+  for (const k of KINDS) for (let n = 0; n < k.count - (k.id === START && !options.river ? 1 : 0); n++) pile.push(k.id);
+  shuffle(pile, rand);
+  if (options.river) {
+    // The pile is drawn from the end: river tiles first, the lake last of them.
+    const river: string[] = [];
+    for (const k of RIVER_KINDS) if (k.id !== SPRING && k.id !== LAKE) for (let n = 0; n < k.count; n++) river.push(k.id);
+    pile.push(LAKE, ...shuffle(river, rand));
+  }
   const s: LandscaperState = {
     seed,
     options,
     pile,
-    tiles: [{ k: START, r: 0, x: 0, y: 0 }],
+    tiles: [{ k: options.river ? SPRING : START, r: 0, x: 0, y: 0 }],
     scores: Array(options.players).fill(0),
     followers: Array(options.players).fill(FOLLOWERS),
     turn: 0,
@@ -106,10 +118,44 @@ export function fits(s: LandscaperState, at: Map<string, number>, k: TileKind, x
   return touches;
 }
 
+/** The river's open end: the tile it leaves, the side it leaves by, and the empty square beyond. */
+export function riverEnd(s: LandscaperState, at = tileMap(s)) {
+  for (let i = s.tiles.length - 1; i >= 0; i--) {
+    const t = s.tiles[i];
+    const k = KIND[t.k];
+    if (!k.rivers) continue;
+    for (let d = 0; d < 4; d++) {
+      if (edgeAt(k, t.r, d) !== 'river') continue;
+      const x = t.x + DIRS[d][0];
+      const y = t.y + DIRS[d][1];
+      if (!at.has(cell(x, y))) return { x, y, side: (d + 2) % 4 };
+    }
+  }
+  return null;
+}
+
+/** Which way a river tile laid this way bends: 0 straight on, 1 right, 3 left. */
+function bendOf(k: TileKind, r: number, inSide: number) {
+  const sides = [0, 1, 2, 3].filter((d) => edgeAt(k, r, d) === 'river');
+  const out = sides.find((d) => d !== inSide);
+  return out === undefined ? 0 : (out - ((inSide + 2) % 4) + 4) % 4;
+}
+
+/** Where a river tile can go: on the river's open end, flowing on, and not bending back on itself. */
+function riverPlacements(s: LandscaperState, at: Map<string, number>, k: TileKind) {
+  const end = riverEnd(s, at);
+  if (!end) return [];
+  const fitting = [0, 1, 2, 3].filter((r) => edgeAt(k, r, end.side) === 'river' && fits(s, at, k, end.x, end.y, r));
+  // Two bends the same way in a row would make a U-turn; avoid it when there's another way.
+  const ok = fitting.filter((r) => !s.riverBend || bendOf(k, r, end.side) !== s.riverBend);
+  return (ok.length ? ok : fitting).map((r) => ({ x: end.x, y: end.y, r }));
+}
+
 /** Every spot and turn where tile `kind` can be laid. */
 export function placements(s: LandscaperState, kind: string): { x: number; y: number; r: number }[] {
   const at = tileMap(s);
   const k = KIND[kind];
+  if (k.rivers) return riverPlacements(s, at, k);
   const out: { x: number; y: number; r: number }[] = [];
   const seen = new Set<string>();
   for (const t of s.tiles) {
@@ -207,7 +253,7 @@ export function analyse(s: LandscaperState): Analysis {
       const type = k.edges[local];
       const n = at.get(cell(tile.x + DIRS[d][0], tile.y + DIRS[d][1]));
       if (n === undefined) {
-        if (type !== 'field') {
+        if (type === 'city' || type === 'road') {
           const node = partWith(t, type, local);
           open.set(node, (open.get(node) ?? 0) + 1);
         }
@@ -216,7 +262,7 @@ export function analyse(s: LandscaperState): Analysis {
       if (n < t) continue; // each shared edge once
       const o = s.tiles[n];
       const oLocal = ((d + 2) % 4 - o.r + 4) % 4;
-      if (type !== 'field') union(partWith(t, type, local), partWith(n, type, oLocal));
+      if (type === 'city' || type === 'road') union(partWith(t, type, local), partWith(n, type, oLocal));
       for (let k2 = 0; k2 < 2; k2++) {
         const world = 2 * d + k2;
         const a = fieldWith(t, (world - 2 * tile.r + 8) % 8);
@@ -308,6 +354,11 @@ export function play(s: LandscaperState, m: Move) {
   if (!s.current || s.over) throw new Error('No tile to lay');
   const k = KIND[s.current];
   if (!fits(s, tileMap(s), k, m.x, m.y, m.r)) throw new Error('Tile does not fit there');
+  if (k.rivers) {
+    const end = riverEnd(s);
+    const bend = end ? bendOf(k, m.r, end.side) : 0;
+    if (bend) s.riverBend = bend;
+  }
   s.tiles.push({ k: s.current, r: m.r, x: m.x, y: m.y });
   const t = s.tiles.length - 1;
   if (m.f) {

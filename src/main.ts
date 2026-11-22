@@ -569,6 +569,7 @@ const TOGGLES: Toggle[] = [
   { key: 'heartsFast', group: 'play', games: ['hearts'] },
   { key: 'spiteShort', group: 'play', games: ['spite'] },
   { key: 'spiteFast', group: 'play', games: ['spite'] },
+  { key: 'landscaperRiver', group: 'play', games: ['landscaper'] },
   { key: 'landscaperFarmers', group: 'play', games: ['landscaper'] },
   { key: 'landscaperFast', group: 'play', games: ['landscaper'] },
   { key: 'fourColour', group: 'cards' },

@@ -7,7 +7,8 @@
  * S: 4 east, 5 west; W: 6 south, 7 north). A road edge splits its field into those two halves.
  */
 
-export type Edge = 'city' | 'road' | 'field';
+/** A river edge meets only a river edge; like a road, it splits the field on that edge in two. */
+export type Edge = 'city' | 'road' | 'field' | 'river';
 
 export interface TileKind {
   id: string;
@@ -20,11 +21,14 @@ export interface TileKind {
   /** Field areas by their halves, and which of this tile's cities each one borders. */
   fields: { halves: number[]; cities: number[] }[];
   cloister?: boolean;
+  /** River parts by the edges they reach (one edge: the spring or the lake). Not scored. */
+  rivers?: { edges: number[] }[];
 }
 
 const C = 'city' as const;
 const R = 'road' as const;
 const F = 'field' as const;
+const W = 'river' as const;
 
 export const KINDS: TileKind[] = [
   { id: 'A', count: 2, edges: [F, F, R, F], cloister: true, cities: [], roads: [{ edges: [2] }], fields: [{ halves: [0, 1, 2, 3, 4, 5, 6, 7], cities: [] }] },
@@ -197,7 +201,119 @@ export const KINDS: TileKind[] = [
   },
 ];
 
-export const KIND = Object.fromEntries(KINDS.map((k) => [k.id, k])) as Record<string, TileKind>;
+/**
+ * The river expansion: twelve tiles laid first, from the spring to the lake, before the rest.
+ * Ids start with 'r'.
+ */
+export const RIVER_KINDS: TileKind[] = [
+  { id: 'rS', count: 1, edges: [F, F, W, F], cities: [], roads: [], rivers: [{ edges: [2] }], fields: [{ halves: [0, 1, 2, 3, 4, 5, 6, 7], cities: [] }] },
+  { id: 'rL', count: 1, edges: [W, F, F, F], cities: [], roads: [], rivers: [{ edges: [0] }], fields: [{ halves: [0, 1, 2, 3, 4, 5, 6, 7], cities: [] }] },
+  {
+    id: 'rI',
+    count: 2,
+    edges: [W, F, W, F],
+    cities: [],
+    roads: [],
+    rivers: [{ edges: [0, 2] }],
+    fields: [
+      { halves: [1, 2, 3, 4], cities: [] },
+      { halves: [5, 6, 7, 0], cities: [] },
+    ],
+  },
+  {
+    id: 'rC',
+    count: 2,
+    edges: [W, W, F, F],
+    cities: [],
+    roads: [],
+    rivers: [{ edges: [0, 1] }],
+    fields: [
+      { halves: [1, 2], cities: [] },
+      { halves: [3, 4, 5, 6, 7, 0], cities: [] },
+    ],
+  },
+  {
+    id: 'rB',
+    count: 1,
+    edges: [W, R, W, R],
+    cities: [],
+    roads: [{ edges: [1, 3] }],
+    rivers: [{ edges: [0, 2] }],
+    fields: [
+      { halves: [1, 2], cities: [] },
+      { halves: [3, 4], cities: [] },
+      { halves: [5, 6], cities: [] },
+      { halves: [7, 0], cities: [] },
+    ],
+  },
+  {
+    id: 'rE',
+    count: 1,
+    edges: [W, C, W, F],
+    cities: [{ edges: [1] }],
+    roads: [],
+    rivers: [{ edges: [0, 2] }],
+    fields: [
+      { halves: [1, 4], cities: [0] },
+      { halves: [5, 6, 7, 0], cities: [] },
+    ],
+  },
+  {
+    id: 'rT',
+    count: 1,
+    edges: [W, C, W, C],
+    cities: [{ edges: [1] }, { edges: [3] }],
+    roads: [],
+    rivers: [{ edges: [0, 2] }],
+    fields: [
+      { halves: [1, 4], cities: [0] },
+      { halves: [5, 0], cities: [1] },
+    ],
+  },
+  {
+    id: 'rR',
+    count: 1,
+    edges: [W, W, R, R],
+    cities: [],
+    roads: [{ edges: [2, 3] }],
+    rivers: [{ edges: [0, 1] }],
+    fields: [
+      { halves: [1, 2], cities: [] },
+      { halves: [3, 4, 7, 0], cities: [] },
+      { halves: [5, 6], cities: [] },
+    ],
+  },
+  {
+    id: 'rM',
+    count: 1,
+    edges: [W, F, W, R],
+    cloister: true,
+    cities: [],
+    roads: [{ edges: [3] }],
+    rivers: [{ edges: [0, 2] }],
+    fields: [
+      { halves: [1, 2, 3, 4], cities: [] },
+      { halves: [5, 6, 7, 0], cities: [] },
+    ],
+  },
+  {
+    id: 'rK',
+    count: 1,
+    edges: [C, F, W, W],
+    cities: [{ edges: [0] }],
+    roads: [],
+    rivers: [{ edges: [2, 3] }],
+    fields: [
+      { halves: [5, 6], cities: [] },
+      { halves: [2, 3, 4, 7], cities: [0] },
+    ],
+  },
+];
+/** The river's first tile, which starts the map when the river is in play. */
+export const SPRING = 'rS';
+export const LAKE = 'rL';
+
+export const KIND = Object.fromEntries([...KINDS, ...RIVER_KINDS].map((k) => [k.id, k])) as Record<string, TileKind>;
 /** The starting tile: a city on one side and a road across. */
 export const START = 'D';
 

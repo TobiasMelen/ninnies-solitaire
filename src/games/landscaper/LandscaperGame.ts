@@ -103,7 +103,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   newGame(opponents: number, seed = randomSeed()) {
     this.stopCascade();
     this.cancelAll();
-    this.state = newGame(seed, { players: opponents + 1, farmers: settings.landscaperFarmers });
+    this.state = newGame(seed, { players: opponents + 1, farmers: settings.landscaperFarmers, river: settings.landscaperRiver });
     this.stage = { at: 'lay', ghost: null };
     this.view = { x: 0, y: 0, zoom: 1 };
     this.save();
@@ -194,12 +194,12 @@ export class LandscaperGame extends TableGame<LandscaperState> {
       this.aiShow = { m, r: 0 };
       this.reveal(m.x, m.y);
       this.render();
-      this.after('ai-turn', 380, () => {
+      this.after('ai-turn', 820, () => {
         if (!this.aiShow) return;
         this.aiShow.r = m.r;
         this.render();
         // ...then down it goes.
-        this.after('ai-lay', 420, () => {
+        this.after('ai-lay', 620, () => {
           this.aiShow = null;
           this.thinking = false;
           this.commit(m);
@@ -233,7 +233,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     if (s.scored.some((x) => !x.final && x.players.includes(0))) {
       this.hooks.event?.('complete', 0.5);
     } else if (who === 0) this.hooks.event?.(m.f ? 'suit' : 'move', 0.5);
-    this.after('next', s.scored.length ? 700 : 250, () => this.step());
+    this.after('next', s.scored.length ? 1000 : 450, () => this.step());
   }
 
   private finish() {
@@ -506,7 +506,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
         el.style.cssText = `left:${f.x}px;top:${f.y}px`;
         el.innerHTML = f.html;
         this.popsEl.appendChild(el);
-        window.setTimeout(() => el.remove(), 900);
+        window.setTimeout(() => el.remove(), 1200);
       }
     }
     this.shownFollowers = now;

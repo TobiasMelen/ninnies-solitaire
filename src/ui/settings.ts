@@ -55,6 +55,7 @@ export interface Settings {
   spiteFast: boolean;
   landscaperFarmers: boolean;
   landscaperFast: boolean;
+  landscaperRiver: boolean;
   /** 'auto' follows the device's language. */
   lang: 'auto' | Lang;
   /** Skip the setup step when starting that game (the "Remember" box). */
@@ -92,6 +93,7 @@ const DEFAULTS: Settings = {
   spiteFast: false,
   landscaperFarmers: true,
   landscaperFast: false,
+  landscaperRiver: true,
   lang: 'auto',
   rememberSpider: false,
   rememberHearts: false,

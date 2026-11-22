@@ -13,11 +13,12 @@ export interface Skill {
   followerValue: number;
 }
 
-export const EASY: Skill = { noise: 6, followerValue: 0.6 };
-export const STEADY: Skill = { noise: 1.5, followerValue: 1.2 };
-export const SHARP: Skill = { noise: 0, followerValue: 1.5 };
-/** The Hint Bunny's advice. */
-export const ADVISOR = SHARP;
+// Tuned so a casual player has a fair game: even the sharp one judges with a little noise.
+export const EASY: Skill = { noise: 14, followerValue: 0.3 };
+export const STEADY: Skill = { noise: 6, followerValue: 0.9 };
+export const SHARP: Skill = { noise: 2.5, followerValue: 1.3 };
+/** The Hint Bunny's advice: the best it can see, no noise. */
+export const ADVISOR: Skill = { noise: 0, followerValue: 1.5 };
 
 const LEVELS = [EASY, STEADY, SHARP];
 /** Each opponent's level comes from the game's seed: random per game, the same on resume. */

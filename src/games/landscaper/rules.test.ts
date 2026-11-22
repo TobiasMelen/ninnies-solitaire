@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { type LandscaperState, analyse, followerSpots, newGame, placements, play } from './rules';
-import { KINDS } from './tiles';
+import { KINDS, RIVER_KINDS } from './tiles';
 
 const opts = { players: 2, farmers: true };
 
@@ -13,13 +13,16 @@ describe('tile set', () => {
   it('has the classic 72 tiles', () => {
     expect(KINDS.reduce((n, k) => n + k.count, 0)).toBe(72);
   });
-  it('every field half and city/road edge is accounted for exactly once', () => {
-    for (const k of KINDS) {
+  it('the river expansion has 12 tiles', () => {
+    expect(RIVER_KINDS.reduce((n, k) => n + k.count, 0)).toBe(12);
+  });
+  it('every field half and city/road/river edge is accounted for exactly once', () => {
+    for (const k of [...KINDS, ...RIVER_KINDS]) {
       const halves = k.fields.flatMap((f) => f.halves).sort((a, b) => a - b);
       const expected = [0, 1, 2, 3].flatMap((e) => (k.edges[e] === 'city' ? [] : [2 * e, 2 * e + 1]));
       expect(halves, k.id).toEqual(expected);
-      for (const part of ['city', 'road'] as const) {
-        const edges = (part === 'city' ? k.cities : k.roads).flatMap((p) => p.edges).sort();
+      for (const part of ['city', 'road', 'river'] as const) {
+        const edges = (part === 'city' ? k.cities : part === 'road' ? k.roads : (k.rivers ?? [])).flatMap((p) => p.edges).sort();
         expect(edges, `${k.id} ${part}`).toEqual([0, 1, 2, 3].filter((e) => k.edges[e] === part));
       }
     }
@@ -76,6 +79,19 @@ describe('scoring', () => {
     expect(s.over).toBe(true);
     expect(s.scores[1]).toBe(3);
     expect(s.scored.some((x) => x.part === 'field' && x.final)).toBe(true);
+  });
+
+  it('lays the whole river first, from spring to lake, without it doubling back', () => {
+    const s = newGame(9, { players: 2, farmers: true, river: true });
+    expect(s.tiles[0].k).toBe('rS');
+    for (let i = 0; i < 11; i++) {
+      expect(s.current!.startsWith('r'), `tile ${i}`).toBe(true);
+      play(s, placements(s, s.current!)[0]);
+    }
+    expect(s.tiles.at(-1)!.k).toBe('rL');
+    expect(s.current!.startsWith('r')).toBe(false);
+    // The river's squares are all different (it never ran into itself).
+    expect(new Set(s.tiles.map((t) => `${t.x},${t.y}`)).size).toBe(12);
   });
 
   it('plays a whole random game to the end with consistent totals', () => {

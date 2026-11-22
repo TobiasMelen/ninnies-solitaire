@@ -76,6 +76,66 @@ function onCurve([a, b, c, d]: Curve, t: number): Pt {
   return [w[0] * a[0] + w[1] * b[0] + w[2] * c[0] + w[3] * d[0], w[0] * a[1] + w[1] * b[1] + w[2] * c[1] + w[3] * d[1]];
 }
 
+/** A river's course: like a road between two edges; from an edge to the middle for the spring or lake. */
+function riverPath(edges: number[]): string {
+  const [a, b] = edges;
+  const [x1, y1] = MID[a];
+  if (b === undefined) return `M${x1} ${y1}L${x1 + (50 - x1) * 0.8} ${y1 + (50 - y1) * 0.8}`;
+  const [x2, y2] = MID[b];
+  return (b - a) % 2 === 0 ? `M${x1} ${y1}L${x2} ${y2}` : `M${x1} ${y1}Q50 50 ${x2} ${y2}`;
+}
+
+/** Points along a river or road between two edges (or from an edge in to `stop`). */
+function along(edges: number[], n: number, stop = 0.8): Pt[] {
+  const [a, b] = edges;
+  const [x1, y1] = MID[a];
+  const end: Pt = b !== undefined ? [MID[b][0], MID[b][1]] : [x1 + (50 - x1) * stop, y1 + (50 - y1) * stop];
+  const curved = b !== undefined && (b - a) % 2 !== 0;
+  return Array.from({ length: n }, (_, i) => {
+    const t = (i + 0.5) / n;
+    if (!curved) return [x1 + (end[0] - x1) * t, y1 + (end[1] - y1) * t];
+    const u = 1 - t;
+    return [u * u * x1 + 2 * u * t * 50 + t * t * end[0], u * u * y1 + 2 * u * t * 50 + t * t * end[1]];
+  });
+}
+
+/** The river layer: banks, water, ripples; a spring or a lake; lily pads and the odd duck. */
+function riverLayer(k: TileKind, rand: () => number): string {
+  if (!k.rivers) return '';
+  const paths = k.rivers.map((r) => riverPath(r.edges));
+  const stroke = (c: string, w: number, extra = '') => `<g fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round"${extra}>${paths.map((d) => `<path d="${d}"/>`).join('')}</g>`;
+  const end = k.rivers.find((r) => r.edges.length === 1);
+  let pool = '';
+  if (end && k.id === 'rL') {
+    pool = `<g><ellipse cx="50" cy="56" rx="34" ry="27" fill="#6d8f4c" opacity=".55"/><ellipse cx="50" cy="56" rx="31" ry="24" fill="#5c9cc9"/><ellipse cx="45" cy="52" rx="20" ry="12" fill="#8cc2e4" opacity=".7"/>
+      <path d="M26 70l-2-8M29 71l1-9M73 68l2-8M70 70l-1-9" stroke="#4f7f37" stroke-width="1.3" stroke-linecap="round"/><circle cx="62" cy="62" r="2.6" fill="#5c8f3d"/><circle cx="38" cy="47" r="2.2" fill="#5c8f3d"/></g>`;
+  } else if (end) {
+    pool = `<g><circle cx="50" cy="50" r="12" fill="#6d8f4c" opacity=".5"/><circle cx="50" cy="50" r="10" fill="#5c9cc9"/><circle cx="47" cy="47" r="5" fill="#8cc2e4" opacity=".8"/>${[0, 1, 2, 3, 4, 5].map((i) => `<circle cx="${f1(50 + Math.cos(i * 1.05) * 11)}" cy="${f1(50 + Math.sin(i * 1.05) * 11)}" r="2.2" fill="#b9b2a2" stroke="#7f7867" stroke-width=".5"/>`).join('')}</g>`;
+  }
+  const pts = k.rivers.flatMap((r) => along(r.edges, 4));
+  const pads = pts
+    .filter(() => rand() < 0.35)
+    .map(([x, y]) => `<circle cx="${f1(x + (rand() - 0.5) * 6)}" cy="${f1(y + (rand() - 0.5) * 6)}" r="2" fill="#6fae4f"/>`)
+    .join('');
+  const duck =
+    rand() < 0.45 && pts.length
+      ? (() => {
+          const [x, y] = pts[Math.floor(rand() * pts.length)];
+          return `<g transform="translate(${f1(x)} ${f1(y)})"><ellipse cx="0" cy="0" rx="2.6" ry="1.6" fill="#f4f0e0"/><circle cx="2" cy="-1.2" r="1.1" fill="#2f6b3a"/><path d="M3 -1.2l1.2 .3" stroke="#e8a33d" stroke-width=".8"/></g>`;
+        })()
+      : '';
+  return `${stroke('rgba(80,110,60,.55)', 20)}${stroke('#5c9cc9', 15)}${stroke('#8cc2e4', 6, ' opacity=".8"')}${stroke('#ffffff', 0.9, ' stroke-dasharray="3 5" opacity=".7"')}${pool}${pads}${duck}`;
+}
+
+/** A timber bridge where a road crosses the river. */
+function bridges(k: TileKind): string {
+  if (!k.rivers || !k.roads.length) return '';
+  const crossing = k.rivers.some((r) => r.edges.length === 2 && (r.edges[1] - r.edges[0]) % 2 === 0) && k.roads.some((r) => r.edges.length === 2 && (r.edges[1] - r.edges[0]) % 2 === 0);
+  if (!crossing) return '';
+  const deg = k.roads[0].edges.includes(1) ? 0 : 90;
+  return `<g transform="rotate(${deg} 50 50)" stroke="#5a3e24" stroke-linecap="round"><path d="M37 42.5H63M37 57.5H63" stroke-width="2.4"/>${[39, 45, 51, 57, 61].map((x) => `<path d="M${x} 42.5v-2.2M${x} 57.5v2.2" stroke-width="1.4"/>`).join('')}<path d="M40 46H60M40 50H60M40 54H60" stroke="#c8a873" stroke-width=".7" opacity=".9"/></g>`;
+}
+
 /** Points along a road's middle, for pebbles. */
 function roadPoints(edges: number[], k: TileKind, n: number): Pt[] {
   const [a, b] = edges;
@@ -103,9 +163,12 @@ function roadPath(edges: number[], k: TileKind): string {
   }
   // A road ending on this tile: at the cloister, the city, or the junction in the middle.
   const [x, y] = MID[a];
-  const stop = k.cloister ? 0.7 : k.roads.length === 1 ? 0.5 : 1;
+  const stop = k.cloister ? (k.rivers ? 0.28 : 0.7) : k.roads.length === 1 ? 0.5 : 1;
   return `M${x} ${y}L${x + (50 - x) * stop} ${y + (50 - y) * stop}`;
 }
+
+/** Where the chapel stands: the middle, or beside the river on a riverside cloister. */
+const chapelAt = (k: TileKind): Pt => (k.rivers ? [27, 50] : [50, 50]);
 
 function rng(seed: string) {
   let h = 2166136261;
@@ -156,6 +219,21 @@ function countryside(rand: () => number) {
       rand() < 0.5
         ? `<g><ellipse cx="${f1(x + 2)}" cy="${f1(y + 7)}" rx="6" ry="2.2" fill="rgba(0,0,0,.18)"/><rect x="${f1(x - 1)}" y="${f1(y + 1)}" width="2" height="6" rx=".6" fill="${COL.trunk}"/><circle cx="${f1(x)}" cy="${f1(y - 2)}" r="6" fill="${COL.bush}"/><circle cx="${f1(x - 1.8)}" cy="${f1(y - 3.6)}" r="3.2" fill="${COL.bushLight}"/></g>`
         : `<g><ellipse cx="${f1(x + 2)}" cy="${f1(y + 6)}" rx="5" ry="2" fill="rgba(0,0,0,.18)"/><path d="M${f1(x)} ${f1(y - 9)}L${f1(x + 5)} ${f1(y + 1)}H${f1(x - 5)}Z" fill="#4f7f37"/><path d="M${f1(x)} ${f1(y - 5)}L${f1(x + 6)} ${f1(y + 5)}H${f1(x - 6)}Z" fill="#5c8f3d"/><rect x="${f1(x - 0.8)}" y="${f1(y + 5)}" width="1.6" height="2.4" fill="${COL.trunk}"/></g>`;
+  }
+  if (rand() < 0.12) {
+    const x = 16 + rand() * 68;
+    const y = 18 + rand() * 66;
+    out += `<g><ellipse cx="${f1(x)}" cy="${f1(y + 4)}" rx="5" ry="1.8" fill="rgba(0,0,0,.15)"/><path d="M${f1(x - 4.5)} ${f1(y + 3.5)}Q${f1(x)} ${f1(y - 7)} ${f1(x + 4.5)} ${f1(y + 3.5)}Z" fill="#e3c56b" stroke="#b8963d" stroke-width=".6"/><path d="M${f1(x - 2.5)} ${f1(y)}q2.5-2 5 0" stroke="#b8963d" stroke-width=".6" fill="none"/></g>`;
+  }
+  if (rand() < 0.06) {
+    const x = 20 + rand() * 60;
+    const y = 22 + rand() * 56;
+    out += `<g stroke="#5a3e24" stroke-width=".6"><ellipse cx="${f1(x)}" cy="${f1(y + 8)}" rx="6" ry="2" fill="rgba(0,0,0,.18)" stroke="none"/><path d="M${f1(x - 3.5)} ${f1(y + 8)}L${f1(x - 2.2)} ${f1(y - 3)}H${f1(x + 2.2)}L${f1(x + 3.5)} ${f1(y + 8)}Z" fill="#f0e4c6"/><path d="M${f1(x - 2.8)} ${f1(y - 3)}L${f1(x)} ${f1(y - 6)}L${f1(x + 2.8)} ${f1(y - 3)}Z" fill="${COL.roofs[2]}"/><g transform="rotate(${Math.round(rand() * 90)} ${f1(x)} ${f1(y - 3.5)})"><path d="M${f1(x)} ${f1(y - 3.5)}v-8M${f1(x)} ${f1(y - 3.5)}v8M${f1(x)} ${f1(y - 3.5)}h-8M${f1(x)} ${f1(y - 3.5)}h8" stroke="#6b5030" stroke-width="1"/><path d="M${f1(x + 0.6)} ${f1(y - 11)}h2.2v6.5h-2.2zM${f1(x - 2.8)} ${f1(y - 2)}h2.2v6.5h-2.2z" fill="#f6efdd" stroke-width=".4"/></g></g>`;
+  }
+  if (rand() < 0.14) {
+    const x = 10 + rand() * 60;
+    const y = 15 + rand() * 70;
+    out += `<g stroke="#8a6a45" stroke-width=".9" stroke-linecap="round"><path d="M${f1(x)} ${f1(y + 1.6)}h20M${f1(x)} ${f1(y + 3.4)}h20"/>${[0, 5, 10, 15, 20].map((d) => `<path d="M${f1(x + d)} ${f1(y)}v5"/>`).join('')}</g>`;
   }
   if (rand() < 0.3) {
     // A sheep or two.
@@ -248,7 +326,7 @@ export function tileSvg(id: string, variant = 0, r = 0): string {
               )
               .join('')}</g>${shape.walls
               .flatMap((w) => shape.towers.map((t) => onCurve(w, t)))
-              .map(([x, y]) => `<g><circle cx="${f1(x)}" cy="${f1(y)}" r="4.6" fill="${COL.wallTop}" stroke="${COL.wall}" stroke-width="1"/><circle cx="${f1(x)}" cy="${f1(y)}" r="3" fill="${COL.roofs[2]}" stroke="${COL.wall}" stroke-width=".5"/><circle cx="${f1(x - 0.9)}" cy="${f1(y - 0.9)}" r=".9" fill="rgba(255,255,255,.4)"/></g>`)
+              .map(([x, y]) => `<g><circle cx="${f1(x)}" cy="${f1(y)}" r="4.6" fill="${COL.wallTop}" stroke="${COL.wall}" stroke-width="1"/><circle cx="${f1(x)}" cy="${f1(y)}" r="3" fill="${COL.roofs[2]}" stroke="${COL.wall}" stroke-width=".5"/><circle cx="${f1(x - 0.9)}" cy="${f1(y - 0.9)}" r=".9" fill="rgba(255,255,255,.4)"/><path d="M${f1(x)} ${f1(y)}V${f1(y - 7)}" stroke="${COL.wall}" stroke-width=".6"/><path d="M${f1(x)} ${f1(y - 7)}l4 1.2l-4 1.4z" fill="${COL.shield}"/></g>`)
               .join('')}</g>`
           : ''
       }`;
@@ -277,12 +355,21 @@ export function tileSvg(id: string, variant = 0, r = 0): string {
   <rect width="100" height="100" fill="${COL.field}"/>
   <circle cx="${f1(20 + rand() * 60)}" cy="${f1(20 + rand() * 60)}" r="38" fill="${COL.fieldLight}" opacity=".45"/>
   ${countryside(rand)}
+  ${riverLayer(k, rand)}
   ${roads.length ? `${roadLayer('rgba(70,110,40,.3)', 19)}${roadLayer(COL.roadEdge, 15)}${roadLayer(COL.road, 11)}${roadLayer(COL.rut, 1.1, ' stroke-dasharray="2.4 3"')}${pebbles}` : ''}
+  ${bridges(k)}
   ${k.roads.length > 2 ? level(WELL) : ''}
   ${cities}
   ${gates}
   ${shields}
-  ${k.cloister ? level(CHAPEL) : ''}
+  ${
+    k.cloister
+      ? k.rivers
+        ? // Stays on its bank as the tile turns; only the building is turned back upright.
+          `<g transform="translate(${chapelAt(k)[0]} ${chapelAt(k)[1]}) rotate(${-r * 90}) scale(.62) translate(-50 -50)">${CHAPEL}</g>`
+        : level(CHAPEL)
+      : ''
+  }
   <radialGradient id="lv"><stop offset=".62" stop-color="#2a1d0e" stop-opacity="0"/><stop offset="1" stop-color="#2a1d0e" stop-opacity=".2"/></radialGradient>
   <rect width="100" height="100" fill="url(#lv)"/>
   <rect x=".6" y=".6" width="98.8" height="98.8" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="1.2"/>
@@ -335,7 +422,7 @@ export function spotOf(id: string, part: Part, i: number): [number, number] {
     const k = KIND[id];
     k.cities.forEach((c, j) => m!.set(`city${j}`, anchor('city', c.edges)));
     k.roads.forEach((r, j) => m!.set(`road${j}`, anchor('road', r.edges)));
-    if (k.cloister) m.set('cloister0', [50, 50]);
+    if (k.cloister) m.set('cloister0', chapelAt(k));
     k.fields.forEach((f, j) => {
       const pts = f.halves.map((h) => HALF_AT[h]);
       const candidates = [toward(avg(pts), 0.15), ...pts.map((p) => toward(p, 0.24))];
