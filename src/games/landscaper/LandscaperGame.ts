@@ -4,7 +4,7 @@ import { TableGame } from '../../core/tableGame';
 import { type Key, t } from '../../i18n';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
-import { ADVISOR, chooseMove, skillFor } from './ai';
+import { ADVISOR, chooseMove, skillFor, styleFor } from './ai';
 import { PLAYER_COLOURS, VARIANTS, followerSvg, spotOf, tileSvg, turnedSpot } from './render';
 import { type LandscaperState, type Move, type Part, analyse, followerSpots, leaders, newGame, placements, play } from './rules';
 
@@ -188,7 +188,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     if (s.turn === 0) return;
     this.thinking = true;
     this.after('ai', this.speed(), () => {
-      const m = chooseMove(s, Math.random, skillFor(s.seed, s.turn));
+      const m = chooseMove(s, Math.random, skillFor(s.seed, s.turn), styleFor(s.seed, s.turn));
       // Out of the panel to hover over its spot, turning into place...
       this.flyFrom = this.panelSpot();
       this.aiShow = { m, r: 0 };
@@ -612,7 +612,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     const left = t('landscaper.tilesLeft', { n: s.pile.length + (s.current ? 1 : 0) });
     let body = '';
     if (s.over) body = `<p>${t('landscaper.gameOver')}</p>`;
-    else if (s.turn !== 0) body = `<p>${t('landscaper.thinking', { who: PLAYERS[s.turn].emoji })}</p>`;
+    else if (s.turn !== 0) body = `<p>${t('landscaper.thinking', { who: `${PLAYERS[s.turn].emoji} ${t(`landscaper.style.${styleFor(s.seed, s.turn).id}` as Key)}` })}</p>`;
     else if (st.at === 'lay')
       body = `<p>${st.ghost ? t('landscaper.turnOrPlace') : t('landscaper.pickSpot')}</p>
         <div class="ls-actions"><button type="button" class="btn" data-act="rotate" ${st.ghost ? '' : 'disabled'}>↻ ${t('landscaper.rotate')}</button>

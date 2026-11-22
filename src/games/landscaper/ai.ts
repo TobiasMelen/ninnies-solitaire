@@ -1,5 +1,5 @@
 import { mulberry32 } from '../../core/cards';
-import { type Analysis, type LandscaperState, type Move, analyse, followerSpots, owners, placements, play } from './rules';
+import { type Analysis, type LandscaperState, type Move, type Part, analyse, followerSpots, owners, placements, play } from './rules';
 
 /**
  * Landscaper opponents. Each tries every spot, turn and follower choice for its tile and judges
@@ -25,6 +25,49 @@ const LEVELS = [EASY, STEADY, SHARP];
 export const skillFor = (seed: number, seat: number): Skill =>
   LEVELS[Math.floor(mulberry32((seed ^ Math.imul(seat + 7, 0x9e3779b1)) >>> 0)() * LEVELS.length)];
 
+/**
+ * A playstyle: how much a player cares about each kind of thing. 1 is neutral. `banked` is points
+ * already scored, `others` how much they mind what everyone else is getting.
+ */
+export interface Style {
+  id: 'builder' | 'saboteur' | 'longGame' | 'opportunist';
+  banked: number;
+  others: number;
+  followers: number;
+  part: Record<Part, number>;
+}
+
+export const STYLES: Style[] = [
+  // Grows big cities and long roads.
+  { id: 'builder', banked: 1, others: 0.8, followers: 1, part: { city: 1.35, road: 1.15, cloister: 1, field: 0.6 } },
+  // Mostly out to keep everyone else's score down.
+  { id: 'saboteur', banked: 1, others: 1.45, followers: 0.9, part: { city: 1, road: 1, cloister: 1, field: 0.9 } },
+  // Farms and cloisters, followers kept back for later.
+  { id: 'longGame', banked: 0.9, others: 1, followers: 1.35, part: { city: 0.95, road: 0.8, cloister: 1.25, field: 1.55 } },
+  // Points now beat plans.
+  { id: 'opportunist', banked: 1.3, others: 1, followers: 0.8, part: { city: 0.85, road: 0.9, cloister: 0.8, field: 0.6 } },
+];
+
+/** Neutral: how the Hint Bunny and the end of the game see things. */
+export const BALANCED: Style = { id: 'builder', banked: 1, others: 1, followers: 1, part: { city: 1, road: 1, cloister: 1, field: 1 } };
+
+/**
+ * Each opponent's style comes from the game's seed (random per game, the same on resume), with
+ * every weight nudged up to 15% either way so no two players of a style are quite alike.
+ */
+export function styleFor(seed: number, seat: number): Style {
+  const rand = mulberry32((seed ^ Math.imul(seat + 3, 0x85ebca6b)) >>> 0);
+  const base = STYLES[Math.floor(rand() * STYLES.length)];
+  const nudge = (x: number) => x * (0.85 + rand() * 0.3);
+  return {
+    id: base.id,
+    banked: nudge(base.banked),
+    others: nudge(base.others),
+    followers: nudge(base.followers),
+    part: { city: nudge(base.part.city), road: nudge(base.part.road), cloister: nudge(base.part.cloister), field: nudge(base.part.field) },
+  };
+}
+
 /** What a feature someone holds is likely to be worth by the end. */
 function prospect(s: LandscaperState, a: Analysis, f: Analysis['features'][number]): number {
   const left = s.pile.length + 1;
@@ -46,24 +89,26 @@ function prospect(s: LandscaperState, a: Analysis, f: Analysis['features'][numbe
   }
 }
 
-/** How good a position is for player `me`. */
-export function value(s: LandscaperState, me: number, skill: Skill): number {
+/** How good a position is for player `me`, seen through their style. */
+export function value(s: LandscaperState, me: number, skill: Skill, style: Style = BALANCED): number {
   const a = analyse(s);
-  const total = [...s.scores];
+  // Everyone else is judged plainly; `me` through the style's own leanings.
+  const total = s.scores.map((n, p) => (p === me ? n * style.banked : n));
   if (!s.over) {
     for (const f of a.features) {
       if (!f.followers.length) continue;
       const v = prospect(s, a, f);
-      for (const p of owners(f, s.options.players)) total[p] += v;
+      for (const p of owners(f, s.options.players)) total[p] += p === me ? v * style.part[f.part] : v;
     }
-    s.followers.forEach((n, p) => (total[p] += n * skill.followerValue));
+    s.followers.forEach((n, p) => (total[p] += n * skill.followerValue * (p === me ? style.followers : 1)));
   }
   const others = total.filter((_, p) => p !== me);
-  return total[me] - Math.max(...others) * 0.6 - (others.reduce((x, y) => x + y, 0) / others.length) * 0.4;
+  const theirs = Math.max(...others) * 0.6 + (others.reduce((x, y) => x + y, 0) / others.length) * 0.4;
+  return total[me] - theirs * style.others;
 }
 
 /** The current player's move. */
-export function chooseMove(s: LandscaperState, rand: () => number, skill: Skill): Move {
+export function chooseMove(s: LandscaperState, rand: () => number, skill: Skill, style: Style = BALANCED): Move {
   const me = s.turn;
   let best: Move | null = null;
   let bestValue = -Infinity;
@@ -75,7 +120,7 @@ export function chooseMove(s: LandscaperState, rand: () => number, skill: Skill)
       const m: Move = { ...p, f };
       const next = structuredClone(s);
       play(next, m);
-      const v = value(next, me, skill) + rand() * skill.noise;
+      const v = value(next, me, skill, style) + rand() * skill.noise;
       if (v > bestValue) (bestValue = v), (best = m);
     }
   }
