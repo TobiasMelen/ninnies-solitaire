@@ -1,5 +1,5 @@
 {
-  "app.title": "Ninnies Patiens",
+  "app.title": "Ninnies spelhörna",
   "aria.board": "Kortbord",
   "aria.toolbar": "Spelkontroller",
   "aria.start": "Start",
@@ -8,22 +8,18 @@
   "toolbar.menu": "Meny",
   "toolbar.hint": "Tips",
   "toolbar.undo": "Ångra",
-
   "home.continue": "Fortsätt",
   "home.newGame": "Nytt spel",
   "home.build": "Version {id}",
-
   "level.relaxed": "Avslappnat",
   "level.easy": "Lätt",
   "level.medium": "Mellan",
   "level.hard": "Svår",
   "play": "Spela",
-
   "animal.fox": "Räv",
   "animal.owl": "Uggla",
   "animal.bear": "Björn",
   "you": "Du",
-
   "spider.name": "Spindelharpan",
   "spider.blurb": "Bygg serier från kung till ess i samma färg.",
   "spider.suits.one": "{n} färg",
@@ -34,7 +30,6 @@
   "spider.fillEmpty": "Fyll tomma högar innan du lägger ut",
   "spider.timeToDeal": "Dags att lägga ut en ny rad",
   "spider.sameSuitOnly": "Bara serier i samma färg flyttas tillsammans",
-
   "hearts.name": "Hjärter",
   "hearts.blurb": "Undvik hjärter och spaderdam mot 🦊 Räv, 🦉 Uggla och 🐻 Björn.",
   "hearts.players": "4 spelare",
@@ -46,8 +41,8 @@
   "hearts.notBroken": "Hjärter är inte brutet än",
   "hearts.followSuit": "Du måste bekänna färg",
   "hearts.noPointsFirst": "Inga poängkort i första sticket",
-  "hearts.youShotMoon": "Du tog alla poäng!",
-  "hearts.shotMoon": "{who} tog alla poäng!",
+  "hearts.youShotMoon": "Du sköt månen!",
+  "hearts.shotMoon": "{who} sköt månen!",
   "hearts.finalScores": "Slutresultat",
   "hearts.handN": "Giv {n}",
   "hearts.colHand": "Giv",
@@ -61,7 +56,6 @@
   "hearts.passTo": "Skicka 3 {arrow} {who}",
   "hearts.passToRight": "Skicka 3 till {who} {arrow}",
   "hearts.broken": "Hjärter brutet",
-
   "spite.name": "Spite & Malice",
   "spite.blurb": "Töm din målhög först. Bygg 1 till 12; ★ är joker.",
   "spite.setupLine": "Mot {who}",
@@ -77,7 +71,6 @@
   "spite.pileNeeds": "Den högen behöver {n}",
   "spite.playOrDiscard": "Spela det, eller lägg det på en hög nedanför för att avsluta din tur",
   "spite.wins": "{who} vinner",
-
   "freecell.name": "FreeCell",
   "freecell.blurb": "Alla kort synliga. Fyra fria platser att planera med.",
   "freecell.sub": "Nästan varje giv går att vinna",
@@ -87,7 +80,6 @@
   "freecell.noWin": "Går inte att vinna härifrån: prova Ångra",
   "freecell.altRunOnly": "Bara serier i växlande färg flyttas tillsammans",
   "freecell.notEnoughCells": "Inte tillräckligt med fria platser för att flytta så många",
-
   "moves.one": "{n} drag",
   "moves.other": "{n} drag",
   "noMovesLeft": "Inga drag kvar",
@@ -98,7 +90,6 @@
   "stat.time": "Tid",
   "stat.won": "Vunna",
   "stat.best": "Bästa",
-
   "settings.title": "Inställningar",
   "settings.look": "Utseende",
   "settings.lookSub": "Kort, klädda kort, baksida, bord",
@@ -117,7 +108,6 @@
   "lang.auto": "Automatiskt",
   "lang.en": "English",
   "lang.sv": "Svenska",
-
   "deck.simple": "Enkel",
   "deck.pips": "Klassisk",
   "back.crimson": "Karmosin",
@@ -134,7 +124,6 @@
   "table.wine": "Vin",
   "table.midnight": "Midnatt",
   "table.linen": "Linne",
-
   "opt.noMovesAlert": "Säg till när jag har kört fast",
   "opt.noMovesAlert.hint": "Bara när inget kan flyttas eller läggas ut; använd Tips annars",
   "opt.tapToMove": "Tryck för att flytta",
@@ -155,8 +144,8 @@
   "opt.dimLockedHearts.hint": "På din tur lyser bara spelbara kort",
   "opt.heartsShort": "Kort spel",
   "opt.heartsShort.hint": "Spela till 50 poäng i stället för 100 (från nästa spel)",
-  "opt.heartsMoonSubtract": "Alla poäng drar av 26",
-  "opt.heartsMoonSubtract.hint": "Tar du alla poäng dras 26 från din poäng i stället för att alla andra får 26",
+  "opt.heartsMoonSubtract": "Månen drar av 26",
+  "opt.heartsMoonSubtract.hint": "Skjuter du månen dras 26 från din poäng i stället för att alla andra får 26",
   "opt.heartsFast": "Snabba motståndare",
   "opt.heartsFast.hint": "Räv, Uggla och Björn spelar snabbare",
   "opt.spiteShort": "Kort spel",
@@ -171,29 +160,24 @@
   "opt.haptics": "Vibration",
   "opt.bunny": "Tipskaninen",
   "opt.bunny.hint": "Hejar på dig med gester; tryck på den för ett tips",
-
   "setup.remember": "Kom ihåg inställningarna",
   "setup.rememberSub": "Hoppa över det här steget nästa gång",
   "setup.rememberHint": "Hoppa över inställningssteget",
   "setup.start": "Starta",
-
   "menu.paused": "Pausat",
   "menu.keepPlaying": "Spela vidare",
   "menu.restartDeal": "Börja om given",
   "menu.restartGame": "Börja om spelet",
   "menu.settings": "Inställningar",
   "menu.main": "Huvudmeny",
-
   "win.won": "Du vann!",
   "win.dealAgain": "Ny giv",
   "win.admire": "Beundra bordet",
-
   "stuck.title": "Slut på drag",
   "stuck.text": "Inget på bordet kan flyttas och det finns inga kort kvar att lägga ut.",
   "stuck.undo": "Ångra senaste draget",
   "stuck.new": "Nytt spel",
   "stuck.keepLooking": "Fortsätt titta",
-
   "bunny.aria": "Tipskaninen: tryck för ett tips",
   "update.updating": "Uppdaterar…",
   "card.faceDown": "Nedvänt kort",
