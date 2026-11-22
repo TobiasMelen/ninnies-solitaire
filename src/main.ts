@@ -10,6 +10,7 @@ import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
 import { navigate } from './ui/nav';
+import { takeResumeSpot, watchForUpdates } from './ui/update';
 import { audioLatency, canVibrate, sfx, unlockAudio } from './ui/feedback';
 import { BACKS, COURTS, DECKS, TABLES, type Settings, onSettings, settings, updateSettings } from './ui/settings';
 
@@ -392,21 +393,7 @@ $('#btn-preview-win').addEventListener('click', () => {
   window.setTimeout(() => game?.previewWin(), 600);
 });
 
-// Temporary: an installed home-screen app has no reload button, so offer one that also
-// drops the offline cache to guarantee the newest deploy is fetched.
 $('#build-id').textContent = `Build ${__BUILD_ID__}`;
-$('#home-reload').addEventListener('click', async () => {
-  game?.pause();
-  try {
-    const regs = (await navigator.serviceWorker?.getRegistrations()) ?? [];
-    await Promise.all(regs.map((r) => r.unregister()));
-    const keys = (await window.caches?.keys()) ?? [];
-    await Promise.all(keys.map((k) => caches.delete(k)));
-  } catch {
-    /* reload anyway */
-  }
-  location.reload();
-});
 
 // ───────── toolbar ─────────
 
@@ -667,6 +654,23 @@ onSettings((s) => {
 });
 
 showHome();
+// Back from an update reload: straight to the game that was on the table.
+const resumeSpot = takeResumeSpot();
+if (resumeSpot?.screen === 'game' && loadSaved(resumeSpot.id)) {
+  go(() => {
+    hideHome();
+    game!.unpause();
+  }, false);
+}
+
+watchForUpdates({
+  spot() {
+    if (document.querySelector('dialog[open], .card.dragging')) return null;
+    if (homeOpen() || !game) return { screen: 'home' };
+    return { screen: 'game', id: game.id };
+  },
+  save: () => game?.pause(),
+});
 
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));

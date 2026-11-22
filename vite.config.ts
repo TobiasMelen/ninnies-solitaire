@@ -14,5 +14,16 @@ export default defineConfig({
   base: './',
   define: {
     __BUILD_ID__: JSON.stringify(`${commit} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')}`),
+    __COMMIT__: JSON.stringify(process.env.NODE_ENV === 'production' ? commit : 'dev'),
   },
+  plugins: [
+    {
+      // The running app polls this to notice a new deploy (src/ui/update.ts).
+      name: 'version-file',
+      apply: 'build',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ commit }) });
+      },
+    },
+  ],
 });
