@@ -46,7 +46,7 @@ interface Layout {
   ch: number;
   /** Top of the hand's cards (the fan's middle); in portrait, of the front row. */
   handY: number;
-  /** Portrait: two rows, black suits behind and red in front. */
+  /** Portrait: two rows, ♣♦ behind and ♠♥ in front. */
   rows: 1 | 2;
   raise: number;
   opp: { x: number; y: number; dx: number; dy: number }[];
@@ -639,14 +639,16 @@ export class HeartsGame extends TableGame<HeartsState> {
 
   /**
    * Where each card in the player's hand sits: fanned across the bottom, like Spite & Malice. In
-   * portrait there's room for bigger cards in two fans, black suits behind and red in front.
+   * portrait there's room for bigger cards in two fans, ♣♦ behind and ♠♥ in front: each row
+   * alternates colour (same-colour suits side by side are easy to mix up), and the cards that
+   * matter most in Hearts are in front.
    */
   private handSpots(hand: Card[]) {
     const { W, cw, ch, handY, rows } = this.L;
     const pad = 10;
-    const black = hand.filter((c) => c.suit === 'C' || c.suit === 'S');
-    const red = hand.filter((c) => c.suit === 'D' || c.suit === 'H');
-    const lines = rows === 2 && black.length && red.length ? [black, red] : [hand];
+    const back = hand.filter((c) => c.suit === 'C' || c.suit === 'D');
+    const front = hand.filter((c) => c.suit === 'S' || c.suit === 'H');
+    const lines = rows === 2 && back.length && front.length ? [back, front] : [hand];
     const spots = new Map<number, { x: number; y: number; rotate: number; z: number }>();
     lines.forEach((line, r) => {
       const y = lines.length === 2 && r === 0 ? handY - ch * BACK_ROW : handY;
