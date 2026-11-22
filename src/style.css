@@ -889,19 +889,32 @@ html.large-print [data-deck='pips'] {
 }
 .hearts-broken {
   position: absolute;
-  left: 0;
-  top: 0;
   z-index: 50;
-  font-size: 20px;
-  line-height: 1;
-  color: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px 3px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.35);
+  color: var(--ui-ink);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
   pointer-events: none;
-  transition: color 300ms ease, text-shadow 300ms ease, scale 300ms var(--ease-out);
+  /* Only shown once hearts are broken (so it can't be read as a score). */
+  opacity: 0;
+  scale: 0.8;
+  transition: opacity 250ms ease, scale 300ms var(--ease-out);
+}
+.hearts-broken .heart {
+  color: #ff5d73;
+  font-size: 15px;
+  text-shadow: 0 0 8px rgba(255, 93, 115, 0.7);
 }
 .hearts-broken.on {
-  color: #ff5d73;
-  text-shadow: 0 0 10px rgba(255, 93, 115, 0.7);
-  scale: 1.15;
+  opacity: 1;
+  scale: 1;
 }
 
 .hearts-pass {
@@ -969,7 +982,8 @@ html.large-print [data-deck='pips'] {
 }
 
 /* Hearts broken: the heart cracks with a red flash, and the table jolts. */
-.hearts-broken.crack {
+.hearts-broken.crack .heart {
+  display: inline-block;
   animation: heart-crack 900ms var(--ease-out);
 }
 @keyframes heart-crack {
@@ -985,7 +999,7 @@ html.large-print [data-deck='pips'] {
     rotate: -8deg;
   }
   100% {
-    scale: 1.15;
+    scale: 1;
     rotate: 0deg;
   }
 }

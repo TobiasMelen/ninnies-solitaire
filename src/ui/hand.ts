@@ -21,9 +21,9 @@ export function fanHand(n: number, area: { left: number; width: number; y: numbe
   const step = n > 1 ? Math.min(cw * 0.82, (area.width - cw) / (n - 1)) : 0;
   const x0 = area.left + (area.width - (cw + step * (n - 1))) / 2;
   const half = (n - 1) / 2;
-  // Five cards: 5° apart and the ends 0.14 card heights lower; more cards keep within those.
-  const tilt = half > 2 ? 10 / half : 5;
-  const arc = half > 2 ? 0.14 / (half * half) : 0.035;
+  // Five cards: 3.5° apart and the ends 0.1 card heights lower; more cards keep within those.
+  const tilt = half > 2 ? 7 / half : 3.5;
+  const arc = half > 2 ? 0.1 / (half * half) : 0.025;
   return Array.from({ length: n }, (_, i) => {
     const off = i - half;
     return { x: x0 + i * step, y: area.y + off * off * ch * arc, rotate: off * tilt };

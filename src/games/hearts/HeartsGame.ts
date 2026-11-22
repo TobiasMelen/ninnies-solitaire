@@ -106,8 +106,7 @@ export class HeartsGame extends TableGame<HeartsState> {
       root.appendChild(b);
       this.badges.push(b);
     }
-    this.brokenEl = this.el('hearts-broken', '♥︎');
-    this.brokenEl.title = 'Hearts broken';
+    this.brokenEl = this.el('hearts-broken', '<span class="heart">♥︎</span> Hearts broken');
 
     this.passBar = this.el('hearts-pass', '<span class="pass-text"></span><button type="button" class="btn primary pass-btn" disabled>Pass</button>');
     this.passText = this.passBar.querySelector('.pass-text')!;
@@ -618,9 +617,9 @@ export class HeartsGame extends TableGame<HeartsState> {
       { x0: 0, x1: (pad + ow + 6) / W, y: sideBottom },
       { x0: (W - pad - ow - 6) / W, x1: 1, y: sideBottom },
     ]);
-    // Beside your badge, just above your hand: hearts being broken matters for your next lead.
-    // (Placed with `translate`, which the icon's pop-up `scale` doesn't stretch; `transform` it does.)
-    this.brokenEl.style.translate = `${badge[0].x - 26}px ${badge[0].y - 1}px`;
+    // Just above your hand, left of your badge: hearts being broken matters for your next lead.
+    // Placed with right/top (its pop-up animation scales it, which would stretch a transform).
+    Object.assign(this.brokenEl.style, { right: `${W - badge[0].x + 10}px`, top: `${badge[0].y - 1}px` });
     Object.assign(this.trickZone.style, {
       transform: `translate(${tx - tw * 0.75}px, ${ty - th * 0.4}px)`,
       width: `${tw * 2.5}px`,
