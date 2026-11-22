@@ -856,6 +856,12 @@ export class SpiderGame implements GameController {
   private onUp(e: PointerEvent) {
     const d = this.drag;
     if (!d || d.pointerId !== e.pointerId) return;
+    // Work out the drop spot from where it was let go (a quick flick can beat the next frame).
+    if (d.moved) {
+      d.dx = e.clientX - d.startX;
+      d.dy = e.clientY - d.startY;
+      this.dragFrame(d);
+    }
     this.endDrag();
     if (d.moved) {
       if (d.hover !== null) return this.move(d.from, d.index, d.hover, true);

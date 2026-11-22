@@ -4,8 +4,7 @@ import { HeartsGame } from './games/hearts/HeartsGame';
 import { SpiderGame } from './games/spider/SpiderGame';
 import type { Level } from './games/spite/ai';
 import { SpiteGame } from './games/spite/SpiteGame';
-import { MinesGame } from './games/mines/MinesGame';
-import type { MinesLevel } from './games/mines/rules';
+import { FreeCellGame } from './games/freecell/FreeCellGame';
 import type { SuitCount } from './games/spider/rules';
 import { courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
@@ -129,14 +128,14 @@ for (const type of ['gesturestart', 'gesturechange', 'dblclick']) {
 
 // ───────── games ─────────
 
-type AnyGame = SpiderGame | HeartsGame | SpiteGame | MinesGame;
+type AnyGame = SpiderGame | HeartsGame | SpiteGame | FreeCellGame;
 type GameOf<T extends GameId> = T extends 'spider'
   ? SpiderGame
   : T extends 'hearts'
     ? HeartsGame
     : T extends 'spite'
       ? SpiteGame
-      : MinesGame;
+      : FreeCellGame;
 const LAST_KEY = 'ninnies.lastGame';
 
 const bunny = new Bunny(board);
@@ -195,7 +194,7 @@ function getGame(id: GameId): AnyGame {
           ? new HeartsGame(layer, hooks)
           : id === 'spite'
             ? new SpiteGame(layer, hooks)
-            : new MinesGame(layer, hooks);
+            : new FreeCellGame(layer, hooks);
     games[id] = g;
   }
   return g;
@@ -293,7 +292,10 @@ addEventListener('popstate', (e) => {
 function savedSummary(id: GameId): string | null {
   if (id === 'hearts') return HeartsGame.saved();
   if (id === 'spite') return SpiteGame.saved();
-  if (id === 'mines') return MinesGame.saved();
+  if (id === 'freecell') {
+    const f = FreeCellGame.saved();
+    return f ? `FreeCell · ${f.moves} moves · ${fmtTime(f.ms)}` : null;
+  }
   const s = SpiderGame.saved();
   return s ? `Spider · ${s.suitCount} suit${s.suitCount > 1 ? 's' : ''} · ${s.moves} moves · ${fmtTime(s.ms)}` : null;
 }
@@ -309,8 +311,6 @@ function showHome() {
   home.querySelectorAll<HTMLElement>('[data-suits]').forEach((b) => b.classList.toggle('current', Number(b.dataset.suits) === suits));
   const level = SpiteGame.savedLevel();
   home.querySelectorAll<HTMLElement>('[data-level]').forEach((b) => b.classList.toggle('current', b.dataset.level === level));
-  const field = MinesGame.savedLevel();
-  home.querySelectorAll<HTMLElement>('[data-mines]').forEach((b) => b.classList.toggle('current', b.dataset.mines === field));
   home.classList.remove('hidden');
   home.scrollTop = 0;
 }
@@ -368,15 +368,13 @@ home.querySelectorAll<HTMLElement>('[data-level]').forEach((btn) =>
     }),
   ),
 );
-home.querySelectorAll<HTMLElement>('[data-mines]').forEach((btn) =>
-  btn.addEventListener('click', () =>
-    go(() => {
-      const g = switchTo('mines');
-      hideHome();
-      g.newGame(btn.dataset.mines as MinesLevel);
-      g.unpause();
-    }),
-  ),
+$('#freecell-play').addEventListener('click', () =>
+  setup('freecell', 'Every card face up: plan your way home', () => {
+    const g = switchTo('freecell');
+    hideHome();
+    g.newGame();
+    g.unpause();
+  }),
 );
 $('#home-settings').addEventListener('click', () => openSettings());
 
@@ -505,12 +503,12 @@ type Toggle = {
   needs?: keyof Settings;
 };
 const TOGGLES: Toggle[] = [
-  { key: 'noMovesAlert', label: 'Tell me when I’m stuck', hint: 'Only when nothing can be moved or dealt; use Hint otherwise', group: 'play', games: ['spider'] },
-  { key: 'tapToMove', label: 'Tap to move', hint: 'Double-tap a card to send it to the best spot', group: 'play', games: ['spider'] },
-  { key: 'singleTap', label: 'Single tap is enough', hint: 'Move with one tap instead of two', group: 'play', games: ['spider'], needs: 'tapToMove' },
+  { key: 'noMovesAlert', label: 'Tell me when I’m stuck', hint: 'Only when nothing can be moved or dealt; use Hint otherwise', group: 'play', games: ['spider', 'freecell'] },
+  { key: 'tapToMove', label: 'Tap to move', hint: 'Double-tap a card to send it to the best spot', group: 'play', games: ['spider', 'freecell'] },
+  { key: 'singleTap', label: 'Single tap is enough', hint: 'Move with one tap instead of two', group: 'play', games: ['spider', 'freecell'], needs: 'tapToMove' },
   { key: 'dimLocked', label: 'Shade cards that can’t move', hint: 'Only the movable run in each column stays bright white', group: 'play', games: ['spider'] },
   { key: 'dealWithEmpty', label: 'Deal with empty columns', hint: 'Off follows the classic rule: fill every column before dealing', group: 'play', games: ['spider'] },
-  { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging', group: 'play', games: ['spider'] },
+  { key: 'showTargets', label: 'Show where cards can go', hint: 'Highlights legal drop spots while dragging', group: 'play', games: ['spider', 'freecell'] },
   { key: 'heartsPassing', label: 'Pass cards', hint: 'Swap 3 cards before each hand (left, right, across, none)', group: 'play', games: ['hearts'] },
   { key: 'heartsOneTap', label: 'Play with one tap', hint: 'Off: tap to lift a card, tap again to play it', group: 'play', games: ['hearts'] },
   { key: 'dimLocked', label: 'Shade cards you can’t play', hint: 'On your turn, only playable cards stay bright', group: 'play', games: ['hearts'] },
@@ -543,6 +541,7 @@ const GAME_OPTIONS: { id: GameId; name: string; remember: keyof Settings }[] = [
   { id: 'spider', name: 'Spider', remember: 'rememberSpider' },
   { id: 'hearts', name: 'Hearts', remember: 'rememberHearts' },
   { id: 'spite', name: 'Spite & Malice', remember: 'rememberSpite' },
+  { id: 'freecell', name: 'FreeCell', remember: 'rememberFreecell' },
 ];
 
 $('#opt-cards').innerHTML = toggleRows(TOGGLES.filter((t) => t.group === 'cards'));

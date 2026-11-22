@@ -606,195 +606,40 @@ html.large-print [data-deck='pips'] {
   inset: 0;
 }
 
-/* ───────────────────────── minesweeper ───────────────────────── */
+/* ───────────────────────── freecell ───────────────────────── */
 
-.mines-root {
+/* Free cells: darker hollows. Foundations show their suit until the ace arrives. */
+.fc-cell {
+  background: rgba(0, 0, 0, 0.16);
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+.fc-found {
   display: grid;
   place-items: center;
+  font: calc(var(--cw) * 0.42) / 1 var(--card-font);
+  color: rgba(255, 255, 255, 0.2);
 }
-.mines-grid {
-  display: grid;
-  gap: max(1px, calc(var(--cell) * 0.06));
-  padding: max(3px, calc(var(--cell) * 0.12));
-  border-radius: 10px;
-  background: rgba(0, 0, 0, 0.22);
-  box-shadow: inset 0 1px 6px rgba(0, 0, 0, 0.3);
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
+.fc-found[data-suit='S']::before { content: '♠\FE0E'; }
+.fc-found[data-suit='H']::before { content: '♥\FE0E'; }
+.fc-found[data-suit='D']::before { content: '♦\FE0E'; }
+.fc-found[data-suit='C']::before { content: '♣\FE0E'; }
+.freecell-root .slot.target {
+  border: 2px dashed rgba(255, 255, 255, 0.7);
 }
-/* Unopened squares are little card backs. */
-.mine-cell {
-  width: var(--cell);
-  height: var(--cell);
-  border-radius: max(2px, calc(var(--cell) * 0.14));
-  display: grid;
-  place-items: center;
-  font-family: var(--idx-font);
-  font-weight: 800;
-  font-size: calc(var(--cell) * 0.62);
-  line-height: 1;
-  cursor: pointer;
-  background:
-    repeating-linear-gradient(45deg, var(--back-line) 0 1px, transparent 1px 5px),
-    linear-gradient(140deg, var(--back-a), var(--back-b));
-  box-shadow:
-    inset 0 0 0 max(1px, calc(var(--cell) * 0.07)) #f7f4ec,
-    0 1px 2px rgba(0, 0, 0, 0.35);
-  transition: scale 90ms ease;
+.freecell-root .slot.hot {
+  border: 2.5px solid var(--accent);
+  background: rgba(255, 213, 74, 0.2);
+  box-shadow: 0 0 22px var(--accent-glow);
 }
-.mine-cell.pressed:not(.open) {
-  scale: 0.86;
+.freecell-root .slot.hint {
+  animation: stockhint 600ms ease-in-out 3;
 }
-.mine-cell.open {
-  background: var(--face);
-  box-shadow: inset 0 0 0 0.5px var(--face-edge);
-  cursor: default;
-  animation: mine-open 260ms var(--ease-out, ease-out) var(--d, 0ms) both;
-}
-.mine-cell.open[data-n]:not([data-n='']) {
-  cursor: pointer;
-}
-@keyframes mine-open {
-  from {
-    scale: 0.4;
-    opacity: 0;
-  }
-}
-.mine-cell[data-n='1'] { color: #2456c9; }
-.mine-cell[data-n='2'] { color: #2b8a3e; }
-.mine-cell[data-n='3'] { color: #d0322b; }
-.mine-cell[data-n='4'] { color: #1e2f86; }
-.mine-cell[data-n='5'] { color: #8a2b1e; }
-.mine-cell[data-n='6'] { color: #13827f; }
-.mine-cell[data-n='7'] { color: #222; }
-.mine-cell[data-n='8'] { color: #777; }
-.mine-cell.flag::after,
-.mine-cell.mine::after,
-.mine-cell.wrong::after {
-  font-family: system-ui, sans-serif;
-  font-size: calc(var(--cell) * 0.72);
-  animation: mine-pop 320ms cubic-bezier(0.3, 1.6, 0.5, 1) var(--d, 0ms) both;
-}
-.mine-cell.flag::after {
-  content: '🚩';
-}
-.mine-cell.mine {
-  background: var(--face);
-  box-shadow: inset 0 0 0 0.5px var(--face-edge);
-  animation: mine-open 260ms ease-out var(--d, 0ms) both;
-}
-.mine-cell.mine::after {
-  content: '💣';
-}
-.mine-cell.wrong::after {
-  content: '❌';
-}
-.mine-cell.boom {
-  background: radial-gradient(circle, #ffd54a 0 30%, #e0412f 70%);
-  animation: mine-boom 600ms ease-out both;
-}
-.mine-cell.boom::after {
-  content: '💥';
-  font-family: system-ui, sans-serif;
-  font-size: calc(var(--cell) * 0.7);
-}
-@keyframes mine-pop {
-  from {
-    scale: 0;
-  }
-}
-@keyframes mine-boom {
-  0% {
-    scale: 1;
-  }
-  20% {
-    scale: 1.6;
-  }
-  100% {
-    scale: 1;
-  }
-}
-.mine-cell.hinted {
-  animation: mine-hint 600ms ease-in-out 3;
-}
-@keyframes mine-hint {
-  50% {
-    scale: 1.15;
-    box-shadow:
-      inset 0 0 0 max(1px, calc(var(--cell) * 0.07)) #f7f4ec,
-      0 0 0 3px var(--accent),
-      0 0 16px var(--accent-glow);
-  }
-}
-.mine-cell.nope {
-  animation: mine-nope 300ms ease-in-out;
-}
-@keyframes mine-nope {
-  25% { translate: -2px 0; }
-  75% { translate: 2px 0; }
-}
-.mines-root.lost .mine-cell:not(.open):not(.mine):not(.flag),
-.mines-root.lost .mine-cell.flag:not(.wrong) {
-  opacity: 0.75;
-}
-/* Dig/flag switch, in the corner away from the Hint Bunny. */
-.mines-mode {
-  position: absolute;
-  right: 14px;
-  bottom: 10px;
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  border: 0;
-  background: var(--wood);
-  background-blend-mode: soft-light, normal;
-  font-size: 26px;
-  line-height: 1;
-  box-shadow: var(--raised);
-  transition:
-    background 150ms ease,
-    scale 120ms ease;
-}
-.mines-mode:active {
-  scale: 0.92;
-}
-.mines-mode.flagging {
-  background: var(--noise), linear-gradient(180deg, #a8402c, #6e1f12);
-  background-blend-mode: soft-light, normal;
-  border-color: #fff;
-}
-.mines-root.lost .mines-mode,
-.mines-root.won .mines-mode {
-  visibility: hidden;
-}
-/* Start-screen tile art. */
-.mines-art {
-  gap: 4px;
-  padding: 0 8px;
-}
-.mini-mine {
-  width: 28px;
-  height: 28px;
-  border-radius: 5px;
-  display: grid;
-  place-items: center;
-  font: 800 17px/1 var(--idx-font);
-  background:
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.16) 0 1px, transparent 1px 5px),
-    linear-gradient(140deg, #b3192e, #6d0c1a);
-  box-shadow: inset 0 0 0 2px #f7f4ec;
-}
-.mini-mine.open {
-  background: #fdfcf8;
-  box-shadow: none;
-}
-.mini-mine[data-n='1'] { color: #2456c9; }
-.mini-mine[data-n='2'] { color: #2b8a3e; }
-.mini-mine.flag::after {
-  content: '🚩';
-  font: 15px/1 system-ui, sans-serif;
+/* Start-screen tile art: four free cells, two of them holding a card. */
+.freecell-art .mini-cell {
+  width: 24px;
+  height: 34px;
+  border-radius: 4px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.45);
 }
 
 /* ───────────────────────── hearts ───────────────────────── */

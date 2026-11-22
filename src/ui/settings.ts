@@ -55,6 +55,7 @@ export interface Settings {
   rememberSpider: boolean;
   rememberHearts: boolean;
   rememberSpite: boolean;
+  rememberFreecell: boolean;
 }
 
 const KEY = 'ninnies.settings.v1';
@@ -85,6 +86,7 @@ const DEFAULTS: Settings = {
   rememberSpider: false,
   rememberHearts: false,
   rememberSpite: false,
+  rememberFreecell: false,
 };
 
 type Listener = (s: Settings) => void;
