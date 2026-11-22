@@ -1,6 +1,6 @@
 import { type Card, randomSeed } from '../../core/cards';
 import { type GameController, type GameHooks, INTRO_MS, fmtTime, store } from '../../core/game';
-import { CardLayer, type Placement } from '../../ui/cardLayer';
+import { CardLayer, MOVE_MS, MOVE_MS_REDUCED, type Placement } from '../../ui/cardLayer';
 import { type Cascade, type CascadeCard, runCascade } from '../../ui/cascade';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { flash } from '../../ui/fx';
@@ -291,7 +291,7 @@ export class SpiderGame implements GameController {
     ids.forEach((_, i) => sfx.deal((i * step) / 1000));
     haptic(10);
     this.render({ delay: (id) => Math.max(0, ids.indexOf(id)) * step });
-    this.settleLater(ids.length * step + 260);
+    this.settleLater(ids.length * step + MOVE_MS - 20);
   }
 
   hint() {
@@ -388,7 +388,7 @@ export class SpiderGame implements GameController {
     const destTop = this.state.columns[to].at(-1);
     const sameSuit = destTop?.suit === this.state.columns[from][index].suit;
     // Cards look settled at ~65% of the slide (the easing front-loads the motion).
-    const landAt = ((this.fast ? 170 : 280) * 0.65) / 1000;
+    const landAt = ((this.fast ? MOVE_MS_REDUCED : MOVE_MS) * 0.65) / 1000;
     if (fromDrag) sfx.drop();
     else sfx.move(ids.length, landAt);
     haptic(8);
@@ -397,7 +397,7 @@ export class SpiderGame implements GameController {
     if (flipped.length) sfx.flip(fromDrag ? 0.1 : landAt + 0.05);
     this.render({ delay: (id) => (fromDrag ? 0 : Math.max(0, ids.indexOf(id)) * 18) });
     this.hooks.event?.(flipped.length ? 'reveal' : sameSuit ? 'suit' : 'move', this.colFraction(to));
-    this.settleLater(fromDrag ? 200 : 260 + ids.length * 18);
+    this.settleLater(fromDrag ? 200 : MOVE_MS - 20 + ids.length * 18);
     if (!flipped.length) this.judge(before, { t: 'move', from, index, to }, this.colFraction(to));
   }
 

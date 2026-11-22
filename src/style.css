@@ -220,7 +220,7 @@ html.standalone #app {
   height: var(--ch);
   perspective: 600px;
   transition:
-    transform var(--move-ms, 280ms) var(--ease-out) var(--d, 0ms),
+    transform var(--move-ms, 360ms) var(--ease-out) var(--d, 0ms),
     scale 140ms ease;
   will-change: transform;
   cursor: grab;
@@ -2602,7 +2602,7 @@ dialog.sheet.page form {
 @media (prefers-reduced-motion: reduce) {
   /* Cards still sweep to where they go, just faster and without the 3D flip. */
   :root {
-    --move-ms: 170ms;
+    --move-ms: 220ms;
     --ease-out: ease-out;
   }
   *:not(.card):not(.queen-dim):not(.mine-cell),

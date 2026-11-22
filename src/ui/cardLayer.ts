@@ -20,7 +20,10 @@ export interface Placement {
   rotate?: number;
 }
 
-const MOVE_MS = 280;
+/** How long a card takes to slide to its new place (matches --move-ms in style.css). */
+export const MOVE_MS = 360;
+/** The same with reduced motion: still visible, just quicker. */
+export const MOVE_MS_REDUCED = 220;
 
 /**
  * Owns one DOM element per card and moves them with CSS transforms. Rendering is

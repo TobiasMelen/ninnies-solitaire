@@ -1,7 +1,7 @@
 import { type Card, randomSeed } from '../../core/cards';
 import { type GameHooks, type HudStat, INTRO_MS, store } from '../../core/game';
 import { TableGame } from '../../core/tableGame';
-import { CardLayer, type Placement } from '../../ui/cardLayer';
+import { CardLayer, MOVE_MS, type Placement } from '../../ui/cardLayer';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { flash } from '../../ui/fx';
 import { settings } from '../../ui/settings';
@@ -31,6 +31,8 @@ export const PLAYERS = [
 ];
 
 const SAVE_KEY = 'ninnies.hearts.save.v1';
+/** How long the deal takes once it starts: 52 cards 18 ms apart, plus the last one's flight. */
+const DEAL_MS = 51 * 18 + MOVE_MS;
 const PASS_ARROW = { left: '←', right: '→', across: '↑', none: '' } as const;
 const PASS_TO = { left: 1, right: 3, across: 2, none: 0 } as const;
 
@@ -137,7 +139,7 @@ export class HeartsGame extends TableGame<HeartsState> {
     this.save();
     this.dealIn(INTRO_MS);
     this.hooks.event?.('start');
-    this.after('next', INTRO_MS, () => this.step());
+    this.after('next', INTRO_MS + DEAL_MS, () => this.step());
   }
 
   restart() {
@@ -390,8 +392,9 @@ export class HeartsGame extends TableGame<HeartsState> {
     startHand(s);
     this.resetHandUi();
     this.save();
-    this.dealIn();
-    this.step();
+    // Wait for the score sheet to finish closing: its view transition would hide the deal.
+    this.dealIn(INTRO_MS);
+    this.after('next', INTRO_MS + DEAL_MS, () => this.step());
   }
 
   private finish() {
