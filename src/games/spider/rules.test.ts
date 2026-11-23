@@ -14,6 +14,9 @@ import {
 } from './rules';
 import { moveCost, plan } from './hint';
 
+/** AI strength comparisons are slow; they run with `npm run test:strength`. */
+const STRENGTH = !!import.meta.env.STRENGTH;
+
 let nextId = 1000;
 const c = (rank: number, suit: Suit = 'S', faceUp = true): Card => ({ id: nextId++, rank, suit, faceUp });
 
@@ -139,7 +142,7 @@ describe('hint planner', () => {
     expect(won).toBeGreaterThanOrEqual(14);
   });
 
-  it('wins a fair share of two-suit games', () => {
+  it.runIf(STRENGTH)('wins a fair share of two-suit games', () => {
     let won = 0;
     for (let i = 1; i <= 20; i++) if (follow(i * 7919, 2)) won++;
     expect(won).toBeGreaterThanOrEqual(5);

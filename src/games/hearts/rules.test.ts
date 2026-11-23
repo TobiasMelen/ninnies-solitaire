@@ -14,6 +14,9 @@ import {
   value,
 } from './rules';
 
+/** AI strength comparisons are slow; they run with `npm run test:strength`. */
+const STRENGTH = !!import.meta.env.STRENGTH;
+
 const opts = { passing: true, target: 100, moonSubtracts: false };
 
 function playHandWithAI(s: HeartsState, seed = 1) {
@@ -142,7 +145,7 @@ describe('skill levels', () => {
     return total.map((t) => t / hands);
   }
 
-  it('a sharp player takes clearly fewer points than easy ones', () => {
+  it.runIf(STRENGTH)('a sharp player takes clearly fewer points than easy ones', () => {
     const [sharp, ...easy] = average([SHARP, EASY, EASY, EASY], 30);
     expect(sharp).toBeLessThan(easy.reduce((a, b) => a + b) / 3 - 1);
   }, 30000);

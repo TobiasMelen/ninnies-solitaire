@@ -3,6 +3,9 @@ import { mulberry32 } from '../../core/cards';
 import { ADVISOR, SKILL, type Skill, bestPileFor, chooseBuild, chooseDiscard } from './ai';
 import { type Player, type SpiteState, apply, buildDeck, buildMoves, canBuild, newGame, needs } from './rules';
 
+/** AI strength comparisons are slow; they run with `npm run test:strength`. */
+const STRENGTH = !!import.meta.env.STRENGTH;
+
 const opts = { goalSize: 20 };
 
 function playTurn(s: SpiteState, rand: () => number, skill: Skill = SKILL.easy) {
@@ -81,7 +84,7 @@ describe('AI', () => {
     expect(finished).toBeGreaterThanOrEqual(7);
   });
 
-  it('hard beats easy more often than not', { timeout: 120_000 }, () => {
+  it.runIf(STRENGTH)('hard beats easy more often than not', { timeout: 120_000 }, () => {
     let hardWins = 0;
     let decided = 0;
     for (let seed = 1; seed <= 24; seed++) {
