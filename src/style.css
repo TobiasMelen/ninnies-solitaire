@@ -3187,3 +3187,48 @@ button.ls-lineup-who {
     scale: 0.8;
   }
 }
+
+/* Landscaper: the big boy stands taller, crown and all. */
+.ls-follower.big {
+  width: 28px;
+  height: 41px;
+}
+.ls-spot.big svg {
+  scale: 1.25;
+}
+.ls-big {
+  white-space: nowrap;
+}
+.ls-big.on {
+  background: #f6d55c;
+  color: #3b2a17;
+}
+/* Above each score in the bar: that player's followers left, in their colour. */
+#stats .stat-top {
+  font-style: normal;
+  line-height: 1;
+}
+.ls-men {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.ls-man {
+  display: inline-block;
+  width: 13px;
+  height: 16px;
+}
+.ls-man.big {
+  width: 14px;
+  height: 21px;
+  margin-left: 4px;
+}
+.ls-man svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

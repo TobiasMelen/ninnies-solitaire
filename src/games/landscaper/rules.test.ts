@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { type LandscaperState, analyse, followerSpots, newGame, placements, play } from './rules';
+import { mulberry32 } from '../../core/cards';
+import { STEADY, chooseMove } from './ai';
+import { type LandscaperState, analyse, followerSpots, newGame, owners, placements, play, worth } from './rules';
 import { KINDS, RIVER_KINDS } from './tiles';
 
 const opts = { players: 2, farmers: true };
@@ -104,5 +106,35 @@ describe('scoring', () => {
     }
     expect(s.over).toBe(true);
     expect(s.tiles.length).toBeGreaterThan(60);
+  });
+});
+
+describe('Inns & Cathedrals', () => {
+  it('an inn doubles a finished road and an unfinished one scores nothing', () => {
+    const f = { part: 'road' as const, tiles: new Set([0, 1, 2]), open: 0, shields: 0, followers: [], inn: true, cathedral: false, borders: new Set<number>(), complete: true };
+    const a = { features: [f], of: new Map() };
+    expect(worth(f, a, false)).toBe(6);
+    expect(worth({ ...f, complete: false, open: 1 }, a, true)).toBe(0);
+  });
+
+  it('a cathedral makes a finished city 3 a tile and an unfinished one nothing', () => {
+    const f = { part: 'city' as const, tiles: new Set([0, 1]), open: 0, shields: 1, followers: [], inn: false, cathedral: true, borders: new Set<number>(), complete: true };
+    const a = { features: [f], of: new Map() };
+    expect(worth(f, a, false)).toBe(9);
+    expect(worth({ ...f, complete: false, open: 2 }, a, true)).toBe(0);
+  });
+
+  it('the big boy counts as two', () => {
+    const f = { part: 'city' as const, tiles: new Set([0]), open: 1, shields: 0, followers: [{ p: 0, tile: 0, big: true }, { p: 1, tile: 1 }], inn: false, cathedral: false, borders: new Set<number>(), complete: false };
+    expect(owners(f, 2)).toEqual([0]);
+  });
+
+  it('plays whole games with the expansion, big boys and all', () => {
+    for (let seed = 1; seed <= 3; seed++) {
+      const s = newGame(seed, { players: 3, farmers: true, inns: true });
+      const rand = mulberry32(seed);
+      while (!s.over) play(s, chooseMove(s, rand, STEADY));
+      expect(s.tiles.length).toBeGreaterThan(80);
+    }
   });
 });

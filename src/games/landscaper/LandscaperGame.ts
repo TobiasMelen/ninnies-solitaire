@@ -32,7 +32,7 @@ const SAVE_KEY = 'ninnies.landscaper.save.v1';
 const TILE = 84;
 
 /** Your turn in two steps: where the tile goes, then whether a follower goes with it. */
-type Stage = { at: 'lay'; ghost: { x: number; y: number; r: number } | null } | { at: 'follow'; x: number; y: number; r: number; pick: { part: Part; i: number } | null };
+type Stage = { at: 'lay'; ghost: { x: number; y: number; r: number } | null } | { at: 'follow'; x: number; y: number; r: number; pick: { part: Part; i: number; big?: boolean } | null };
 
 export class LandscaperGame extends TableGame<LandscaperState> {
   readonly id = 'landscaper' as const;
@@ -55,7 +55,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   /** Tiles already on the board, by index, so new ones can animate in. */
   private tileEls: HTMLElement[] = [];
   /** Followers shown last time (by tile index), to pop in new ones and float off scored ones. */
-  private shownFollowers = new Map<number, { x: number; y: number; html: string }>();
+  private shownFollowers = new Map<number, { x: number; y: number; html: string; big?: boolean }>();
   /** Which tile the panel last drew, so a newly drawn one flips in. */
   private drawnKey = '';
   /** Where the next tile flies in from (board pixels), when it comes from the panel. */
@@ -120,7 +120,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   }
 
   private fresh(seed: number, lineup: Seat[]) {
-    return newGame(seed, { players: lineup.length + 1, farmers: settings.landscaperFarmers, river: settings.landscaperRiver, lineup });
+    return newGame(seed, { players: lineup.length + 1, farmers: settings.landscaperFarmers, river: settings.landscaperRiver, inns: settings.landscaperInns, lineup });
   }
 
   /**
@@ -229,7 +229,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     this.render();
     const p = this.toScreen(m.x + 0.5, m.y + 0.5);
     this.hooks.hint?.({ from: p.x / this.root.clientWidth }, 'move');
-    this.hooks.toast(m.f ? t('landscaper.hintFollower', { part: t(`landscaper.part.${m.f.part}` as Key) }) : t('landscaper.hintNoFollower'));
+    this.hooks.toast(m.f ? t(m.f.big ? 'landscaper.hintBigBoy' : 'landscaper.hintFollower', { part: t(`landscaper.part.${m.f.part}` as Key) }) : t('landscaper.hintNoFollower'));
   }
 
   protected isFinished(s: LandscaperState) {
@@ -451,8 +451,12 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   protected emitHud() {
     const s = this.state;
     if (!s) return;
+    // Above each score, that player's followers left, in their colour (and the big boy, if in hand).
+    const men = (p: number) =>
+      `<span class="ls-men"><span class="ls-man">${followerSvg(p, 'city')}</span>×${s.followers[p]}${s.big?.[p] ? `<span class="ls-man big" title="${t('landscaper.bigBoy')}">${followerSvg(p, 'city', true)}</span>` : ''}</span>`;
     const stats: HudStat[] = (this.counting ?? s.scores).map((n, p) => ({
-      label: `${p ? this.icon(p) : t('you')} · ${s.followers[p]}♟`,
+      top: men(p),
+      label: p ? this.icon(p) : t('you'),
       value: String(n),
       hot: this.counting ? this.countingWho === p : !s.over && s.turn === p,
     }));
@@ -518,6 +522,12 @@ export class LandscaperGame extends TableGame<LandscaperState> {
       this.stage = { at: 'lay', ghost: { x: st.x, y: st.y, r: st.r } };
       return this.render();
     }
+    if (act === 'big' && st.at === 'follow' && st.pick) {
+      if (this.state.followers[0] <= 0) return;
+      this.stage = { ...st, pick: { ...st.pick, big: !st.pick.big } };
+      sfx.pick();
+      return this.render();
+    }
     if (act === 'done' && st.at === 'follow') return this.commit({ x: st.x, y: st.y, r: st.r, f: st.pick ?? undefined });
   }
 
@@ -566,10 +576,13 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     if (this.pointers.size < 2) this.pinch = null;
     if (!p || this.panned || this.pointers.size) return;
     // A tap: a follower spot, or a square on the board.
-    const spot = (e.target as HTMLElement).closest<HTMLElement>('.ls-spot');
+    // The board holds the pointer while it's down, so look at what's under the finger instead.
+    const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+    const spot = under?.closest<HTMLElement>('.ls-spot') ?? (e.target as HTMLElement).closest<HTMLElement>('.ls-spot');
     const st = this.stage;
     if (spot && st.at === 'follow') {
-      const pick = { part: spot.dataset.part as Part, i: Number(spot.dataset.i) };
+      // With no ordinary followers left, it can only be the big boy.
+      const pick = { part: spot.dataset.part as Part, i: Number(spot.dataset.i), big: this.state.followers[0] <= 0 };
       this.stage = { ...st, pick: st.pick && st.pick.part === pick.part && st.pick.i === pick.i ? null : pick };
       sfx.pick();
       haptic(5);
@@ -690,14 +703,14 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     this.tileEls.forEach((el, i) => el.classList.toggle('latest', i === s.tiles.length - 1 && i > 0));
 
     // Followers: new ones pop in; ones that scored float away.
-    const now = new Map<number, { x: number; y: number; html: string }>();
+    const now = new Map<number, { x: number; y: number; html: string; big?: boolean }>();
     s.tiles.forEach((tile, i) => {
       if (!tile.f) return;
       const [fx, fy] = turnedSpot(spotOf(tile.k, tile.f.part, tile.f.i), tile.r);
-      now.set(i, { x: tile.x * TILE + (fx / 100) * TILE, y: tile.y * TILE + (fy / 100) * TILE, html: followerSvg(tile.f.p, tile.f.part) });
+      now.set(i, { x: tile.x * TILE + (fx / 100) * TILE, y: tile.y * TILE + (fy / 100) * TILE, html: followerSvg(tile.f.p, tile.f.part, tile.f.big), big: !!tile.f.big });
     });
     this.followersEl.innerHTML = [...now]
-      .map(([i, f]) => `<div class="ls-follower${animate && !this.shownFollowers.has(i) ? ' pop' : ''}" style="left:${f.x}px;top:${f.y}px">${f.html}</div>`)
+      .map(([i, f]) => `<div class="ls-follower${f.big ? ' big' : ''}${animate && !this.shownFollowers.has(i) ? ' pop' : ''}" style="left:${f.x}px;top:${f.y}px">${f.html}</div>`)
       .join('');
     if (animate) {
       for (const [i, f] of this.shownFollowers) {
@@ -736,7 +749,8 @@ export class LandscaperGame extends TableGame<LandscaperState> {
         el.dataset.part = sp.part;
         el.dataset.i = String(sp.i);
         el.style.cssText = `left:${st.x * TILE + (fx / 100) * TILE}px;top:${st.y * TILE + (fy / 100) * TILE}px`;
-        el.innerHTML = on ? followerSvg(0, sp.part) : '';
+        el.innerHTML = on ? followerSvg(0, sp.part, st.pick?.big) : '';
+        el.classList.toggle('big', on && !!st.pick?.big);
         mark(el);
       }
     }
@@ -866,8 +880,12 @@ export class LandscaperGame extends TableGame<LandscaperState> {
         <div class="ls-actions"><button type="button" class="btn" data-act="rotate" ${st.ghost ? '' : 'disabled'}>↻ ${t('landscaper.rotate')}</button>
         <button type="button" class="btn primary" data-act="place" ${st.ghost ? '' : 'disabled'}>${t('landscaper.place')}</button></div>`;
     else
-      body = `<p>${s.followers[0] ? t('landscaper.pickFollower') : t('landscaper.noFollowers')}</p>
-        <div class="ls-actions"><button type="button" class="btn" data-act="back">${t('landscaper.back')}</button>
+      body = `<p>${s.followers[0] || s.big?.[0] ? t('landscaper.pickFollower') : t('landscaper.noFollowers')}</p>
+        <div class="ls-actions"><button type="button" class="btn" data-act="back">${t('landscaper.back')}</button>${
+          st.pick && s.big?.[0] && s.followers[0] > 0
+            ? `<button type="button" class="btn ls-big${st.pick.big ? ' on' : ''}" data-act="big" aria-pressed="${!!st.pick.big}">👑 ${t('landscaper.bigBoy')}</button>`
+            : ''
+        }
         <button type="button" class="btn primary" data-act="done">${st.pick ? t('landscaper.done') : t('landscaper.skip')}</button></div>`;
     this.panel.querySelector('.ls-info')!.innerHTML = `<small>${left}</small>${body}`;
     const W = this.root.clientWidth;

@@ -15,9 +15,9 @@ export interface TileKind {
   count: number;
   edges: [Edge, Edge, Edge, Edge];
   /** Separate city parts on the tile, by the edges each reaches; shields add to the score. */
-  cities: { edges: number[]; shield?: boolean }[];
-  /** Road segments by the edges they reach (one edge: it ends on this tile). */
-  roads: { edges: number[] }[];
+  cities: { edges: number[]; shield?: boolean; cathedral?: boolean }[];
+  /** Road segments by the edges they reach (one edge: it ends on this tile); an inn doubles a finished road. */
+  roads: { edges: number[]; inn?: boolean }[];
   /** Field areas by their halves, and which of this tile's cities each one borders. */
   fields: { halves: number[]; cities: number[] }[];
   cloister?: boolean;
@@ -310,11 +310,47 @@ export const RIVER_KINDS: TileKind[] = [
     ],
   },
 ];
+/**
+ * Inns & Cathedrals: fourteen tiles in the spirit of the classic expansion. An inn by a road makes
+ * it worth 2 a tile when finished but nothing if it isn't by the end; a cathedral does the same
+ * for a city, at 3 a tile. Ids start with 'i'.
+ */
+const base = (id: string) => KINDS.find((k) => k.id === id)!;
+const withInn = (id: string, from: string, count = 1, road = 0): TileKind => ({
+  ...structuredClone(base(from)),
+  id,
+  count,
+  roads: base(from).roads.map((r, i) => (i === road ? { ...r, inn: true } : { ...r })),
+});
+export const INN_KINDS: TileKind[] = [
+  { ...structuredClone(base('C')), id: 'iC', count: 2, cities: [{ edges: [0, 1, 2, 3], cathedral: true }] },
+  withInn('iD', 'D', 2),
+  withInn('iU', 'U', 2),
+  withInn('iV', 'V', 2),
+  withInn('iW', 'W'),
+  withInn('iJ', 'J'),
+  withInn('iK', 'K'),
+  withInn('iO', 'O'),
+  withInn('iP', 'P'),
+  {
+    // Two cities, one each side of a road through the middle.
+    id: 'iH',
+    count: 1,
+    edges: [C, R, C, R],
+    cities: [{ edges: [0] }, { edges: [2] }],
+    roads: [{ edges: [1, 3], inn: true }],
+    fields: [
+      { halves: [2, 7], cities: [0] },
+      { halves: [3, 6], cities: [1] },
+    ],
+  },
+];
+
 /** The river's first tile, which starts the map when the river is in play. */
 export const SPRING = 'rS';
 export const LAKE = 'rL';
 
-export const KIND = Object.fromEntries([...KINDS, ...RIVER_KINDS].map((k) => [k.id, k])) as Record<string, TileKind>;
+export const KIND = Object.fromEntries([...KINDS, ...RIVER_KINDS, ...INN_KINDS].map((k) => [k.id, k])) as Record<string, TileKind>;
 /** The starting tile: a city on one side and a road across. */
 export const START = 'D';
 

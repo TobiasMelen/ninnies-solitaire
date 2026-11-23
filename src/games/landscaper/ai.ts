@@ -94,8 +94,10 @@ function prospect(s: LandscaperState, a: Analysis, f: Analysis['features'][numbe
   const chance = Math.max(0, Math.min(0.95, (left / 40) / (1 + 0.6 * f.open)));
   switch (f.part) {
     case 'road':
-      return f.tiles.size;
+      // An inn: twice as much finished, nothing if not.
+      return f.inn ? (f.complete ? 2 : 2 * chance) * f.tiles.size : f.tiles.size;
     case 'city': {
+      if (f.cathedral) return (f.complete ? 3 : 3 * chance) * (f.tiles.size + f.shields);
       const done = 2 * (f.tiles.size + f.shields);
       return f.complete ? done : chance * done + (1 - chance) * (f.tiles.size + f.shields);
     }
@@ -119,7 +121,7 @@ export function value(s: LandscaperState, me: number, skill: Skill, style: Style
       const v = prospect(s, a, f);
       for (const p of owners(f, s.options.players)) total[p] += p === me ? v * style.part[f.part] : v;
     }
-    s.followers.forEach((n, p) => (total[p] += n * skill.followerValue * (p === me ? style.followers : 1)));
+    s.followers.forEach((n, p) => (total[p] += (n + (s.big?.[p] ? 1.5 : 0)) * skill.followerValue * (p === me ? style.followers : 1)));
   }
   const others = total.filter((_, p) => p !== me);
   const theirs = Math.max(...others) * 0.6 + (others.reduce((x, y) => x + y, 0) / others.length) * 0.4;
@@ -135,7 +137,9 @@ export function chooseMove(s: LandscaperState, rand: () => number, skill: Skill,
     const laid = structuredClone(s);
     laid.tiles.push({ k: s.current!, r: p.r, x: p.x, y: p.y });
     const spots = followerSpots(laid);
-    for (const f of [undefined, ...spots]) {
+    // Each spot with an ordinary follower (if any left) and with the big one (if it's in hand).
+    const options = [undefined, ...(s.followers[me] > 0 ? spots : []), ...(s.big?.[me] ? spots.map((x) => ({ ...x, big: true })) : [])];
+    for (const f of options) {
       const m: Move = { ...p, f };
       const next = structuredClone(s);
       play(next, m);

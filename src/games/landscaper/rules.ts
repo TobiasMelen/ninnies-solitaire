@@ -1,5 +1,5 @@
 import { mulberry32, shuffle } from '../../core/cards';
-import { DIRS, KIND, KINDS, LAKE, RIVER_KINDS, SPRING, START, type TileKind, edgeAt, facingHalf } from './tiles';
+import { DIRS, INN_KINDS, KIND, KINDS, LAKE, RIVER_KINDS, SPRING, START, type TileKind, edgeAt, facingHalf } from './tiles';
 
 /**
  * Landscaper rules: lay tiles so edges match, put a follower on a road, city, cloister or field
@@ -13,6 +13,8 @@ export interface Follower {
   p: number;
   part: Part;
   i: number;
+  /** The big follower (Inns & Cathedrals): counts as two when it comes to who holds a feature. */
+  big?: boolean;
 }
 
 export interface Placed {
@@ -27,7 +29,7 @@ export interface Move {
   x: number;
   y: number;
   r: number;
-  f?: { part: Part; i: number };
+  f?: { part: Part; i: number; big?: boolean };
 }
 
 /** Points scored for a feature, for the UI to show. */
@@ -45,6 +47,8 @@ export interface LandscaperOptions {
   farmers: boolean;
   /** Start with the river expansion. */
   river?: boolean;
+  /** The Inns & Cathedrals expansion: its tiles in the pile and a big follower each. */
+  inns?: boolean;
   /** Each opponent's playstyle and level (0 easy, 1 medium, 2 hard), in seat order. */
   lineup?: { style: string; level: number }[];
 }
@@ -58,6 +62,8 @@ export interface LandscaperState {
   scores: number[];
   /** Followers each player still has to place. */
   followers: number[];
+  /** Whether each player has their big follower in hand (Inns & Cathedrals). */
+  big?: boolean[];
   turn: number;
   /** The tile the current player has to lay; null once the pile is used up. */
   current: string | null;
@@ -75,6 +81,7 @@ export function newGame(seed: number, options: LandscaperOptions): LandscaperSta
   const pile: string[] = [];
   // With the river, the spring starts the map and the usual start tile goes in the pile.
   for (const k of KINDS) for (let n = 0; n < k.count - (k.id === START && !options.river ? 1 : 0); n++) pile.push(k.id);
+  if (options.inns) for (const k of INN_KINDS) for (let n = 0; n < k.count; n++) pile.push(k.id);
   shuffle(pile, rand);
   if (options.river) {
     // The pile is drawn from the end: river tiles first, the lake last of them.
@@ -89,6 +96,7 @@ export function newGame(seed: number, options: LandscaperOptions): LandscaperSta
     tiles: [{ k: options.river ? SPRING : START, r: 0, x: 0, y: 0 }],
     scores: Array(options.players).fill(0),
     followers: Array(options.players).fill(FOLLOWERS),
+    big: Array(options.players).fill(!!options.inns),
     turn: 0,
     current: null,
     scored: [],
@@ -206,7 +214,10 @@ export interface Feature {
   /** Edges still leading off the map (roads and cities); neighbours missing (cloisters). */
   open: number;
   shields: number;
-  followers: { p: number; tile: number }[];
+  followers: { p: number; tile: number; big?: boolean }[];
+  /** A road with an inn, or a city with a cathedral: double or nothing. */
+  inn: boolean;
+  cathedral: boolean;
   /** For fields: the cities they border (feature ids). */
   borders: Set<number>;
   complete: boolean;
@@ -291,7 +302,7 @@ export function analyse(s: LandscaperState): Analysis {
           if (m !== undefined) tiles.add(m);
         }
       of.set(`${node.t}:cloister:0`, features.length);
-      features.push({ part: 'cloister', tiles, open: 9 - tiles.size, shields: 0, followers: [], borders: new Set(), complete: tiles.size === 9 });
+      features.push({ part: 'cloister', tiles, open: 9 - tiles.size, shields: 0, followers: [], inn: false, cathedral: false, borders: new Set(), complete: tiles.size === 9 });
       return;
     }
     const root = find(n);
@@ -299,17 +310,20 @@ export function analyse(s: LandscaperState): Analysis {
     if (id === undefined) {
       id = features.length;
       idOfRoot.set(root, id);
-      features.push({ part: node.part, tiles: new Set(), open: 0, shields: 0, followers: [], borders: new Set(), complete: false });
+      features.push({ part: node.part, tiles: new Set(), open: 0, shields: 0, followers: [], inn: false, cathedral: false, borders: new Set(), complete: false });
     }
     of.set(`${node.t}:${node.part}:${node.i}`, id);
     const f = features[id];
     f.tiles.add(node.t);
     f.open += open.get(n) ?? 0;
-    if (node.part === 'city' && KIND[s.tiles[node.t].k].cities[node.i].shield) f.shields++;
+    const kind = KIND[s.tiles[node.t].k];
+    if (node.part === 'city' && kind.cities[node.i].shield) f.shields++;
+    if (node.part === 'city' && kind.cities[node.i].cathedral) f.cathedral = true;
+    if (node.part === 'road' && kind.roads[node.i].inn) f.inn = true;
   });
   // Followers, and which cities each field borders (once every city has its id).
   s.tiles.forEach((tile, t) => {
-    if (tile.f) features[of.get(`${t}:${tile.f.part}:${tile.f.i}`)!].followers.push({ p: tile.f.p, tile: t });
+    if (tile.f) features[of.get(`${t}:${tile.f.part}:${tile.f.i}`)!].followers.push({ p: tile.f.p, tile: t, big: tile.f.big });
     KIND[tile.k].fields.forEach((field, i) => {
       const id = of.get(`${t}:field:${i}`)!;
       for (const c of field.cities) features[id].borders.add(of.get(`${t}:city:${c}`)!);
@@ -321,7 +335,9 @@ export function analyse(s: LandscaperState): Analysis {
 
 /** What a feature is worth, finished or (at the end of the game) not. */
 export function worth(f: Feature, a: Analysis, atEnd: boolean): number {
-  if (f.part === 'road') return f.tiles.size;
+  // An inn or a cathedral: more for finishing it, nothing for leaving it unfinished.
+  if (f.part === 'road') return f.inn ? (f.complete ? 2 * f.tiles.size : 0) : f.tiles.size;
+  if (f.part === 'city' && f.cathedral) return f.complete ? 3 * (f.tiles.size + f.shields) : 0;
   if (f.part === 'city') return f.complete ? 2 * (f.tiles.size + f.shields) : atEnd ? f.tiles.size + f.shields : 0;
   if (f.part === 'cloister') return f.complete ? 9 : atEnd ? f.tiles.size : 0;
   // Fields: 3 for every finished city they border.
@@ -331,7 +347,7 @@ export function worth(f: Feature, a: Analysis, atEnd: boolean): number {
 /** The players with the most followers on a feature (all of them, when tied). */
 export function owners(f: Feature, players: number): number[] {
   const count = Array(players).fill(0);
-  for (const x of f.followers) count[x.p]++;
+  for (const x of f.followers) count[x.p] += x.big ? 2 : 1;
   const most = Math.max(...count);
   return most ? count.flatMap((n, p) => (n === most ? [p] : [])) : [];
 }
@@ -342,7 +358,7 @@ export function owners(f: Feature, players: number): number[] {
 export function followerSpots(s: LandscaperState, a = analyse(s)): { part: Part; i: number }[] {
   const t = s.tiles.length - 1;
   const tile = s.tiles[t];
-  if (s.followers[s.turn] <= 0) return [];
+  if (s.followers[s.turn] <= 0 && !s.big?.[s.turn]) return [];
   const k = KIND[tile.k];
   const spots: { part: Part; i: number }[] = [];
   const free = (part: Part, i: number) => !a.features[a.of.get(`${t}:${part}:${i}`)!].followers.length;
@@ -369,8 +385,10 @@ export function play(s: LandscaperState, m: Move) {
   const t = s.tiles.length - 1;
   if (m.f) {
     if (!followerSpots(s).some((sp) => sp.part === m.f!.part && sp.i === m.f!.i)) throw new Error('No follower there');
-    s.tiles[t].f = { p: s.turn, ...m.f };
-    s.followers[s.turn]--;
+    if (m.f.big ? !s.big?.[s.turn] : s.followers[s.turn] <= 0) throw new Error('No follower of that kind to place');
+    s.tiles[t].f = { p: s.turn, part: m.f.part, i: m.f.i, ...(m.f.big ? { big: true } : {}) };
+    if (m.f.big) s.big![s.turn] = false;
+    else s.followers[s.turn]--;
   }
   s.scored = scoreFinished(s, t);
   s.turn = (s.turn + 1) % s.options.players;
@@ -390,7 +408,8 @@ function scoreFinished(s: LandscaperState, t: number): Scored[] {
     for (const p of who) s.scores[p] += points;
     out.push({ part: f.part, players: who, points, tiles: [...f.tiles] });
     for (const x of f.followers) {
-      s.followers[x.p]++;
+      if (x.big) s.big![x.p] = true;
+      else s.followers[x.p]++;
       delete s.tiles[x.tile].f;
     }
   });

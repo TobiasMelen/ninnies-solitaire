@@ -300,6 +300,31 @@ const CHAPEL = `<g transform="translate(-50 -60)" stroke="${COL.wall}" stroke-wi
   <circle cx="58.5" cy="42" r="2" fill="#fff8e6"/><path d="M48 66v-7a3 3 0 0 1 6 0v7" fill="${COL.wall}"/>
   <rect x="43" y="53" width="3" height="4" rx="1.5" fill="#7fb0d9"/></g>`;
 
+/** An inn by the road: two timbered storeys, lit windows, a hanging sign and a barrel. */
+const INN = `${shadow(9)}<g stroke="${COL.line}" stroke-width=".5" stroke-linejoin="round">
+  <polygon points="6 0 8.2 -2.8 8.2 -13 6 -10.2" fill="#e8d9b4"/><polygon points="6 0 8.2 -2.8 8.2 -13 6 -10.2" fill="${SHADE}" stroke="none"/>
+  <rect x="-6" y="-10.2" width="12" height="10.2" fill="#f3e6c4"/>
+  <path d="M-6 -5.2h12M-3 -10.2v10.2M3 -10.2v10.2M-6 -10.2l3 5M3 -10.2l3 5" stroke="#6b4a2b" stroke-width=".6" fill="none"/>
+  <rect x="-1" y="-3.4" width="2" height="3.4" fill="#5a4330"/>
+  <rect x="-5" y="-8.6" width="1.6" height="1.8" fill="#f6d983" stroke="none"/><rect x="3.6" y="-8.6" width="1.6" height="1.8" fill="#f6d983" stroke="none"/>
+  <polygon points="6.6 -9.8 8.8 -12.6 5.6 -16.6" fill="#6f5238"/><polygon points="6.6 -9.8 8.8 -12.6 5.6 -16.6" fill="${SHADE}" stroke="none"/>
+  <polygon points="-6.8 -9.8 6.6 -9.8 5.6 -16.6 -5.2 -16.6" fill="#7d5a3c"/>
+  <path d="M6.2 -7.2h4.4" stroke="#4a3a26" stroke-width=".7" fill="none"/><rect x="8.4" y="-6.8" width="3.4" height="2.8" rx=".5" fill="#c9a15a"/>
+  <circle cx="-8.4" cy="-1.4" r="1.6" fill="#8a5a2b"/></g>`;
+
+/** A cathedral: twin spired towers, a long nave and a rose window. */
+const CATHEDRAL = `${shadow(15, 4.5)}<g stroke="${COL.wall}" stroke-width=".6" stroke-linejoin="round">
+  <polygon points="9 0 11.5 -3 11.5 -15 9 -12" fill="#ddcca4"/><polygon points="9 0 11.5 -3 11.5 -15 9 -12" fill="${SHADE}" stroke="none"/>
+  <rect x="-9" y="-12" width="18" height="12" fill="#ece0c3"/>
+  <polygon points="-9.6 -11.8 9.6 -11.8 11.6 -15 6 -19 -6 -19" fill="${COL.roofs[1]}"/>
+  <rect x="-13" y="-25" width="6.4" height="25" fill="#e4d6b2"/><rect x="6.6" y="-25" width="6.4" height="25" fill="#e4d6b2"/>
+  <rect x="9.8" y="-25" width="3.2" height="25" fill="${SHADE}" stroke="none"/><rect x="-9.8" y="-25" width="3.2" height="25" fill="${SHADE}" stroke="none"/>
+  <path d="M-13.6 -25L-9.8 -35L-6 -25ZM6 -25L9.8 -35L13.6 -25Z" fill="${COL.roofs[2]}"/>
+  <path d="M-9.8 -35v-3M-11 -37h2.4M9.8 -35v-3M8.6 -37h2.4" fill="none" stroke-width=".8"/>
+  <circle cx="0" cy="-7.6" r="2.8" fill="#7fb0d9"/><path d="M0 -10.4v5.6M-2.8 -7.6h5.6" stroke-width=".4" fill="none"/>
+  <path d="M-2.2 0v-3.2a2.2 2.2 0 0 1 4.4 0V0z" fill="#5a3e24"/>
+  <rect x="-10.6" y="-19" width="1.6" height="2.6" rx=".8" fill="#7fb0d9"/><rect x="9" y="-19" width="1.6" height="2.6" rx=".8" fill="#7fb0d9"/></g>`;
+
 /** A stone well where three or four roads meet. */
 const WELL = `${shadow(8, 3)}<g stroke="${COL.wall}" stroke-width=".8"><rect x="-6.5" y="-6.5" width="13" height="7" rx="2" fill="#bfb6a3"/><ellipse cx="0" cy="-6.5" rx="6.5" ry="2.4" fill="#3d6f9e"/><path d="M-6 -6.5V-14.5M6 -6.5V-14.5" fill="none" stroke-width="1.2"/><path d="M-8 -13.5L0 -19L8 -13.5Z" fill="${COL.roofs[1]}" stroke-linejoin="round"/></g>`;
 
@@ -385,6 +410,17 @@ export function tileSvg(id: string, variant = 0, fixed?: number): string {
     return null;
   };
 
+  // An inn beside its road, on whichever side has room.
+  k.roads.forEach((r, i) => {
+    if (!r.inn) return;
+    const [p0, p1, p2] = along(roads[i], 5).slice(1, 4);
+    const len = Math.hypot(p2[0] - p0[0], p2[1] - p0[1]) || 1;
+    const side: Pt = [-(p2[1] - p0[1]) / len, (p2[0] - p0[0]) / len];
+    const spots = [1, -1].map((d): Pt => [Math.min(84, Math.max(16, p1[0] + side[0] * d * 15)), Math.min(88, Math.max(20, p1[1] + side[1] * d * 15))]);
+    const at = spots.find((q) => cities.every((c) => !inside(q, c.poly))) ?? spots[0];
+    sprites.push({ at, svg: INN });
+    busy.push([at, 13]);
+  });
   // The ground: grass specks and flowers, the odd crop strip or pond.
   let ground = '';
   for (let i = 0; i < 30; i++) ground += `<ellipse cx="${f1(3 + rand() * 94)}" cy="${f1(3 + rand() * 94)}" rx="1.3" ry=".8" fill="${rand() < 0.6 ? COL.speck : COL.fieldLight}"/>`;
@@ -489,7 +525,10 @@ export function tileSvg(id: string, variant = 0, fixed?: number): string {
       taken.push([g, 8]);
     }
     const middle = anchor('city', kc.edges);
-    if (kc.edges.length >= 3) {
+    if (kc.cathedral) {
+      sprites.push({ at: [50, 60], svg: CATHEDRAL });
+      taken.push([[50, 52], 21]);
+    } else if (kc.edges.length >= 3) {
       const at: Pt = [middle[0] + 6, middle[1] - 6];
       sprites.push({ at, svg: tower(rand, true) });
       taken.push([at, 9]);
@@ -608,8 +647,10 @@ export function turnedSpot([x, y]: [number, number], r: number): [number, number
 /** Player colours for followers and score pop-ups: you, then the animals. */
 export const PLAYER_COLOURS = ['#f2c94c', '#e67e22', '#8e6bbf', '#8b5a3c'];
 
-/** A follower: a little pawn; farmers lie down in their field. */
-export function followerSvg(p: number, part: Part): string {
+/** A follower: a little pawn (the big boy: a bigger one with a crown); farmers lie down in their field. */
+export function followerSvg(p: number, part: Part, big = false): string {
   const c = PLAYER_COLOURS[p];
-  return `<svg viewBox="0 0 20 24" aria-hidden="true"${part === 'field' ? ' style="rotate:90deg"' : ''}><path d="M10 1.5a4.2 4.2 0 0 1 2.6 7.5l3.6 2.3c1.6 1 2.3 3 1.6 4.8L16 22.5H4l-1.8-6.4c-.7-1.8 0-3.8 1.6-4.8L7.4 9A4.2 4.2 0 0 1 10 1.5z" fill="${c}" stroke="#2b2117" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
+  const body = `<path d="M10 1.5a4.2 4.2 0 0 1 2.6 7.5l3.6 2.3c1.6 1 2.3 3 1.6 4.8L16 22.5H4l-1.8-6.4c-.7-1.8 0-3.8 1.6-4.8L7.4 9A4.2 4.2 0 0 1 10 1.5z" fill="${c}" stroke="#2b2117" stroke-width="1.4" stroke-linejoin="round"/>`;
+  const crown = big ? `<path d="M6 2.2L5.4-3.6l2.6 2.2L10-4.6l2 3.2 2.6-2.2L14 2.2z" fill="#f6d55c" stroke="#2b2117" stroke-width="1.1" stroke-linejoin="round"/>` : '';
+  return `<svg viewBox="0 ${big ? -5.5 : 0} 20 ${big ? 29.5 : 24}" aria-hidden="true"${big ? ' class="big"' : ''}${part === 'field' ? ' style="rotate:90deg"' : ''}>${body}${crown}</svg>`;
 }

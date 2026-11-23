@@ -8,6 +8,8 @@ export interface HudStat {
   value: string;
   /** Highlighted (e.g. whose turn it is, or the leader). */
   hot?: boolean;
+  /** A small extra line above the value, as HTML (e.g. a player's followers left). */
+  top?: string;
 }
 
 export interface Hud {

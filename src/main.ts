@@ -172,7 +172,7 @@ let game: AnyGame | null = null;
 
 function renderHud(h: Hud) {
   $('#stats').innerHTML = h.stats
-    .map((s) => `<div class="${s.hot ? 'hot' : ''}"><b>${s.value}</b><small>${s.label}</small></div>`)
+    .map((s) => `<div class="${s.hot ? 'hot' : ''}">${s.top ? `<i class="stat-top">${s.top}</i>` : ''}<b>${s.value}</b><small>${s.label}</small></div>`)
     .join('');
   const undo = $<HTMLButtonElement>('#btn-undo');
   undo.hidden = !h.hasUndo;
@@ -609,6 +609,7 @@ const TOGGLES: Toggle[] = [
   { key: 'spiteShort', group: 'play', games: ['spite'] },
   { key: 'spiteFast', group: 'play', games: ['spite'] },
   { key: 'landscaperRiver', group: 'play', games: ['landscaper'] },
+  { key: 'landscaperInns', group: 'play', games: ['landscaper'] },
   { key: 'landscaperFarmers', group: 'play', games: ['landscaper'] },
   { key: 'landscaperFast', group: 'play', games: ['landscaper'] },
   { key: 'fourColour', group: 'cards' },
