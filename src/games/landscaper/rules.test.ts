@@ -131,7 +131,7 @@ describe('Inns & Cathedrals', () => {
   it('plays whole games with the expansion, big boys and all', () => {
     // Random legal moves (quick), with the big boy put out whenever it's in hand.
     for (let seed = 1; seed <= 3; seed++) {
-      const s = newGame(seed, { players: 3, farmers: true, inns: true });
+      const s = newGame(seed, { players: 3, farmers: true, inns: true, bigBoy: true });
       const rand = mulberry32(seed);
       let bigs = 0;
       while (!s.over) {

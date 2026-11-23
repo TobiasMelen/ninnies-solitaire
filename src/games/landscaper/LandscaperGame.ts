@@ -74,7 +74,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     this.liftEl = document.createElement('div');
     this.world.append(this.tilesEl, this.followersEl, this.marksEl, this.liftEl, this.popsEl);
     this.panel = this.el('ls-panel');
-    this.panel.innerHTML = `<div class="ls-pile" aria-hidden="true"></div><div class="ls-preview"><div class="ls-card"><div class="ls-card-front"></div><div class="ls-card-back"></div></div></div><div class="ls-info"></div>`;
+    this.panel.innerHTML = `<div class="ls-tray"><div class="ls-pile" aria-hidden="true"></div><div class="ls-preview"><div class="ls-card"><div class="ls-card-front"></div><div class="ls-card-back"></div></div></div><span class="ls-left"></span></div><div class="ls-info"></div>`;
     this.panel.addEventListener('click', (e) => this.onPanel(e));
     root.addEventListener('pointerdown', (e) => this.onDown(e));
     root.addEventListener('pointermove', (e) => this.onMove(e));
@@ -120,7 +120,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   }
 
   private fresh(seed: number, lineup: Seat[]) {
-    return newGame(seed, { players: lineup.length + 1, farmers: settings.landscaperFarmers, river: settings.landscaperRiver, inns: settings.landscaperInns, lineup });
+    return newGame(seed, { players: lineup.length + 1, farmers: settings.landscaperFarmers, river: settings.landscaperRiver, inns: settings.landscaperInns, bigBoy: settings.landscaperBigBoy, lineup });
   }
 
   /**
@@ -868,26 +868,33 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     preview.style.rotate = `${this.trayDeg}deg`;
     preview.style.setProperty('--deg', String(this.trayDeg));
 
-    const left = t('landscaper.tilesLeft', { n: s.pile.length + (s.current ? 1 : 0) });
+    // What the panel shows depends on the moment (see .ls-panel[data-mode] in the CSS): your tile
+    // while you hold it, just the buttons once it's on the board, a word while others play.
+    const mode = s.over ? (this.counting ? 'count' : 'over') : s.turn !== 0 ? 'wait' : st.at === 'lay' && !st.ghost ? 'hold' : 'act';
+    this.panel.dataset.mode = mode;
+    // How-to lines only on your first turn.
+    this.panel.classList.toggle('helping', s.tiles.length - 1 < s.options.players);
+    this.panel.querySelector('.ls-left')!.textContent = String(s.pile.length + (s.current ? 1 : 0));
+    const tip = (key: Key) => `<p class="ls-tip">${t(key)}</p>`;
     let body = '';
-    if (s.over && this.counting)
+    if (mode === 'count')
       body = `<p>${this.countingWho === null ? t('landscaper.finalTally') : `${this.name(this.countingWho)}${this.countingPart ? ` · ${t(`landscaper.count.${this.countingPart}` as Key)}` : ''}`}</p>
         <div class="ls-actions"><button type="button" class="btn" data-act="skip">${t('landscaper.skipCount')}</button></div>`;
-    else if (s.over) body = `<p>${t('landscaper.gameOver')}</p>`;
-    else if (s.turn !== 0) body = `<p>${t('landscaper.thinking', { who: this.who(s.turn) })}</p>`;
-    else if (st.at === 'lay')
-      body = `<p>${st.ghost ? t('landscaper.turnOrPlace') : t('landscaper.pickSpot')}</p>
-        <div class="ls-actions"><button type="button" class="btn" data-act="rotate" ${st.ghost ? '' : 'disabled'}>↻ ${t('landscaper.rotate')}</button>
-        <button type="button" class="btn primary" data-act="place" ${st.ghost ? '' : 'disabled'}>${t('landscaper.place')}</button></div>`;
-    else
-      body = `<p>${s.followers[0] || s.big?.[0] ? t('landscaper.pickFollower') : t('landscaper.noFollowers')}</p>
+    else if (mode === 'wait') body = `<p>${t('landscaper.thinking', { who: this.who(s.turn) })}</p>`;
+    else if (mode === 'hold') body = tip('landscaper.pickSpot');
+    else if (mode === 'act' && st.at === 'lay')
+      body = `${tip('landscaper.turnOrPlace')}
+        <div class="ls-actions"><button type="button" class="btn" data-act="rotate">↻ ${t('landscaper.rotate')}</button>
+        <button type="button" class="btn primary" data-act="place">${t('landscaper.place')}</button></div>`;
+    else if (mode === 'act' && st.at === 'follow')
+      body = `${tip(s.followers[0] || s.big?.[0] ? 'landscaper.pickFollower' : 'landscaper.noFollowers')}
         <div class="ls-actions"><button type="button" class="btn" data-act="back">${t('landscaper.back')}</button>${
           st.pick && s.big?.[0] && s.followers[0] > 0
-            ? `<button type="button" class="btn ls-big${st.pick.big ? ' on' : ''}" data-act="big" aria-pressed="${!!st.pick.big}">👑 ${t('landscaper.bigBoy')}</button>`
+            ? `<button type="button" class="btn ls-big${st.pick.big ? ' on' : ''}" data-act="big" aria-pressed="${!!st.pick.big}">${t('landscaper.bigBoy')}</button>`
             : ''
         }
         <button type="button" class="btn primary" data-act="done">${st.pick ? t('landscaper.done') : t('landscaper.skip')}</button></div>`;
-    this.panel.querySelector('.ls-info')!.innerHTML = `<small>${left}</small>${body}`;
+    this.panel.querySelector('.ls-info')!.innerHTML = body.trim();
     const W = this.root.clientWidth;
     const H = this.root.clientHeight;
     if (W && H) this.hooks.occupied?.([{ x0: this.panel.offsetLeft / W - 0.5 * (this.panel.offsetWidth / W), x1: (this.panel.offsetLeft + this.panel.offsetWidth / 2) / W, y: 1 }]);

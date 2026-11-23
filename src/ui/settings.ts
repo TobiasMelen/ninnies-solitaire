@@ -57,6 +57,7 @@ export interface Settings {
   landscaperFast: boolean;
   landscaperRiver: boolean;
   landscaperInns: boolean;
+  landscaperBigBoy: boolean;
   /** Your last Landscaper opponents (style and level each), the starting point for the next game. */
   landscaperLineup: { style: string; level: number }[] | null;
   /** 'auto' follows the device's language. */
@@ -98,6 +99,7 @@ const DEFAULTS: Settings = {
   landscaperFast: false,
   landscaperRiver: true,
   landscaperInns: true,
+  landscaperBigBoy: true,
   landscaperLineup: null,
   lang: 'auto',
   rememberSpider: false,

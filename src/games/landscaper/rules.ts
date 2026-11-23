@@ -13,7 +13,7 @@ export interface Follower {
   p: number;
   part: Part;
   i: number;
-  /** The big follower (Inns & Cathedrals): counts as two when it comes to who holds a feature. */
+  /** The big boy: counts as two when it comes to who holds a feature. */
   big?: boolean;
 }
 
@@ -47,8 +47,10 @@ export interface LandscaperOptions {
   farmers: boolean;
   /** Start with the river expansion. */
   river?: boolean;
-  /** The Inns & Cathedrals expansion: its tiles in the pile and a big follower each. */
+  /** The Inns & Cathedrals expansion: its tiles in the pile. */
   inns?: boolean;
+  /** The big boy: one big follower each, counting as two (enough to take over a city). */
+  bigBoy?: boolean;
   /** Each opponent's playstyle and level (0 easy, 1 medium, 2 hard), in seat order. */
   lineup?: { style: string; level: number }[];
 }
@@ -62,7 +64,7 @@ export interface LandscaperState {
   scores: number[];
   /** Followers each player still has to place. */
   followers: number[];
-  /** Whether each player has their big follower in hand (Inns & Cathedrals). */
+  /** Whether each player has their big boy in hand. */
   big?: boolean[];
   turn: number;
   /** The tile the current player has to lay; null once the pile is used up. */
@@ -96,7 +98,7 @@ export function newGame(seed: number, options: LandscaperOptions): LandscaperSta
     tiles: [{ k: options.river ? SPRING : START, r: 0, x: 0, y: 0 }],
     scores: Array(options.players).fill(0),
     followers: Array(options.players).fill(FOLLOWERS),
-    big: Array(options.players).fill(!!options.inns),
+    big: Array(options.players).fill(!!options.bigBoy),
     turn: 0,
     current: null,
     scored: [],
