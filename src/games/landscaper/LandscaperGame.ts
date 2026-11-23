@@ -4,7 +4,8 @@ import { TableGame } from '../../core/tableGame';
 import { type Key, t } from '../../i18n';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings, updateSettings } from '../../ui/settings';
-import { ADVISOR, LEVELS, STYLES, type Seat, type Style, chooseMove, seatOf, skillOf, styleOf } from './ai';
+import { ADVISOR, LEVELS, STYLES, type Seat, type Style, seatOf, skillOf, styleOf } from './ai';
+import { think } from './think';
 import { PLAYER_COLOURS, followerSvg, tileImage, spotOf, tileSvg, turnedSpot } from './render';
 import { type LandscaperState, type Move, type Part, analyse, followerSpots, leaders, newGame, placements, play } from './rules';
 
@@ -217,7 +218,13 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   hint() {
     const s = this.state;
     if (!s || s.over || s.turn !== 0 || this.thinking) return;
-    const m = chooseMove(s, Math.random, ADVISOR);
+    const at = s.tiles.length;
+    think(s, ADVISOR).then((m) => {
+      if (this.state === s && s.tiles.length === at && s.turn === 0 && !this.paused) this.showHint(m);
+    });
+  }
+
+  private showHint(m: Move) {
     this.stage = { at: 'lay', ghost: { x: m.x, y: m.y, r: m.r } };
     this.render();
     const p = this.toScreen(m.x + 0.5, m.y + 0.5);
@@ -266,23 +273,33 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     this.render();
     if (s.turn === 0) return;
     this.thinking = true;
-    this.after('ai', this.speed(), () => {
-      const m = chooseMove(s, Math.random, skillOf(s, s.turn), styleOf(s, s.turn));
-      // Out of the panel to hover over its spot, turning into place...
-      this.flyFrom = this.panelSpot();
-      this.aiShow = { m, r: 0 };
-      this.reveal(m.x, m.y);
+    // Thinking starts straight away, in a worker; the move shows once the usual pause is up.
+    const started = performance.now();
+    const ticket = ++this.ticket;
+    think(s, skillOf(s, s.turn), styleOf(s, s.turn)).then((m) => {
+      if (ticket !== this.ticket || this.state !== s || this.paused) return;
+      this.after('ai', Math.max(0, this.speed() - (performance.now() - started)), () => this.showAiMove(m));
+    });
+  }
+
+  /** Which think is current: a newer one (or a new game) makes older answers stale. */
+  private ticket = 0;
+
+  private showAiMove(m: Move) {
+    // Out of the panel to hover over its spot, turning into place...
+    this.flyFrom = this.panelSpot();
+    this.aiShow = { m, r: 0 };
+    this.reveal(m.x, m.y);
+    this.render();
+    this.after('ai-turn', 820, () => {
+      if (!this.aiShow) return;
+      this.aiShow.r = m.r;
       this.render();
-      this.after('ai-turn', 820, () => {
-        if (!this.aiShow) return;
-        this.aiShow.r = m.r;
-        this.render();
-        // ...then down it goes.
-        this.after('ai-lay', 620, () => {
-          this.aiShow = null;
-          this.thinking = false;
-          this.commit(m);
-        });
+      // ...then down it goes.
+      this.after('ai-lay', 620, () => {
+        this.aiShow = null;
+        this.thinking = false;
+        this.commit(m);
       });
     });
   }
