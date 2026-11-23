@@ -647,12 +647,8 @@ export function turnedSpot([x, y]: [number, number], r: number): [number, number
 /** Player colours for followers and score pop-ups: you, then the animals. */
 export const PLAYER_COLOURS = ['#f2c94c', '#e67e22', '#8e6bbf', '#8b5a3c'];
 
-/** A follower: a little pawn (the big boy: a bigger one in a straw hat); farmers lie down in their field. */
+/** A follower: a little pawn (the big boy is the same pawn, just bigger); farmers lie down in their field. */
 export function followerSvg(p: number, part: Part, big = false): string {
   const c = PLAYER_COLOURS[p];
-  const body = `<path d="M10 1.5a4.2 4.2 0 0 1 2.6 7.5l3.6 2.3c1.6 1 2.3 3 1.6 4.8L16 22.5H4l-1.8-6.4c-.7-1.8 0-3.8 1.6-4.8L7.4 9A4.2 4.2 0 0 1 10 1.5z" fill="${c}" stroke="#2b2117" stroke-width="1.4" stroke-linejoin="round"/>`;
-  const hat = big
-    ? `<g stroke="#2b2117" stroke-width="1" stroke-linejoin="round"><path d="M6.6 2.4Q6.8-2.2 10-2.2T13.4 2.4Z" fill="#e3c56b"/><ellipse cx="10" cy="2.6" rx="7.6" ry="1.8" fill="#e3c56b"/><path d="M6.9 1h6.2" stroke="#b8963d" stroke-width="1.2"/></g>`
-    : '';
-  return `<svg viewBox="${big ? '-1 -3 22 27' : '0 0 20 24'}" aria-hidden="true"${big ? ' class="big"' : ''}${part === 'field' ? ' style="rotate:90deg"' : ''}>${body}${hat}</svg>`;
+  return `<svg viewBox="0 0 20 24" aria-hidden="true"${big ? ' class="big"' : ''}${part === 'field' ? ' style="rotate:90deg"' : ''}><path d="M10 1.5a4.2 4.2 0 0 1 2.6 7.5l3.6 2.3c1.6 1 2.3 3 1.6 4.8L16 22.5H4l-1.8-6.4c-.7-1.8 0-3.8 1.6-4.8L7.4 9A4.2 4.2 0 0 1 10 1.5z" fill="${c}" stroke="#2b2117" stroke-width="${big ? 1.1 : 1.4}" stroke-linejoin="round"/></svg>`;
 }

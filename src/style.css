@@ -3222,13 +3222,13 @@ button.ls-lineup-who {
   }
 }
 
-/* Landscaper: the big boy stands taller, straw hat and all. */
+/* Landscaper: the big boy is a big pawn. */
 .ls-follower.big {
-  width: 28px;
-  height: 41px;
+  width: 32px;
+  height: 38px;
 }
 .ls-spot.big svg {
-  scale: 1.25;
+  scale: 1.45;
 }
 .ls-big {
   white-space: nowrap;
@@ -3257,8 +3257,8 @@ button.ls-lineup-who {
   height: 16px;
 }
 .ls-man.big {
-  width: 14px;
-  height: 21px;
+  width: 18px;
+  height: 22px;
   margin-left: 4px;
 }
 .ls-man svg {
