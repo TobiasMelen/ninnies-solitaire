@@ -4,8 +4,8 @@ import { TableGame } from '../../core/tableGame';
 import { type Key, t } from '../../i18n';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
-import { ADVISOR, chooseMove, skillFor, styleFor } from './ai';
-import { PLAYER_COLOURS, VARIANTS, followerSvg, spotOf, tileSvg, turnedSpot } from './render';
+import { ADVISOR, type Style, chooseMove, skillFor, styleFor } from './ai';
+import { PLAYER_COLOURS, followerSvg, spotOf, tileSvg, turnedSpot } from './render';
 import { type LandscaperState, type Move, type Part, analyse, followerSpots, leaders, newGame, placements, play } from './rules';
 
 /** The tile in hand on the board: where, which way, and whether it's an opponent's (hover). */
@@ -21,13 +21,8 @@ interface Lift {
 /** Degrees to show turn `r` at, going on clockwise from `deg` (so 270° → 360°, not back to 0°). */
 const clockwise = (deg: number, r: number) => deg + ((((r * 90 - deg) % 360) + 360) % 360);
 
-/** You, then the animals in the order they join. */
-const PLAYERS = [
-  { emoji: '🙂', key: 'you' },
-  { emoji: '🦊', key: 'animal.fox' },
-  { emoji: '🦉', key: 'animal.owl' },
-  { emoji: '🐻', key: 'animal.bear' },
-] as const;
+/** Each opponent shows as the emoji of its playstyle (players' colours tell two alike apart). */
+const STYLE_EMOJI: Record<Style['id'], string> = { builder: '🧱', saboteur: '😈', longGame: '🌾', opportunist: '💰' };
 
 const SAVE_KEY = 'ninnies.landscaper.save.v1';
 /** Tile size on screen at zoom 1. */
@@ -298,19 +293,29 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     this.hooks.event?.(youWon ? 'win' : 'stuck');
     this.after('result', 900, () =>
       this.hooks.finished({
-        title: youWon ? t('win.won') : `${PLAYERS[best[0]].emoji} ${t('landscaper.wins', { who: t(PLAYERS[best[0]].key) })}`,
+        title: youWon ? t('win.won') : t('landscaper.wins', { who: this.who(best[0]) }),
         line: t('landscaper.resultLine', { n: s.tiles.length }),
-        stats: s.scores.map((n, p) => ({ label: p ? PLAYERS[p].emoji : t('you'), value: String(n) })),
+        stats: s.scores.map((n, p) => ({ label: p ? this.icon(p) : t('you'), value: String(n) })),
         celebrate: youWon,
       }),
     );
+  }
+
+  /** An opponent's icon: its playstyle's emoji. */
+  private icon(p: number) {
+    return STYLE_EMOJI[styleFor(this.state.seed, p).id];
+  }
+
+  /** An opponent by name: icon and playstyle, e.g. "🧱 the Builder". */
+  private who(p: number) {
+    return `${this.icon(p)} ${t(`landscaper.style.${styleFor(this.state.seed, p).id}` as Key)}`;
   }
 
   protected emitHud() {
     const s = this.state;
     if (!s) return;
     const stats: HudStat[] = (this.counting ?? s.scores).map((n, p) => ({
-      label: `${p ? PLAYERS[p].emoji : t('you')} · ${s.followers[p]}♟`,
+      label: `${p ? this.icon(p) : t('you')} · ${s.followers[p]}♟`,
       value: String(n),
       hot: !s.over && s.turn === p,
     }));
@@ -494,16 +499,21 @@ export class LandscaperGame extends TableGame<LandscaperState> {
 
   // ───────────────────────── drawing ─────────────────────────
 
-  /** Each spot on the board gets one of the tile's looks, so repeats don't look stamped. */
-  private look(x: number, y: number) {
-    return (((x * 7 + y * 13) % VARIANTS) + VARIANTS) % VARIANTS;
+  /**
+   * Like a real box of tiles, every copy of a kind has its own fixed look: the first one laid is
+   * copy 0, the next copy 1, and so on. `upTo` is how many tiles to count (the tile in hand: all).
+   */
+  private look(k: string, upTo = this.state.tiles.length) {
+    let n = 0;
+    for (let i = 0; i < upTo; i++) if (this.state.tiles[i].k === k) n++;
+    return n;
   }
 
-  private tileEl(k: string, x: number, y: number, r: number, cls = '') {
+  private tileEl(k: string, x: number, y: number, r: number, look: number, cls = '') {
     const el = document.createElement('div');
     el.className = `ls-tile ${cls}`;
     el.style.cssText = `left:${x * TILE}px;top:${y * TILE}px;width:${TILE}px;height:${TILE}px`;
-    el.innerHTML = `<div class="ls-face" style="rotate:${r * 90}deg">${tileSvg(k, this.look(x, y), r)}</div>`;
+    el.innerHTML = `<div class="ls-face" style="rotate:${r * 90}deg;--deg:${r * 90}">${tileSvg(k, look)}</div>`;
     return el;
   }
 
@@ -533,7 +543,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     }
     for (let i = this.tileEls.length; i < s.tiles.length; i++) {
       const tile = s.tiles[i];
-      const el = this.tileEl(tile.k, tile.x, tile.y, tile.r);
+      const el = this.tileEl(tile.k, tile.x, tile.y, tile.r, this.look(tile.k, i));
       if (animate && i > 0) this.arrive(el, tile.x, tile.y);
       this.tilesEl.appendChild(el);
       this.tileEls.push(el);
@@ -616,13 +626,15 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     const at = `${want.k}@${want.x},${want.y}`;
     if (!this.lift || this.lift.at !== at) {
       this.lift?.el.remove();
-      const el = this.tileEl(want.k, want.x, want.y, want.r, 'ghost');
+      const el = this.tileEl(want.k, want.x, want.y, want.r, this.look(want.k), 'ghost');
       if (this.flyFrom) this.arrive(el, want.x, want.y);
       this.liftEl.appendChild(el);
       this.lift = { el, at, deg: want.r * 90 };
     } else {
       this.lift.deg = clockwise(this.lift.deg, want.r);
-      this.lift.el.querySelector<HTMLElement>('.ls-face')!.style.rotate = `${this.lift.deg}deg`;
+      const face = this.lift.el.querySelector<HTMLElement>('.ls-face')!;
+      face.style.rotate = `${this.lift.deg}deg`;
+      face.style.setProperty('--deg', String(this.lift.deg));
     }
     this.lift.el.classList.toggle('hover', want.hover);
     this.lift.el.classList.toggle('placed', want.placed);
@@ -646,9 +658,10 @@ export class LandscaperGame extends TableGame<LandscaperState> {
       preview.style.transition = 'none';
       this.trayDeg = 0;
       preview.style.rotate = '0deg';
+      preview.style.setProperty('--deg', '0');
       void preview.offsetWidth;
       preview.style.transition = '';
-      card.querySelector('.ls-card-front')!.innerHTML = shown ? tileSvg(shown) : '';
+      card.querySelector('.ls-card-front')!.innerHTML = shown ? tileSvg(shown, this.look(shown)) : '';
       card.classList.remove('draw');
       if (shown) {
         void card.offsetWidth;
@@ -660,6 +673,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     const turned = s.turn === 0 ? (st.at === 'lay' ? (st.ghost?.r ?? 0) : st.r) : 0;
     this.trayDeg = clockwise(this.trayDeg, turned);
     preview.style.rotate = `${this.trayDeg}deg`;
+    preview.style.setProperty('--deg', String(this.trayDeg));
 
     const left = t('landscaper.tilesLeft', { n: s.pile.length + (s.current ? 1 : 0) });
     let body = '';
@@ -667,7 +681,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
       body = `<p>${t('landscaper.gameOver')}${this.countingPart ? ` · ${t(`landscaper.count.${this.countingPart}` as Key)}` : ''}</p>
         <div class="ls-actions"><button type="button" class="btn" data-act="skip">${t('landscaper.skipCount')}</button></div>`;
     else if (s.over) body = `<p>${t('landscaper.gameOver')}</p>`;
-    else if (s.turn !== 0) body = `<p>${t('landscaper.thinking', { who: `${PLAYERS[s.turn].emoji} ${t(`landscaper.style.${styleFor(s.seed, s.turn).id}` as Key)}` })}</p>`;
+    else if (s.turn !== 0) body = `<p>${t('landscaper.thinking', { who: this.who(s.turn) })}</p>`;
     else if (st.at === 'lay')
       body = `<p>${st.ghost ? t('landscaper.turnOrPlace') : t('landscaper.pickSpot')}</p>
         <div class="ls-actions"><button type="button" class="btn" data-act="rotate" ${st.ghost ? '' : 'disabled'}>↻ ${t('landscaper.rotate')}</button>

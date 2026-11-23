@@ -665,6 +665,16 @@ html.large-print [data-deck='pips'] {
 .ls-face {
   transition: rotate 460ms cubic-bezier(0.3, 1.3, 0.5, 1);
 }
+/* Houses, trees and the like turn back against the tile, so they always stand upright. */
+.ls-face .up,
+.ls-preview .up {
+  transform: rotate(calc(var(--deg, 0) * -1deg));
+  transition: transform 460ms cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+.ls-preview .up {
+  transition-duration: 480ms;
+  transition-timing-function: cubic-bezier(0.3, 1.35, 0.5, 1);
+}
 /* Squares where your tile fits. */
 .ls-open {
   border: 2px dashed rgba(255, 255, 255, 0.55);
