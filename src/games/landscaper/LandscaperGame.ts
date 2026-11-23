@@ -4,7 +4,7 @@ import { TableGame } from '../../core/tableGame';
 import { type Key, t } from '../../i18n';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
-import { ADVISOR, type Style, chooseMove, skillFor, styleFor } from './ai';
+import { ADVISOR, EASY, SHARP, type Style, chooseMove, skillFor, styleFor } from './ai';
 import { PLAYER_COLOURS, followerSvg, spotOf, tileSvg, turnedSpot } from './render';
 import { type LandscaperState, type Move, type Part, analyse, followerSpots, leaders, newGame, placements, play } from './rules';
 
@@ -104,7 +104,38 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     this.save();
     this.render(false);
     this.hooks.event?.('start');
+    this.showLineup();
     this.after('next', INTRO_MS, () => this.step());
+  }
+
+  /** A new game opens on who's playing: you, then each opponent with its style and how strong it is. */
+  private lineup: HTMLElement | null = null;
+  private showLineup() {
+    this.lineup?.remove();
+    const s = this.state;
+    const level = (p: number) => {
+      const skill = skillFor(s.seed, p);
+      return t(skill === EASY ? 'level.easy' : skill === SHARP ? 'level.hard' : 'level.medium');
+    };
+    const row = (p: number, i: number) => {
+      const pawn = `<span class="ls-lineup-pawn">${followerSvg(p, 'city')}</span>`;
+      const body = p
+        ? `<b>${this.icon(p)} <span>${t(`landscaper.style.${styleFor(s.seed, p).id}` as Key)}</span></b><small>${t(`landscaper.about.${styleFor(s.seed, p).id}` as Key)}</small>`
+        : `<b>🙂 ${t('you')}</b><small>${t('landscaper.youFirst')}</small>`;
+      return `<li style="--i:${i}">${pawn}<span class="ls-lineup-who">${body}</span>${p ? `<em>${level(p)}</em>` : ''}</li>`;
+    };
+    const el = this.el('ls-lineup');
+    el.innerHTML = `<div class="ls-lineup-card"><h2>${t('landscaper.lineup')}</h2><ol>${s.scores.map((_, p) => row(p, p)).join('')}</ol>
+      <button type="button" class="btn primary" style="--i:${s.scores.length}">${t('landscaper.lineupGo')}</button></div>`;
+    const close = () => {
+      if (this.lineup !== el) return;
+      this.lineup = null;
+      el.classList.add('leaving');
+      el.addEventListener('animationend', () => el.remove(), { once: true });
+    };
+    el.addEventListener('pointerdown', (e) => e.stopPropagation());
+    el.addEventListener('click', close);
+    this.lineup = el;
   }
 
   restart() {
