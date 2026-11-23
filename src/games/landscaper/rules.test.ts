@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { mulberry32 } from '../../core/cards';
-import { STEADY, chooseMove } from './ai';
 import { type LandscaperState, analyse, followerSpots, newGame, owners, placements, play, worth } from './rules';
 import { KINDS, RIVER_KINDS } from './tiles';
 
@@ -130,11 +129,25 @@ describe('Inns & Cathedrals', () => {
   });
 
   it('plays whole games with the expansion, big boys and all', () => {
+    // Random legal moves (quick), with the big boy put out whenever it's in hand.
     for (let seed = 1; seed <= 3; seed++) {
       const s = newGame(seed, { players: 3, farmers: true, inns: true });
       const rand = mulberry32(seed);
-      while (!s.over) play(s, chooseMove(s, rand, STEADY));
+      let bigs = 0;
+      while (!s.over) {
+        const ps = placements(s, s.current!);
+        const p = ps[Math.floor(rand() * ps.length)];
+        const laid = structuredClone(s);
+        laid.tiles.push({ k: s.current!, r: p.r, x: p.x, y: p.y });
+        const spots = followerSpots(laid);
+        const spot = spots.length && rand() < 0.5 ? spots[Math.floor(rand() * spots.length)] : undefined;
+        const big = !!spot && !!s.big?.[s.turn];
+        if (spot && !big && s.followers[s.turn] <= 0) play(s, p);
+        else play(s, { ...p, f: spot && { ...spot, big } });
+        if (big) bigs++;
+      }
       expect(s.tiles.length).toBeGreaterThan(80);
+      expect(bigs).toBeGreaterThan(0);
     }
   });
 });
