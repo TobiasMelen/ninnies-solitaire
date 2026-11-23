@@ -160,13 +160,13 @@ const POSES: Record<BunnyEvent | 'idle' | 'tap' | 'hint' | 'hintTarget' | 'shrug
   idle: ['idle', 'idle', 'idle2', 'idle3', 'idle4', 'idle5', 'idle6'],
   start: ['love', 'happy', 'hug', 'shy'],
   move: ['aside', 'aside', 'idle', 'thinking', 'peek'],
-  reveal: ['aside', 'surprised', 'peek', 'idea', 'shock', 'wobble'],
+  reveal: ['aside', 'peek', 'idea', 'happy'],
   suit: ['happy', 'love', 'proud', 'hug', 'jump'],
   complete: ['cheer', 'jump', 'proud', 'happy', 'love'],
   deal: ['aside', 'thinking', 'idle', 'peek', 'grump'],
   undo: ['sad', 'thinking', 'oops', 'blush'],
   invalid: ['angry', 'sad', 'shock', 'oops', 'grump', 'wobble'],
-  blunder: ['oops', 'blush', 'unsure', 'thinking', 'surprised'],
+  blunder: ['oops', 'blush', 'unsure', 'thinking', 'plead'],
   stuck: ['sad', 'bored', 'plead'],
   win: ['cheer', 'jump', 'happy', 'proud', 'love'],
   scare: ['shock', 'surprised', 'angry', 'wobble'],
@@ -293,11 +293,47 @@ export class Bunny {
   react(event: BunnyEvent, x?: number) {
     if (!this.enabled) return;
     this.resetIdle();
+    // Anything new on the table and its offer is off.
+    if (event !== 'blunder') this.withdraw();
     // Don't interrupt a hint walk with small reactions.
     if (performance.now() < this.busyUntil && !IMPORTANT.has(event)) return;
     if (x !== undefined) this.face(x);
     this.gesture(GESTURE[event], event === 'win' ? 6000 : event === 'scare' ? 1600 : 900, this.pick(event));
     if (Math.random() < CHANCE[event]) this.pop(event);
+  }
+
+  private offerEl: HTMLButtonElement | null = null;
+  private offerTimer = 0;
+
+  /**
+   * Hold out a little button over its head (like "↶ Undo" after a bad move) for a few seconds;
+   * tapping it does `take`. Anything else happening on the table takes it away again.
+   */
+  offer(label: string, take: () => void, ms = 6500) {
+    if (!this.enabled) return;
+    this.withdraw();
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'bunny-offer';
+    b.textContent = label;
+    b.addEventListener('pointerdown', (e) => e.stopPropagation());
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.withdraw();
+      take();
+    });
+    this.el.appendChild(b);
+    this.offerEl = b;
+    this.offerTimer = window.setTimeout(() => this.withdraw(), ms);
+  }
+
+  withdraw() {
+    clearTimeout(this.offerTimer);
+    const b = this.offerEl;
+    if (!b) return;
+    this.offerEl = null;
+    b.classList.add('gone');
+    b.addEventListener('animationend', () => b.remove(), { once: true });
   }
 
   /** Walk over to the card to move, point at it, then hop to where it goes. */

@@ -410,7 +410,9 @@ export class SpiderGame implements GameController {
     const moves = this.actions.length;
     window.setTimeout(() => {
       if (this.actions.length !== moves || this.celebrating) return;
-      if (moveCost(before, a) > MISTAKE) this.hooks.event?.('blunder', x);
+      if (moveCost(before, a) <= MISTAKE) return;
+      this.hooks.event?.('blunder', x);
+      this.hooks.offerUndo?.();
     }, 450);
   }
 

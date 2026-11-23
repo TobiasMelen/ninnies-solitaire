@@ -34,6 +34,8 @@ export interface GameHooks {
   stuck(): void;
   /** Something worth reacting to happened; `x` is where, 0–1 across the board. */
   event?(e: BunnyEvent, x?: number): void;
+  /** That last move was a poor one: the Hint Bunny offers to take it back. */
+  offerUndo?(): void;
   /** A hint was shown: where it points (0–1 across the board), for the Hint Bunny to act out. */
   hint?(target: { from: number; to?: number } | null, kind: 'move' | 'deal' | 'none'): void;
   /**

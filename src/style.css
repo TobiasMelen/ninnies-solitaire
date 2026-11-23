@@ -3140,3 +3140,50 @@ button.ls-lineup-who {
   pointer-events: none;
   filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.4));
 }
+
+/* The Hint Bunny holding out an offer over its head, like "↶ Undo that?" after a bad move. */
+.bunny-offer {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  translate: -50% 0;
+  z-index: 3;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff8e8;
+  color: #3b2a17;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  pointer-events: auto;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6), 0 6px 16px rgba(0, 0, 0, 0.35);
+  animation: bunny-offer-in 420ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+.bunny-offer::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  translate: -50% -1px;
+  border: 7px solid transparent;
+  border-top-color: #fff8e8;
+}
+.bunny-offer.gone {
+  animation: bunny-offer-out 220ms ease both;
+}
+@keyframes bunny-offer-in {
+  from {
+    opacity: 0;
+    scale: 0.6;
+    translate: -50% 10px;
+  }
+}
+@keyframes bunny-offer-out {
+  to {
+    opacity: 0;
+    scale: 0.8;
+  }
+}

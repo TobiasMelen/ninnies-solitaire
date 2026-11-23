@@ -7,7 +7,7 @@ import { SpiteGame } from './games/spite/SpiteGame';
 import { FreeCellGame } from './games/freecell/FreeCellGame';
 import { LandscaperGame } from './games/landscaper/LandscaperGame';
 import type { SuitCount } from './games/spider/rules';
-import { courtUrl } from './ui/cardLayer';
+import { MOVE_MS, courtUrl } from './ui/cardLayer';
 import { Bunny } from './ui/bunny';
 import { navigate } from './ui/nav';
 import { type Key, LANGS, deviceLang, has, setLang, t, tn, translatePage } from './i18n';
@@ -193,6 +193,13 @@ function hooksFor(id: GameId): GameHooks {
   return {
     event: (e, x) => mine() && bunny.react(e, x),
     hint: (target, kind) => mine() && bunny.hint(target, kind),
+    // Take the bad move back, then show what would have been better.
+    offerUndo: () =>
+      mine() &&
+      bunny.offer(`↶ ${t('bunny.undoOffer')}`, () => {
+        game?.undo();
+        window.setTimeout(() => game?.hint(), MOVE_MS + 150);
+      }),
     occupied: (spans) => mine() && bunny.avoid(spans),
     hud: (h) => mine() && renderHud(h),
     toast: (m) => mine() && toast(m),
