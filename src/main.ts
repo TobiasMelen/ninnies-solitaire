@@ -352,10 +352,7 @@ function showHome() {
   game?.pause();
   sortGames();
   layoutDiag();
-  const id = lastGame();
-  const summary = savedSummary(id);
-  $('#home-resume').hidden = !summary;
-  if (summary) $('#home-continue-sub').textContent = summary;
+  showContinues();
   const suits = SpiderGame.saved()?.suitCount ?? null;
   home.querySelectorAll<HTMLElement>('[data-suits]').forEach((b) => b.classList.toggle('current', Number(b.dataset.suits) === suits));
   const level = SpiteGame.savedLevel();
@@ -374,21 +371,34 @@ function loadSaved(id = lastGame()): boolean {
   return g.active || g.resume();
 }
 
-$('#home-continue').addEventListener('click', () =>
-  go(() => {
-    if (!loadSaved()) return showHome();
-    hideHome();
-    game!.unpause();
-  }),
-);
-$('#home-restart').addEventListener('click', () =>
-  go(() => {
-    if (!loadSaved()) return showHome();
-    hideHome();
-    game!.restart();
-    game!.unpause();
-  }),
-);
+/** Each game with a game in progress gets its own Continue button on its tile. */
+function showContinues() {
+  home.querySelectorAll<HTMLElement>('.game-tile').forEach((tile) => {
+    const id = tile.dataset.game as GameId;
+    const summary = savedSummary(id);
+    let btn = tile.querySelector<HTMLButtonElement>('.tile-continue');
+    if (!summary) {
+      btn?.remove();
+      return;
+    }
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'continue tile-continue';
+      btn.innerHTML = '<span><b></b><small></small></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5l11 7-11 7z" /></svg>';
+      btn.addEventListener('click', () =>
+        go(() => {
+          if (!loadSaved(id)) return showHome();
+          hideHome();
+          game!.unpause();
+        }),
+      );
+      tile.querySelector('.tile-body p')!.after(btn);
+    }
+    btn.querySelector('b')!.textContent = t('home.continue');
+    btn.querySelector('small')!.textContent = summary;
+  });
+}
 home.querySelectorAll<HTMLElement>('[data-suits]').forEach((btn) =>
   btn.addEventListener('click', () =>
     setup('spider', btn.querySelector('b')!.textContent!, () => {
