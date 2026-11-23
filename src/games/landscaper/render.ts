@@ -69,10 +69,10 @@ function turnPt(p: Pt, deg: number): Pt {
 
 /**
  * A winding course between two edges (or from an edge in to `stop`), as cubic pieces. It always
- * meets an edge square on at its middle, so it lines up with the next tile; in between it
- * wanders by up to `wig`.
+ * meets an edge square on at its middle, so it lines up with the next tile; in between it swings
+ * from side to side `bends` times by up to `wig`. `pin` keeps the very middle in place (a bridge).
  */
-function course(edges: number[], stop: Pt | null, rand: () => number, wig: number): Curve[] {
+function course(edges: number[], stop: Pt | null, rand: () => number, wig: number, bends = 1, pin = false): Curve[] {
   const [a, b] = edges;
   const A = MID[a];
   const ia = IN[a];
@@ -84,19 +84,35 @@ function course(edges: number[], stop: Pt | null, rand: () => number, wig: numbe
     return [[A, add(A, ia, dist * 0.4), add(add(S, ia, -dist * 0.35), side, j), S]];
   }
   const B = MID[b];
-  const straight = (b - a) % 2 === 0;
-  const base: Pt = straight ? [50, 50] : [0.25 * A[0] + 25 + 0.25 * B[0], 0.25 * A[1] + 25 + 0.25 * B[1]];
-  const len = Math.hypot(B[0] - A[0], B[1] - A[1]);
-  const dir: Pt = [(B[0] - A[0]) / len, (B[1] - A[1]) / len];
-  const m = add(base, [-dir[1], dir[0]], (rand() - 0.5) * 2 * wig);
-  const tilt = wig ? (rand() - 0.5) * 0.8 : 0;
-  const t: Pt = [dir[0] * Math.cos(tilt) - dir[1] * Math.sin(tilt), dir[0] * Math.sin(tilt) + dir[1] * Math.cos(tilt)];
-  const reach = straight ? 20 : 15;
-  const bend = straight ? 17 : 11;
-  return [
-    [A, add(A, ia, reach), add(m, t, -bend), m],
-    [m, add(m, t, bend), add(B, IN[b], reach), B],
-  ];
+  // The plain course: a straight line, or a quarter curve round the middle of the tile.
+  const C: Pt = (b - a) % 2 === 0 ? [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2] : [50, 50];
+  const base = (t: number): Pt => [(1 - t) ** 2 * A[0] + 2 * (1 - t) * t * C[0] + t * t * B[0], (1 - t) ** 2 * A[1] + 2 * (1 - t) * t * C[1] + t * t * B[1]];
+  const heading = (t: number): Pt => {
+    const d: Pt = [(1 - t) * (C[0] - A[0]) + t * (B[0] - C[0]), (1 - t) * (C[1] - A[1]) + t * (B[1] - C[1])];
+    const l = Math.hypot(d[0], d[1]);
+    return [d[0] / l, d[1] / l];
+  };
+  const pts: { p: Pt; dir: Pt }[] = [{ p: A, dir: ia }];
+  let side = rand() < 0.5 ? 1 : -1;
+  for (let i = 1; i <= bends; i++) {
+    const t = i / (bends + 1);
+    const d = heading(t);
+    const still = pin && i * 2 === bends + 1;
+    const j = still ? 0 : side * (0.5 + rand() * 0.5) * wig;
+    const turn = still ? 0 : (rand() - 0.5) * 0.5;
+    const p = add(base(t), [-d[1], d[0]], j);
+    pts.push({ p: [Math.min(90, Math.max(10, p[0])), Math.min(90, Math.max(10, p[1]))], dir: [d[0] * Math.cos(turn) - d[1] * Math.sin(turn), d[0] * Math.sin(turn) + d[1] * Math.cos(turn)] });
+    side = -side;
+  }
+  pts.push({ p: B, dir: [-IN[b][0], -IN[b][1]] });
+  const out: Curve[] = [];
+  for (let i = 0; i + 1 < pts.length; i++) {
+    const { p: P, dir: dp } = pts[i];
+    const { p: Q, dir: dq } = pts[i + 1];
+    const h = Math.hypot(Q[0] - P[0], Q[1] - P[1]) / 2.6;
+    out.push([P, add(P, dp, h), add(Q, dq, -h), Q]);
+  }
+  return out;
 }
 
 const courseD = (c: Curve[]) => `M${f1(c[0][0][0])} ${f1(c[0][0][1])}${c.map(([, p, q, e]) => `C${f1(p[0])} ${f1(p[1])} ${f1(q[0])} ${f1(q[1])} ${f1(e[0])} ${f1(e[1])}`).join('')}`;
@@ -322,15 +338,27 @@ export function tileSvg(id: string, variant = 0): string {
   // Roads and rivers. Where they cross at a bridge, or the river passes the chapel, they run true.
   const bridge = !!k.rivers && k.roads.length > 0 && k.rivers.some((r) => r.edges.length === 2 && (r.edges[1] - r.edges[0]) % 2 === 0) && k.roads.some((r) => r.edges.length === 2 && (r.edges[1] - r.edges[0]) % 2 === 0);
   const gated = k.cities.length > 0 && !k.cloister && k.roads.length === 1 && k.roads[0].edges.length === 1;
-  const roads = k.roads.map((r) => course(r.edges, r.edges.length === 1 ? roadStop(r.edges[0], k) : null, rand, bridge || gated ? 0 : r.edges.length === 1 ? 5 : 6));
+  const turning = (e: number[]) => e.length === 2 && (e[1] - e[0]) % 2 !== 0;
+  const roads = k.roads.map((r) =>
+    r.edges.length === 1
+      ? course(r.edges, roadStop(r.edges[0], k), rand, gated ? 0 : 5)
+      : bridge
+        ? course(r.edges, null, rand, 5, 3, true)
+        : course(r.edges, null, rand, 6, turning(r.edges) ? 2 : 1),
+  );
   const rivers = (k.rivers ?? []).map((r) => {
     const [x, y] = MID[r.edges[0]];
-    return course(r.edges, r.edges.length === 1 ? [x + (50 - x) * 0.8, y + (50 - y) * 0.8] : null, rand, bridge || k.cloister ? 0 : 5);
+    if (r.edges.length === 1) return course(r.edges, [x + (50 - x) * 0.8, y + (50 - y) * 0.8], rand, 5);
+    // Meanders: a few swings on the straight, two on a bend; past the chapel, just a gentle wave.
+    if (bridge) return course(r.edges, null, rand, 9, 3, true);
+    if (k.cloister) return course(r.edges, null, rand, 4, 2);
+    // Squeezed between city walls, it has less room to wander.
+    return turning(r.edges) ? course(r.edges, null, rand, 9, 2) : course(r.edges, null, rand, k.cities.length ? 6 : 11, 3);
   });
   const cities = k.cities.map((c) => buildCity(c.edges, rand, gated));
 
   // What's already taken, so trees and sheep keep to open ground.
-  const busy: [Pt, number][] = [...roads.flatMap((c) => along(c, 14).map((p) => [p, 9] as [Pt, number])), ...rivers.flatMap((c) => along(c, 14).map((p) => [p, 12] as [Pt, number]))];
+  const busy: [Pt, number][] = [...roads.flatMap((c) => along(c, 22).map((p) => [p, 9] as [Pt, number])), ...rivers.flatMap((c) => along(c, 22).map((p) => [p, 12] as [Pt, number]))];
   if (k.cloister) busy.push([chapelAt(k), k.rivers ? 18 : 30]);
   if (k.roads.length > 2) busy.push([[50, 50], 11]);
   if (k.id === 'rL') busy.push([[50, 56], 36]);

@@ -62,7 +62,7 @@ export interface LandscaperState {
   /** What the last move (or the end of the game) scored. */
   scored: Scored[];
   over: boolean;
-  /** Which way the river last bent (1 right, 3 left), so it never doubles back on itself. */
+  /** Which way the last river tile bent (0 straight on, 1 right, 3 left), so it never doubles back on itself. */
   riverBend?: number;
 }
 
@@ -141,13 +141,17 @@ function bendOf(k: TileKind, r: number, inSide: number) {
   return out === undefined ? 0 : (out - ((inSide + 2) % 4) + 4) % 4;
 }
 
-/** Where a river tile can go: on the river's open end, flowing on, and not bending back on itself. */
+/**
+ * Where a river tile can go: on the river's open end, either way round that fits. Only two bends
+ * the same way straight after each other (a U-turn), or flowing into a square that's already
+ * taken, are ruled out, and only when there's another way.
+ */
 function riverPlacements(s: LandscaperState, at: Map<string, number>, k: TileKind) {
   const end = riverEnd(s, at);
   if (!end) return [];
   const fitting = [0, 1, 2, 3].filter((r) => edgeAt(k, r, end.side) === 'river' && fits(s, at, k, end.x, end.y, r));
-  // Two bends the same way in a row would make a U-turn; avoid it when there's another way.
-  const ok = fitting.filter((r) => !s.riverBend || bendOf(k, r, end.side) !== s.riverBend);
+  const flowsOn = (r: number) => [0, 1, 2, 3].every((d) => d === end.side || edgeAt(k, r, d) !== 'river' || !at.has(cell(end.x + DIRS[d][0], end.y + DIRS[d][1])));
+  const ok = fitting.filter((r) => flowsOn(r) && (!s.riverBend || bendOf(k, r, end.side) !== s.riverBend));
   return (ok.length ? ok : fitting).map((r) => ({ x: end.x, y: end.y, r }));
 }
 
@@ -357,7 +361,7 @@ export function play(s: LandscaperState, m: Move) {
   if (k.rivers) {
     const end = riverEnd(s);
     const bend = end ? bendOf(k, m.r, end.side) : 0;
-    if (bend) s.riverBend = bend;
+    s.riverBend = bend;
   }
   s.tiles.push({ k: s.current, r: m.r, x: m.x, y: m.y });
   const t = s.tiles.length - 1;
