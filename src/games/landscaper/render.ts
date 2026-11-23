@@ -309,12 +309,18 @@ interface Sprite {
   scale?: number;
 }
 
-/** Sprites in back-to-front order, each turned back upright by the board (see `.up` in the CSS). */
-const spritesSvg = (all: Sprite[]) =>
-  all
-    .sort((a, b) => a.at[1] - b.at[1])
-    .map((s) => `<g transform="translate(${f1(s.at[0])} ${f1(s.at[1])})"><g class="up">${s.scale ? `<g transform="scale(${s.scale})">${s.svg}</g>` : s.svg}</g></g>`)
+/**
+ * Sprites in back-to-front order, each turned back upright: by the board as the tile turns (see
+ * `.up` in the CSS), or once and for all for a tile laid with turn `fixed`.
+ */
+const spritesSvg = (all: Sprite[], fixed?: number) => {
+  const up = fixed === undefined ? 'class="up"' : fixed ? `transform="rotate(${-fixed * 90})"` : '';
+  return all
+    .map((s) => ({ s, y: fixed === undefined ? s.at[1] : turnPt(s.at, (fixed ?? 0) * 90)[1] }))
+    .sort((a, b) => a.y - b.y)
+    .map(({ s }) => `<g transform="translate(${f1(s.at[0])} ${f1(s.at[1])})"><g ${up}>${s.scale ? `<g transform="scale(${s.scale})">${s.svg}</g>` : s.svg}</g></g>`)
     .join('');
+};
 
 // ───────────────────────── the tile ─────────────────────────
 
@@ -326,13 +332,17 @@ function rng(seed: string) {
   return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) ^ Math.imul(h ^ (h >>> 13), 3266489909)) >>> 0) / 4294967296;
 }
 
-/** The SVG for a tile kind, unturned, in its own look `variant` (any number; each gives its own wobble). */
-export function tileSvg(id: string, variant = 0): string {
-  const key = `${id}${variant}`;
+/**
+ * The SVG for a tile kind, unturned, in its own look `variant` (any number; each gives its own
+ * wobble). Its sprites turn upright live with `--deg`; or, given `fixed`, are drawn upright for a
+ * tile laid with that turn.
+ */
+export function tileSvg(id: string, variant = 0, fixed?: number): string {
+  const key = `${id}${variant}${fixed ?? ''}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const k = KIND[id];
-  const rand = rng(key);
+  const rand = rng(`${id}${variant}`);
   const sprites: Sprite[] = [];
 
   // Roads and rivers. Where they cross at a bridge, or the river passes the chapel, they run true.
@@ -507,10 +517,10 @@ export function tileSvg(id: string, variant = 0): string {
     sprites.push(k.rivers ? { at: [x, y + 6], svg: CHAPEL, scale: 0.62 } : { at: [x, y + 10], svg: CHAPEL });
   }
 
-  const svg = `<svg viewBox="0 0 100 100" aria-hidden="true">
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">
   <rect width="100" height="100" fill="${COL.field}"/>
   <circle cx="${f1(20 + rand() * 60)}" cy="${f1(20 + rand() * 60)}" r="38" fill="${COL.fieldLight}" opacity=".45"/>
-  ${ground}${river}${road}${bridgeSvg}${cityGround}${spritesSvg(sprites)}
+  ${ground}${river}${road}${bridgeSvg}${cityGround}${spritesSvg(sprites, fixed)}
   <radialGradient id="lv"><stop offset=".62" stop-color="#2a1d0e" stop-opacity="0"/><stop offset="1" stop-color="#2a1d0e" stop-opacity=".2"/></radialGradient>
   <rect width="100" height="100" fill="url(#lv)"/>
   <rect x=".6" y=".6" width="98.8" height="98.8" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="1.2"/>
@@ -518,6 +528,18 @@ export function tileSvg(id: string, variant = 0): string {
 </svg>`;
   cache.set(key, svg);
   return svg;
+}
+
+const images = new Map<string, string>();
+/**
+ * A laid tile as a plain image (sprites already upright for turn `r`): one element to paint
+ * instead of hundreds, which keeps a full board quick.
+ */
+export function tileImage(id: string, variant: number, r: number): string {
+  const key = `${id}${variant}@${r}`;
+  let url = images.get(key);
+  if (!url) images.set(key, (url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(tileSvg(id, variant, r))}`));
+  return url;
 }
 
 // ───────────────────────── where followers stand ─────────────────────────

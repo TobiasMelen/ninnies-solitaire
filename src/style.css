@@ -635,6 +635,7 @@ html.large-print [data-deck='pips'] {
 }
 .ls-face,
 .ls-face svg,
+.ls-face img,
 .ls-preview svg {
   display: block;
   width: 100%;

@@ -5,7 +5,7 @@ import { type Key, t } from '../../i18n';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings } from '../../ui/settings';
 import { ADVISOR, EASY, SHARP, type Style, chooseMove, skillFor, styleFor } from './ai';
-import { PLAYER_COLOURS, followerSvg, spotOf, tileSvg, turnedSpot } from './render';
+import { PLAYER_COLOURS, followerSvg, tileImage, spotOf, tileSvg, turnedSpot } from './render';
 import { type LandscaperState, type Move, type Part, analyse, followerSpots, leaders, newGame, placements, play } from './rules';
 
 /** The tile in hand on the board: where, which way, and whether it's an opponent's (hover). */
@@ -544,7 +544,9 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     const el = document.createElement('div');
     el.className = `ls-tile ${cls}`;
     el.style.cssText = `left:${x * TILE}px;top:${y * TILE}px;width:${TILE}px;height:${TILE}px`;
-    el.innerHTML = `<div class="ls-face" style="rotate:${r * 90}deg;--deg:${r * 90}">${tileSvg(k, look)}</div>`;
+    // The tile in hand turns, so its art stays live; laid tiles are plain images, cheap to paint.
+    const art = cls.includes('ghost') ? tileSvg(k, look) : `<img src="${tileImage(k, look, r)}" alt="" decoding="sync" draggable="false">`;
+    el.innerHTML = `<div class="ls-face" style="rotate:${r * 90}deg;--deg:${r * 90}">${art}</div>`;
     return el;
   }
 
