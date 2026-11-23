@@ -34,7 +34,6 @@ const wantedLang = () => (settings.lang === 'auto' ? deviceLang() : settings.lan
 setLang(wantedLang());
 translatePage();
 redrawText.push(() => {
-  home.querySelectorAll<HTMLElement>('[data-opponents-label]').forEach((b) => b.setAttribute('aria-label', tn('landscaper.opponents', Number(b.dataset.opponentsLabel))));
   home.querySelectorAll<HTMLElement>('[data-suits-label]').forEach((b) => (b.textContent = tn('spider.suits', Number(b.dataset.suitsLabel))));
 });
 let shownLang = wantedLang();
@@ -200,8 +199,11 @@ function hooksFor(id: GameId): GameHooks {
     finished: (r) => mine() && showResult(r),
     stuck() {
       if (!mine()) return;
+      // The table drains of colour to a sad trombone, then the news.
+      board.classList.add('stuck');
+      sfx.sad();
       bunny.react('stuck');
-      open(dlgStuck);
+      window.setTimeout(() => board.classList.contains('stuck') && open(dlgStuck), 1300);
     },
   };
 }
@@ -350,6 +352,7 @@ function savedSummary(id: GameId): string | null {
 
 function showHome() {
   game?.pause();
+  board.classList.remove('stuck');
   sortGames();
   layoutDiag();
   showContinues();
@@ -427,15 +430,13 @@ home.querySelectorAll<HTMLElement>('[data-level]').forEach((btn) =>
     }),
   ),
 );
-home.querySelectorAll<HTMLElement>('[data-opponents]').forEach((btn) =>
-  btn.addEventListener('click', () =>
-    setup('landscaper', t('landscaper.setupLine', { who: `${btn.querySelector('small')!.textContent} · ${btn.getAttribute('aria-label')}` }), () => {
-      const g = switchTo('landscaper');
-      hideHome();
-      g.newGame(Number(btn.dataset.opponents));
-      g.unpause();
-    }),
-  ),
+$('#landscaper-play').addEventListener('click', () =>
+  setup('landscaper', t('landscaper.setupNext'), () => {
+    const g = switchTo('landscaper');
+    hideHome();
+    g.newGame();
+    g.unpause();
+  }),
 );
 $('#freecell-play').addEventListener('click', () =>
   setup('freecell', t('freecell.setupLine'), () => {
@@ -505,6 +506,7 @@ onClose.set(dlgWin, (v) => {
   if (v === 'home') showHome();
 });
 onClose.set(dlgStuck, (v) => {
+  board.classList.remove('stuck');
   if (v === 'undo') game?.undo();
   if (v === 'new') showHome();
 });

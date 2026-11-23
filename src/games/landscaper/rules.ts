@@ -45,6 +45,8 @@ export interface LandscaperOptions {
   farmers: boolean;
   /** Start with the river expansion. */
   river?: boolean;
+  /** Each opponent's playstyle and level (0 easy, 1 medium, 2 hard), in seat order. */
+  lineup?: { style: string; level: number }[];
 }
 
 export interface LandscaperState {

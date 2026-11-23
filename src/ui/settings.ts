@@ -56,6 +56,8 @@ export interface Settings {
   landscaperFarmers: boolean;
   landscaperFast: boolean;
   landscaperRiver: boolean;
+  /** Your last Landscaper opponents (style and level each), the starting point for the next game. */
+  landscaperLineup: { style: string; level: number }[] | null;
   /** 'auto' follows the device's language. */
   lang: 'auto' | Lang;
   /** Skip the setup step when starting that game (the "Remember" box). */
@@ -94,6 +96,7 @@ const DEFAULTS: Settings = {
   landscaperFarmers: true,
   landscaperFast: false,
   landscaperRiver: true,
+  landscaperLineup: null,
   lang: 'auto',
   rememberSpider: false,
   rememberHearts: false,

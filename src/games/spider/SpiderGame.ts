@@ -460,7 +460,7 @@ export class SpiderGame implements GameController {
     const at = this.actions.length;
     this.stuckTimer = window.setTimeout(() => {
       if (this.actions.length === at && !this.drag && !this.pending) this.checkStuckNow();
-    }, 1100);
+    }, 3000);
   }
 
   private checkStuckNow() {

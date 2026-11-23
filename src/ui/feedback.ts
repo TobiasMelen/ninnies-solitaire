@@ -397,6 +397,12 @@ export const sfx = {
     thump(0.25, end);
     [1047, 1319, 1568, 2093].forEach((f, i) => bell(f, 1.1, 0.035, end + 0.1 + i * 0.09));
   },
+  /** Out of moves: a sad trombone, "wah wah wah waaah", the last note wobbling down. */
+  sad: () => {
+    [392, 370, 349].forEach((f, i) => brass(f, 0.34, 0.06, i * 0.38));
+    brass(330, 1.1, 0.06, 3 * 0.38);
+    brass(311, 0.7, 0.035, 3 * 0.38 + 0.45);
+  },
   /** Hearts broken: the classic smash of glass. */
   heartsBreak: () => {
     // All noise, no pure tones (those sound electronic): a dull knock and a mid-range crack,

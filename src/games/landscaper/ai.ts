@@ -20,10 +20,10 @@ export const SHARP: Skill = { noise: 1.2, followerValue: 1.4 };
 /** The Hint Bunny's advice: the best it can see, no noise. */
 export const ADVISOR: Skill = { noise: 0, followerValue: 1.5 };
 
-const LEVELS = [EASY, STEADY, SHARP];
-/** Each opponent's level comes from the game's seed: random per game, the same on resume. */
-export const skillFor = (seed: number, seat: number): Skill =>
-  LEVELS[Math.floor(mulberry32((seed ^ Math.imul(seat + 7, 0x9e3779b1)) >>> 0)() * LEVELS.length)];
+/** Easy, medium and hard. */
+export const LEVELS = [EASY, STEADY, SHARP];
+/** A level picked at random from the game's seed (games from before you could choose). */
+const levelFor = (seed: number, seat: number) => Math.floor(mulberry32((seed ^ Math.imul(seat + 7, 0x9e3779b1)) >>> 0)() * LEVELS.length);
 
 /**
  * A playstyle: how much a player cares about each kind of thing. 1 is neutral. `banked` is points
@@ -51,13 +51,32 @@ export const STYLES: Style[] = [
 /** Neutral: how the Hint Bunny and the end of the game see things. */
 export const BALANCED: Style = { id: 'builder', banked: 1, others: 1, followers: 1, part: { city: 1, road: 1, cloister: 1, field: 1 } };
 
-/**
- * Each opponent's style comes from the game's seed (random per game, the same on resume), with
- * every weight nudged up to 15% either way so no two players of a style are quite alike.
- */
-export function styleFor(seed: number, seat: number): Style {
+export type StyleId = Style['id'];
+/** Who sits in an opponent's seat: a playstyle and a level (0 easy, 1 medium, 2 hard). */
+export interface Seat {
+  style: StyleId;
+  level: number;
+}
+
+/** A random opponent for a seat, from the game's seed. */
+export function randomSeat(seed: number, seat: number): Seat {
   const rand = mulberry32((seed ^ Math.imul(seat + 3, 0x85ebca6b)) >>> 0);
-  const base = STYLES[Math.floor(rand() * STYLES.length)];
+  return { style: STYLES[Math.floor(rand() * STYLES.length)].id, level: levelFor(seed, seat) };
+}
+
+/** Who's in seat `seat` (1 and up): as chosen, or at random for games from before you could choose. */
+export const seatOf = (s: LandscaperState, seat: number): Seat => (s.options.lineup?.[seat - 1] as Seat | undefined) ?? randomSeat(s.seed, seat);
+
+export const skillOf = (s: LandscaperState, seat: number): Skill => LEVELS[seatOf(s, seat).level];
+
+/**
+ * An opponent's style, with every weight nudged up to 15% either way (from the game's seed, so
+ * the same on resume) so no two players of a style are quite alike.
+ */
+export function styleOf(s: LandscaperState, seat: number): Style {
+  const rand = mulberry32((s.seed ^ Math.imul(seat + 3, 0x85ebca6b)) >>> 0);
+  rand();
+  const base = STYLES.find((x) => x.id === seatOf(s, seat).style) ?? STYLES[0];
   const nudge = (x: number) => x * (0.85 + rand() * 0.3);
   return {
     id: base.id,

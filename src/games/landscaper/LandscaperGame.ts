@@ -1,10 +1,10 @@
 import { randomSeed } from '../../core/cards';
-import { type GameHooks, type HudStat, INTRO_MS, store } from '../../core/game';
+import { type GameHooks, type HudStat, store } from '../../core/game';
 import { TableGame } from '../../core/tableGame';
 import { type Key, t } from '../../i18n';
 import { haptic, sfx, unlockAudio } from '../../ui/feedback';
-import { settings } from '../../ui/settings';
-import { ADVISOR, EASY, SHARP, type Style, chooseMove, skillFor, styleFor } from './ai';
+import { settings, updateSettings } from '../../ui/settings';
+import { ADVISOR, LEVELS, STYLES, type Seat, type Style, chooseMove, seatOf, skillOf, styleOf } from './ai';
 import { PLAYER_COLOURS, followerSvg, tileImage, spotOf, tileSvg, turnedSpot } from './render';
 import { type LandscaperState, type Move, type Part, analyse, followerSpots, leaders, newGame, placements, play } from './rules';
 
@@ -20,6 +20,8 @@ interface Lift {
 
 /** Degrees to show turn `r` at, going on clockwise from `deg` (so 270° → 360°, not back to 0°). */
 const clockwise = (deg: number, r: number) => deg + ((((r * 90 - deg) % 360) + 360) % 360);
+
+const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /** Each opponent shows as the emoji of its playstyle (players' colours tell two alike apart). */
 const STYLE_EMOJI: Record<Style['id'], string> = { builder: '🧱', saboteur: '😈', longGame: '🌾', opportunist: '💰' };
@@ -95,55 +97,101 @@ export class LandscaperGame extends TableGame<LandscaperState> {
 
   // ───────────────────────── controller ─────────────────────────
 
-  newGame(opponents: number, seed = randomSeed()) {
+  /** A new game; opponents as given, else as last time (or two picked at random). */
+  newGame(lineup?: Seat[], seed = randomSeed()) {
     this.stopCascade();
     this.cancelAll();
-    this.state = newGame(seed, { players: opponents + 1, farmers: settings.landscaperFarmers, river: settings.landscaperRiver });
+    const seats = lineup ?? (settings.landscaperLineup as Seat[] | null) ?? this.addSeat(this.addSeat([]));
+    this.state = this.fresh(seed, seats);
     this.stage = { at: 'lay', ghost: null };
     this.view = { x: 0, y: 0, zoom: 1 };
     this.save();
     this.render(false);
     this.hooks.event?.('start');
     this.showLineup();
-    this.after('next', INTRO_MS, () => this.step());
   }
 
-  /** A new game opens on who's playing: you, then each opponent with its style and how strong it is. */
+  /** One more opponent, playing a style nobody else at the table does, at a random level. */
+  private addSeat(seats: Seat[]): Seat[] {
+    const free = STYLES.filter((x) => !seats.some((st) => st.style === x.id));
+    const pick = free[Math.floor(Math.random() * free.length)] ?? STYLES[0];
+    return [...seats, { style: pick.id, level: Math.floor(Math.random() * LEVELS.length) }];
+  }
+
+  private fresh(seed: number, lineup: Seat[]) {
+    return newGame(seed, { players: lineup.length + 1, farmers: settings.landscaperFarmers, river: settings.landscaperRiver, lineup });
+  }
+
+  /**
+   * A new game opens on who's playing: you, then each opponent, whose playstyle and level you can
+   * change (tap them) and who you can add or send away, before the first tile is laid.
+   */
   private lineup: HTMLElement | null = null;
   private showLineup() {
     this.lineup?.remove();
-    const s = this.state;
-    const level = (p: number) => {
-      const skill = skillFor(s.seed, p);
-      return t(skill === EASY ? 'level.easy' : skill === SHARP ? 'level.hard' : 'level.medium');
-    };
-    const row = (p: number, i: number) => {
-      const pawn = `<span class="ls-lineup-pawn">${followerSvg(p, 'city')}</span>`;
-      const body = p
-        ? `<b>${this.icon(p)} <span>${t(`landscaper.style.${styleFor(s.seed, p).id}` as Key)}</span></b><small>${t(`landscaper.about.${styleFor(s.seed, p).id}` as Key)}</small>`
-        : `<b>🙂 ${t('you')}</b><small>${t('landscaper.youFirst')}</small>`;
-      return `<li style="--i:${i}">${pawn}<span class="ls-lineup-who">${body}</span>${p ? `<em>${level(p)}</em>` : ''}</li>`;
-    };
     const el = this.el('ls-lineup');
-    el.innerHTML = `<div class="ls-lineup-card"><h2>${t('landscaper.lineup')}</h2><ol>${s.scores.map((_, p) => row(p, p)).join('')}</ol>
-      <button type="button" class="btn primary" style="--i:${s.scores.length}">${t('landscaper.lineupGo')}</button></div>`;
-    const close = () => {
-      if (this.lineup !== el) return;
-      this.lineup = null;
-      el.classList.add('leaving');
-      el.addEventListener('animationend', () => el.remove(), { once: true });
-    };
-    el.addEventListener('pointerdown', (e) => e.stopPropagation());
-    el.addEventListener('click', close);
     this.lineup = el;
+    this.drawLineup(true);
+    el.addEventListener('pointerdown', (e) => e.stopPropagation());
+    el.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');
+      if (!b) return;
+      const seats = [...(this.state.options.lineup as Seat[])];
+      const p = Number(b.dataset.seat) - 1;
+      const act = b.dataset.act;
+      if (act === 'go') return this.closeLineup();
+      if (act === 'style') seats[p] = { ...seats[p], style: STYLES[(STYLES.findIndex((x) => x.id === seats[p].style) + 1) % STYLES.length].id };
+      if (act === 'level') seats[p] = { ...seats[p], level: (seats[p].level + 1) % LEVELS.length };
+      if (act === 'remove' && seats.length > 1) seats.splice(p, 1);
+      if (act === 'add' && seats.length < 3) seats.splice(0, seats.length, ...this.addSeat(seats));
+      sfx.ui();
+      this.state = this.fresh(this.state.seed, seats);
+      this.save();
+      this.render(false);
+      this.drawLineup(false);
+    });
+  }
+
+  private drawLineup(first: boolean) {
+    const el = this.lineup;
+    if (!el) return;
+    const s = this.state;
+    const n = s.scores.length;
+    const row = (p: number) => {
+      const pawn = `<span class="ls-lineup-pawn">${followerSvg(p, 'city')}</span>`;
+      if (!p) return `<li style="--i:0">${pawn}<span class="ls-lineup-who"><b>🙂 ${t('you')}</b><small>${t('landscaper.youFirst')}</small></span></li>`;
+      const seat = seatOf(s, p);
+      const level = t((['level.easy', 'level.medium', 'level.hard'] as const)[seat.level]);
+      return `<li style="--i:${p}">${pawn}<button type="button" class="ls-lineup-who" data-act="style" data-seat="${p}"><b>${this.icon(p)} ${capital(t(`landscaper.style.${seat.style}` as Key))}</b><small>${t(`landscaper.about.${seat.style}` as Key)}</small></button>
+        <button type="button" class="ls-lineup-level" data-act="level" data-seat="${p}">${level}</button>${n > 2 ? `<button type="button" class="ls-lineup-remove" data-act="remove" data-seat="${p}" aria-label="${t('landscaper.removeOpponent')}">×</button>` : ''}</li>`;
+    };
+    el.classList.toggle('still', !first);
+    el.innerHTML = `<div class="ls-lineup-card"><h2>${t('landscaper.lineup')}</h2><ol>${s.scores.map((_, p) => row(p)).join('')}</ol>
+      ${n < 4 ? `<button type="button" class="ls-lineup-add" data-act="add" style="--i:${n}">+ ${t('landscaper.addOpponent')}</button>` : ''}
+      <p class="ls-lineup-tip" style="--i:${n}">${t('landscaper.lineupTip')}</p>
+      <button type="button" class="btn primary" data-act="go" style="--i:${n + 1}">${t('landscaper.lineupGo')}</button></div>`;
+  }
+
+  /** Off we go: remember these opponents for next time, then your first tile. */
+  private closeLineup() {
+    const el = this.lineup;
+    if (!el) return;
+    this.lineup = null;
+    el.classList.remove('still');
+    updateSettings({ landscaperLineup: this.state.options.lineup ?? null });
+    // Draw your first tile properly, now that the table's yours.
+    this.drawnKey = '';
+    el.classList.add('leaving');
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+    this.after('next', 300, () => this.step());
   }
 
   restart() {
-    this.newGame(this.state.options.players - 1, this.state.seed);
+    this.newGame(this.state.options.lineup as Seat[] | undefined, this.state.seed);
   }
 
   again() {
-    this.newGame(this.state.options.players - 1);
+    this.newGame(this.state.options.lineup as Seat[] | undefined);
   }
 
   status() {
@@ -191,6 +239,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     this.aiShow = null;
     if (this.counting) {
       this.counting = null;
+      this.countingWho = null;
       this.countingPart = null;
     }
   }
@@ -218,7 +267,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     if (s.turn === 0) return;
     this.thinking = true;
     this.after('ai', this.speed(), () => {
-      const m = chooseMove(s, Math.random, skillFor(s.seed, s.turn), styleFor(s.seed, s.turn));
+      const m = chooseMove(s, Math.random, skillOf(s, s.turn), styleOf(s, s.turn));
       // Out of the panel to hover over its spot, turning into place...
       this.flyFrom = this.panelSpot();
       this.aiShow = { m, r: 0 };
@@ -268,48 +317,88 @@ export class LandscaperGame extends TableGame<LandscaperState> {
 
   /** Scores shown while the final scoring counts up (null otherwise). */
   private counting: number[] | null = null;
-  /** The kind of feature being counted right now, for the panel. */
+  /** Whose tally it is, and the kind of feature being added up, for the panel. */
+  private countingWho: number | null = null;
   private countingPart: Part | null = null;
 
   /**
-   * The end of the game: unfinished roads, then cities, cloisters and fields, counted one by one.
-   * Each lights up and shows what it scores while the totals count up; then the result.
+   * The end of the game, as a final tally: "No more tiles!", then player by player, each one's
+   * unfinished roads, cities, cloisters and fields light up in turn and add to their score.
    */
   private finish() {
     const s = this.state;
     this.clearSave();
     const order: Part[] = ['road', 'city', 'cloister', 'field'];
-    const steps = s.scored.filter((x) => x.final).sort((a, b) => order.indexOf(a.part) - order.indexOf(b.part));
+    const finals = s.scored.filter((x) => x.final);
     this.counting = [...s.scores];
-    for (const sc of steps) for (const p of sc.players) this.counting[p] -= sc.points;
+    for (const sc of finals) for (const p of sc.players) this.counting[p] -= sc.points;
+    this.countingWho = null;
+    this.countingPart = null;
     this.render();
     this.emitHud();
-    // Quicker per feature when there are many, so it never drags.
-    const per = Math.max(320, Math.min(700, 10000 / Math.max(1, steps.length)));
+    this.banner(t('landscaper.finalTally'));
+    sfx.flip();
+
+    const steps: { p: number; sc?: (typeof finals)[number] }[] = [];
+    s.scores.forEach((_, p) => {
+      steps.push({ p });
+      for (const part of order) for (const sc of finals) if (sc.part === part && sc.players.includes(p)) steps.push({ p, sc });
+    });
     let i = 0;
     const next = () => {
-      const sc = steps[i++];
-      if (!sc) return this.endCount();
+      const step = steps[i++];
+      if (!step) return this.endCount();
+      const { p, sc } = step;
+      if (!sc) {
+        // A new player's turn at the tally.
+        this.countingWho = p;
+        this.countingPart = null;
+        this.tileEls.forEach((el) => el.classList.remove('counting'));
+        this.banner(this.name(p));
+        sfx.ui();
+        this.renderPanel();
+        this.emitHud();
+        const nothing = !steps[i] || steps[i].p !== p;
+        if (nothing) this.hooks.toast(t('landscaper.tallyNothing', { who: this.name(p) }));
+        return this.after('count', nothing ? 1700 : 1400, next);
+      }
       const fresh = sc.part !== this.countingPart;
       this.countingPart = sc.part;
       this.tileEls.forEach((el, k) => el.classList.toggle('counting', sc.tiles.includes(k)));
       const mid = sc.tiles.reduce((m, k) => ({ x: m.x + s.tiles[k].x / sc.tiles.length, y: m.y + s.tiles[k].y / sc.tiles.length }), { x: 0, y: 0 });
       this.reveal(Math.round(mid.x), Math.round(mid.y));
-      this.popScore(sc.tiles, sc.points, sc.players);
-      for (const p of sc.players) this.counting![p] += sc.points;
+      this.popScore(sc.tiles, sc.points, [p]);
+      this.counting![p] += sc.points;
       sfx.move(1);
       if (fresh) this.renderPanel();
       this.emitHud();
-      // A beat longer when moving on to the next kind of feature.
-      this.after('count', steps[i] && steps[i].part !== sc.part ? per + 500 : per, next);
+      // A beat longer when moving on to the next kind of feature or the next player.
+      const later = steps[i];
+      this.after('count', !later || later.p !== p ? 1500 : later.sc?.part !== sc.part ? 1300 : 950, next);
     };
-    this.after('count', 900, next);
+    this.after('count', 2000, next);
+  }
+
+  /** A player by name for the tally: "🙂 You" or e.g. "🧱 the Builder". */
+  private name(p: number) {
+    return p ? this.who(p) : `🙂 ${t('you')}`;
+  }
+
+  /** A big word or two across the middle of the board for a moment. */
+  private banner(text: string) {
+    this.root.querySelector('.ls-banner')?.remove();
+    const el = this.el('ls-banner');
+    el.innerHTML = `<span></span>`;
+    el.firstElementChild!.textContent = text;
+    el.addEventListener('animationend', () => el.remove(), { once: true });
   }
 
   private endCount() {
     this.cancel('count');
     this.counting = null;
+    this.countingWho = null;
     this.countingPart = null;
+    this.root.querySelector('.ls-banner')?.remove();
     this.tileEls.forEach((el) => el.classList.remove('counting'));
     this.render();
     this.emitHud();
@@ -334,12 +423,12 @@ export class LandscaperGame extends TableGame<LandscaperState> {
 
   /** An opponent's icon: its playstyle's emoji. */
   private icon(p: number) {
-    return STYLE_EMOJI[styleFor(this.state.seed, p).id];
+    return STYLE_EMOJI[seatOf(this.state, p).style];
   }
 
   /** An opponent by name: icon and playstyle, e.g. "🧱 the Builder". */
   private who(p: number) {
-    return `${this.icon(p)} ${t(`landscaper.style.${styleFor(this.state.seed, p).id}` as Key)}`;
+    return `${this.icon(p)} ${t(`landscaper.style.${seatOf(this.state, p).style}` as Key)}`;
   }
 
   protected emitHud() {
@@ -348,7 +437,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     const stats: HudStat[] = (this.counting ?? s.scores).map((n, p) => ({
       label: `${p ? this.icon(p) : t('you')} · ${s.followers[p]}♟`,
       value: String(n),
-      hot: !s.over && s.turn === p,
+      hot: this.counting ? this.countingWho === p : !s.over && s.turn === p,
     }));
     this.hooks.hud({ stats, canUndo: false, hasUndo: false });
   }
@@ -675,6 +764,44 @@ export class LandscaperGame extends TableGame<LandscaperState> {
 
   private trayDeg = 0;
 
+  /**
+   * Your new tile: off the pile, up to the middle of the screen and turned face up for a moment
+   * in the spotlight, then down into your tray.
+   */
+  private pullTile(id: string) {
+    const preview = this.panel.querySelector<HTMLElement>('.ls-preview')!;
+    const pile = this.panel.querySelector<HTMLElement>('.ls-pile')!.getBoundingClientRect();
+    const to = preview.getBoundingClientRect();
+    const box = this.root.getBoundingClientRect();
+    this.root.querySelector('.ls-pull')?.remove();
+    const el = this.el('ls-pull');
+    el.style.cssText = `left:${to.left - box.left}px;top:${to.top - box.top}px;width:${to.width}px;height:${to.height}px`;
+    el.innerHTML = `<div class="ls-card"><div class="ls-card-front">${tileSvg(id, this.look(id))}</div><div class="ls-card-back"></div></div>`;
+    const from = { x: pile.left + pile.width / 2 - (to.left + to.width / 2), y: pile.top + pile.height / 2 - (to.top + to.height / 2) };
+    const mid = { x: box.left + box.width / 2 - (to.left + to.width / 2), y: box.top + box.height * 0.42 - (to.top + to.height / 2) };
+    const big = Math.min(2.8, (box.width * 0.42) / to.width);
+    const ms = 1700;
+    preview.style.visibility = 'hidden';
+    el.animate(
+      [
+        { transform: `translate(${from.x}px, ${from.y}px) scale(0.7)`, easing: 'cubic-bezier(0.25, 0.9, 0.35, 1)' },
+        { transform: `translate(${mid.x}px, ${mid.y}px) scale(${big})`, offset: 0.3, easing: 'ease-in-out' },
+        { transform: `translate(${mid.x}px, ${mid.y - 6}px) scale(${big * 1.03})`, offset: 0.72, easing: 'cubic-bezier(0.5, 0, 0.3, 1)' },
+        { transform: 'none' },
+      ],
+      { duration: ms },
+    ).onfinish = () => {
+      el.remove();
+      preview.style.visibility = '';
+    };
+    el.firstElementChild!.animate(
+      [{ transform: 'rotateY(180deg)' }, { transform: 'rotateY(180deg)', offset: 0.22, easing: 'ease-in-out' }, { transform: 'rotateY(0deg)', offset: 0.46 }, { transform: 'rotateY(0deg)' }],
+      { duration: ms },
+    );
+    sfx.flip(0.36);
+    window.setTimeout(() => sfx.drop(), ms - 80);
+  }
+
   private renderPanel() {
     const s = this.state;
     const st = this.stage;
@@ -696,7 +823,9 @@ export class LandscaperGame extends TableGame<LandscaperState> {
       preview.style.transition = '';
       card.querySelector('.ls-card-front')!.innerHTML = shown ? tileSvg(shown, this.look(shown)) : '';
       card.classList.remove('draw');
-      if (shown) {
+      // Your tile is a little ceremony: pulled up to the middle, turned over, then into your tray.
+      if (shown && s.turn === 0 && !this.lineup && !s.over) this.pullTile(shown);
+      else if (shown) {
         void card.offsetWidth;
         card.classList.add('draw');
       }
@@ -711,7 +840,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     const left = t('landscaper.tilesLeft', { n: s.pile.length + (s.current ? 1 : 0) });
     let body = '';
     if (s.over && this.counting)
-      body = `<p>${t('landscaper.gameOver')}${this.countingPart ? ` · ${t(`landscaper.count.${this.countingPart}` as Key)}` : ''}</p>
+      body = `<p>${this.countingWho === null ? t('landscaper.finalTally') : `${this.name(this.countingWho)}${this.countingPart ? ` · ${t(`landscaper.count.${this.countingPart}` as Key)}` : ''}`}</p>
         <div class="ls-actions"><button type="button" class="btn" data-act="skip">${t('landscaper.skipCount')}</button></div>`;
     else if (s.over) body = `<p>${t('landscaper.gameOver')}</p>`;
     else if (s.turn !== 0) body = `<p>${t('landscaper.thinking', { who: this.who(s.turn) })}</p>`;
