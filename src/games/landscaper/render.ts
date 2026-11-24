@@ -290,8 +290,8 @@ function shield(): string {
 /** The chapel: nave, bell tower, cross, and a vegetable garden; stands on (50, 60). */
 const CHAPEL = `<g transform="translate(-50 -60)" stroke="${COL.wall}" stroke-width=".8" stroke-linejoin="round">
   <ellipse cx="53" cy="66" rx="20" ry="4" fill="rgba(40,30,10,.2)" stroke="none"/>
-  <rect x="26" y="66" width="14" height="12" rx="1.5" fill="#7b5a36"/><path d="M28 69h10M28 72h10M28 75h10" stroke="#9ccf6b" stroke-width="1.3"/>
-  <path d="M24.5 64.5h17v15h-17z" fill="none" stroke="#f3ead2" stroke-width=".9" stroke-dasharray="1.6 1.2"/>
+  <ellipse cx="33" cy="71" rx="9" ry="4.6" fill="#93734a" stroke="none"/><ellipse cx="33" cy="70.4" rx="8" ry="3.8" fill="#a5845a" stroke="none"/>
+  ${[[28, 69], [32, 68.4], [36, 69], [27.5, 72], [31.5, 72.4], [35.5, 72], [39, 70.6]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.5" fill="#6faa4a" stroke="#4f7f37" stroke-width=".5"/>`).join('')}
   <circle cx="68" cy="70" r="1.2" fill="#f2a5b5" stroke="none"/><circle cx="71" cy="72" r="1.2" fill="#f6d55c" stroke="none"/><circle cx="66" cy="73" r="1.2" fill="#fff8e6" stroke="none"/>
   <polygon points="62 66 65 62 65 45 62 49" fill="#f0e4c6"/><polygon points="62 66 65 62 65 45 62 49" fill="${SHADE}" stroke="none"/>
   <rect x="40" y="49" width="22" height="17" fill="#f0e4c6"/><path d="M38 49.5L42 40H61L65 45.5L64 49.5Z" fill="${COL.roofs[0]}"/>
