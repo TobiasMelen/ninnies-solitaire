@@ -283,8 +283,8 @@ function windmill(rand: () => number): string {
 }
 
 function shield(): string {
-  // Gold with a blue bend, on a post, casting a shadow.
-  return `${shadow(8, 2.6)}<g stroke="${COL.shield}" stroke-linejoin="round"><path d="M0 0v-4" stroke="${COL.wall}" stroke-width="1.4"/><path d="M-7.5 -21h15v9c0 6.2-7.5 10.5-7.5 10.5s-7.5-4.3-7.5-10.5z" fill="#ecc75a" stroke-width="1.5"/><path d="M0 -21h7.5v9c0 6.2-7.5 10.5-7.5 10.5z" fill="${SHADE}" stroke="none"/><path d="M-6.6 -12.6L6.6 -18.4V-15.2L-6.6 -9.4Z" fill="${COL.shield}" stroke="none"/><path d="M-6 -20h5" stroke="#fff6d8" stroke-width="1" opacity=".8"/></g>`;
+  // White with a blue bend, on a post, casting a shadow.
+  return `${shadow(8, 2.6)}<g stroke="${COL.shield}" stroke-linejoin="round"><path d="M0 0v-4" stroke="${COL.wall}" stroke-width="1.4"/><path d="M-7.5 -21h15v9c0 6.2-7.5 10.5-7.5 10.5s-7.5-4.3-7.5-10.5z" fill="#f4efe2" stroke-width="1.5"/><path d="M0 -21h7.5v9c0 6.2-7.5 10.5-7.5 10.5z" fill="${SHADE}" stroke="none"/><path d="M-6.6 -12.6L6.6 -18.4V-15.2L-6.6 -9.4Z" fill="${COL.shield}" stroke="none"/></g>`;
 }
 
 /** The chapel: nave, bell tower, cross, and a vegetable garden; stands on (50, 60). */
