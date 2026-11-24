@@ -126,6 +126,67 @@ function along(c: Curve[], n: number): Pt[] {
   });
 }
 
+/**
+ * A stretch of river as layered outlines: grassy bank, sandy shore, water, a paler current down
+ * the middle and little white waves. It swells and narrows as it goes, but meets the tile's edges
+ * at the standard width so it always joins its neighbours.
+ */
+function riverParts(c: Curve[], rand: () => number) {
+  const n = 64;
+  const pts = Array.from({ length: n + 1 }, (_, i) => {
+    const t = (i / n) * c.length;
+    const seg = Math.min(c.length - 1, Math.floor(t));
+    return onCurve(c[seg], t - seg);
+  });
+  const normal = (i: number): Pt => {
+    const a = pts[Math.max(0, i - 1)];
+    const b = pts[Math.min(n, i + 1)];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+    return [-(b[1] - a[1]) / len, (b[0] - a[0]) / len];
+  };
+  // Width: two slow swells per side, faded out toward the tile's edges.
+  const ph = [rand() * 6.3, rand() * 6.3, rand() * 6.3, rand() * 6.3];
+  const swell = (u: number, a: number, b: number) => Math.sin(Math.PI * u) * (2.4 * Math.sin(u * 7 + a) + 1.6 * Math.sin(u * 13 + b));
+  const outline = (grow: number, shift = 0) => {
+    const left: Pt[] = [];
+    const right: Pt[] = [];
+    pts.forEach((p, i) => {
+      const u = i / n;
+      const [nx, ny] = normal(i);
+      const l = Math.max(0.6, 7.5 + swell(u, ph[0], ph[1]) + grow + shift * Math.sin(Math.PI * u));
+      const r = Math.max(0.6, 7.5 + swell(u, ph[2], ph[3]) + grow - shift * Math.sin(Math.PI * u));
+      left.push([p[0] + nx * l, p[1] + ny * l]);
+      right.push([p[0] - nx * r, p[1] - ny * r]);
+    });
+    return `M${[...left, ...right.reverse()].map((q) => `${f1(q[0])} ${f1(q[1])}`).join('L')}Z`;
+  };
+  const waves = pts
+    .filter((_, i) => i % 4 === 2 && i < n - 4 && rand() < 0.6)
+    .map((p) => {
+      const i = pts.indexOf(p);
+      const [nx, ny] = normal(i);
+      const off = (rand() < 0.5 ? -1 : 1) * (1.5 + rand() * 3);
+      const deg = (Math.atan2(nx, -ny) * 180) / Math.PI;
+      return `<path transform="translate(${f1(p[0] + nx * off)} ${f1(p[1] + ny * off)}) rotate(${f1(deg)})" d="M-2.2 0q1.1-1.1 2.2 0t2.2 0"/>`;
+    })
+    .join('');
+  // Pebbles here and there on the shore.
+  const stones = pts
+    .filter((_, i) => i % 3 === 1 && rand() < 0.35)
+    .map((p) => {
+      const [nx, ny] = normal(pts.indexOf(p));
+      const side = rand() < 0.5 ? 1 : -1;
+      const d = side * (9.5 + rand() * 1.5);
+      return `<ellipse cx="${f1(p[0] + nx * d)}" cy="${f1(p[1] + ny * d)}" rx="${f1(1 + rand() * 0.8)}" ry="${f1(0.7 + rand() * 0.4)}" fill="#b9b2a2" stroke="#8a8372" stroke-width=".35"/>`;
+    })
+    .join('');
+  return {
+    bank: `<path d="${outline(4.5)}" fill="#6f9a4a"/><path d="${outline(2.4)}" fill="#cdbb8a"/>${stones}`,
+    water: `<path d="${outline(0)}" fill="#4f8fc0"/><path d="${outline(-2.2, 0.8)}" fill="#6aa7d4"/><path d="${outline(-5)}" fill="#8cc2e4" opacity=".75"/>`,
+    waves: `<g fill="none" stroke="#f4fbff" stroke-width=".75" stroke-linecap="round" opacity=".75">${waves}</g>`,
+  };
+}
+
 /** Where a road ending on this tile stops: at the cloister, the city, or the hamlet at a junction. */
 function roadStop(edge: number, k: TileKind): Pt {
   const [x, y] = MID[edge];
@@ -464,8 +525,6 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
   // The river: banks, water, ripples; a spring or a lake; lily pads and the odd duck.
   let river = '';
   if (rivers.length) {
-    const paths = rivers.map(courseD);
-    const stroke = (c: string, w: number, extra = '') => `<g fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round"${extra}>${paths.map((d) => `<path d="${d}"/>`).join('')}</g>`;
     let pool = '';
     if (k.id === 'rL') {
       pool = `<g><ellipse cx="50" cy="56" rx="34" ry="27" fill="#6d8f4c" opacity=".55"/><ellipse cx="50" cy="56" rx="31" ry="24" fill="#5c9cc9"/><ellipse cx="45" cy="52" rx="20" ry="12" fill="#8cc2e4" opacity=".7"/>
@@ -479,7 +538,8 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
       .map(([x, y]) => `<circle cx="${f1(x + (rand() - 0.5) * 6)}" cy="${f1(y + (rand() - 0.5) * 6)}" r="2" fill="#6fae4f"/>`)
       .join('');
     if (rand() < 0.45 && !bridge) sprites.push({ at: pick(rand, pts), svg: DUCK });
-    river = `${stroke('rgba(80,110,60,.55)', 20)}${stroke('#5c9cc9', 15)}${stroke('#8cc2e4', 6, ' opacity=".8"')}${stroke('#ffffff', 0.9, ' stroke-dasharray="3 5" opacity=".7"')}${pool}${pads}`;
+    const parts = rivers.map((c) => riverParts(c, rand));
+    river = `${parts.map((x) => x.bank).join('')}${parts.map((x) => x.water).join('')}${parts.map((x) => x.waves).join('')}${pool}${pads}`;
     if (k.id === 'rL') for (const p of [[26, 70], [30, 72], [73, 68], [69, 71]] as Pt[]) sprites.push({ at: p, svg: '<path d="M0 0l-1-7M1 0l1.5-6.5" stroke="#4f7f37" stroke-width="1.2" stroke-linecap="round"/>' });
   }
 
