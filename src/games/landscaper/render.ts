@@ -381,6 +381,25 @@ const CHAPEL = `<g transform="translate(-50 -60)" stroke="${COL.wall}" stroke-wi
   <circle cx="58.5" cy="42" r="2" fill="#fff8e6"/><path d="M48 66v-7a3 3 0 0 1 6 0v7" fill="${COL.wall}"/>
   <rect x="43" y="53" width="3" height="4" rx="1.5" fill="#7fb0d9"/></g>`;
 
+/**
+ * Where the river rises: a little mountain, grey peaks dusted with snow over a wooded hill, all
+ * in soft brushy layers. With `fall`, a thin waterfall runs down its face into the spring at its
+ * foot. Stands on its foot's middle.
+ */
+const mountain = (fall: boolean) => `<ellipse cx="2" cy="1" rx="26" ry="5" fill="rgba(40,30,10,.16)"/>
+  <g stroke-linejoin="round" stroke-linecap="round">
+  <path d="M-23 -6Q-18 -16 -13 -24Q-10 -21 -8 -19.5Q-5 -27 -1 -33Q3 -27 7 -22Q9 -24.5 11 -26Q17 -15 23 -6Z" fill="#a3adb3" stroke="#7b8690" stroke-width=".5"/>
+  <path d="M-1 -33Q3 -27 7 -22Q9 -24.5 11 -26Q17 -15 23 -6H5Q3 -14 1 -19Q0 -27 -1 -33Z" fill="#87929c"/>
+  <path d="M-16 -12Q-12 -17 -9 -16M-6 -20Q-3 -24 -2 -27M14 -16Q17 -12 19 -9M6 -15Q8 -12 9 -9" fill="none" stroke="#c4ccd1" stroke-width="1.1" opacity=".8"/>
+  <path d="M-13 -24Q-11 -21 -8 -19.5Q-10.5 -19 -12 -18.5Q-12 -21 -13 -24ZM-1 -33Q1.5 -29.5 3.5 -27Q1.5 -26.5 0 -25Q-1.5 -26.5 -3.6 -27Q-2.5 -30 -1 -33ZM11 -26Q12.5 -24 14 -21.5Q12.5 -21.6 11.4 -21Z" fill="#f6f3ec"/>
+  <path d="M-27 0Q-24 -11 -14 -15Q-7 -17.5 -1 -15Q8 -18.5 17 -13Q24 -8 27 0Z" fill="#6f9a4a" stroke="#557d39" stroke-width=".5"/>
+  <path d="M-21 -5Q-16 -12 -7 -13.5Q-2 -14 2 -13Q-5 -11 -12 -8.5Q-17 -7 -21 -5Z" fill="#8fbd60" opacity=".9"/>
+  <path d="M9 -15Q17 -12 22 -6Q24 -3 25 -1Q19 -5 14 -9Q11 -12 9 -15Z" fill="#577f3d" opacity=".8"/>
+  <path d="M-23 -2Q-18 -4 -13 -4M14 -3Q19 -2 23 -1" fill="none" stroke="#5f8a42" stroke-width=".9" opacity=".7"/></g>
+  ${fall ? '<path d="M.5 -15Q1.4 -11 0 -7Q-.6 -4 .5 -1" fill="none" stroke="#a9d3ee" stroke-width="2.8" stroke-linecap="round"/><path d="M.7 -14Q1.2 -10.5 .1 -7.2Q-.3 -4.5 .6 -2" fill="none" stroke="#f4fbff" stroke-width=".8" stroke-linecap="round"/>' : ''}
+  ${[[-18, -5, 2.6], [-13, -9, 2.4], [-8, -11.5, 2], [-3.5, -11, 1.6], [10, -11, 2.1], [15, -7.5, 2.6], [20, -3.5, 2.1]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#4a7a34"/><circle cx="${f1(x - r * 0.3)}" cy="${f1(y - r * 0.35)}" r="${f1(r * 0.55)}" fill="#6c9e4a"/>`).join('')}
+  ${[[-6, -1.2, 2.2], [5.5, -1, 2.6], [8.8, 0, 1.6]].map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${f1(r * 0.7)}" fill="#aaa395" stroke="#7a7466" stroke-width=".4"/><ellipse cx="${f1(x - r * 0.3)}" cy="${f1(y - r * 0.25)}" rx="${f1(r * 0.45)}" ry="${f1(r * 0.25)}" fill="#cbc5b7"/>`).join('')}`;
+
 /** An inn by the road: two timbered storeys, lit windows, a hanging sign and a barrel. */
 const INN = `${shadow(9)}<g stroke="${COL.line}" stroke-width=".5" stroke-linejoin="round">
   <polygon points="6 0 8.2 -2.8 8.2 -13 6 -10.2" fill="#e8d9b4"/><polygon points="6 0 8.2 -2.8 8.2 -13 6 -10.2" fill="${SHADE}" stroke="none"/>
@@ -477,7 +496,7 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
   if (k.cloister) busy.push([chapelAt(k), k.rivers ? 28 : 30]);
   if (k.roads.length > 2) busy.push([[50, 50], 24]);
   if (k.id === 'rL') busy.push([[50, 56], 36]);
-  else if (k.rivers?.some((r) => r.edges.length === 1)) busy.push([[50, 46], 22]);
+  else if (k.rivers?.some((r) => r.edges.length === 1)) busy.push([[50, 50], 32]);
   const open = (p: Pt) => busy.every(([q, r]) => Math.hypot(p[0] - q[0], p[1] - q[1]) > r) && cities.every((c) => !inside(p, c.poly) && !wellInside(p, c.poly, 7));
   const spot = (margin = 10): Pt | null => {
     for (let i = 0; i < 12; i++) {
@@ -514,7 +533,8 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
   }
   if (rand() < 0.3) {
     const p = spot(22);
-    if (p) {
+    // The whole strip on open ground, not just its middle.
+    if (p && [[-12, -8], [12, -8], [-12, 8], [12, 8]].every(([dx, dy]) => open([p[0] + dx, p[1] + dy]))) {
       const tilt = Math.round(rand() * 60 - 30);
       ground += `<g transform="rotate(${tilt} ${f1(p[0])} ${f1(p[1])})"><rect x="${f1(p[0] - 12)}" y="${f1(p[1] - 8)}" width="24" height="16" rx="2" fill="#d9c36a"/>${[-5, -1, 3].map((d) => `<path d="M${f1(p[0] - 10)} ${f1(p[1] + d + 0.5)}h20" stroke="#bfa24a" stroke-width="1.4" stroke-linecap="round"/>`).join('')}</g>`;
       busy.push([p, 14]);
@@ -546,11 +566,14 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
   let river = '';
   if (rivers.length) {
     // The river's start (a spring: a little pond fed from the rocks) or its end (a lake).
-    const pond = k.id === 'rL' ? pondParts([50, 56], 31, 24, rand) : k.rivers!.some((r) => r.edges.length === 1) ? pondParts([50, 48], 17, 13, rand) : null;
-    const rocks =
-      pond && k.id !== 'rL'
-        ? [[36, 42, 3.6], [41, 36.5, 2.8], [49, 34.5, 3.4], [57, 35.5, 2.6], [63.5, 40, 3.2], [33, 49, 2.4]].map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${f1(r * 0.75)}" fill="#a8a192" stroke="#7a7466" stroke-width=".5"/><ellipse cx="${f1(x - r * 0.3)}" cy="${f1(y - r * 0.3)}" rx="${f1(r * 0.4)}" ry="${f1(r * 0.25)}" fill="#c9c3b5"/>`).join('')
-        : '';
+    const pond = k.id === 'rL' ? pondParts([50, 56], 31, 24, rand) : k.rivers!.some((r) => r.edges.length === 1) ? pondParts([50, 50], 13, 9, rand) : null;
+    // The mountain always stands behind the spring as you look at the board; if the river runs
+    // off away from you, it disappears behind the mountain instead, so the waterfall is dropped.
+    if (pond && k.id !== 'rL') {
+      const r = fixed ?? 0;
+      const away = (k.rivers![0].edges[0] + r) % 4 === 0;
+      sprites.push({ at: turnPt(away ? [50, 64] : [50, 47], -r * 90), svg: mountain(!away), scale: 1.1 });
+    }
     const pts = rivers.flatMap((c) => along(c, 5));
     const pads = pts
       .filter(() => rand() < 0.35)
@@ -558,7 +581,7 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
       .join('');
     if (rand() < 0.45 && !bridge) sprites.push({ at: pick(rand, pts), svg: DUCK });
     const parts = rivers.map((c) => riverParts(c, rand));
-    river = `${parts.map((x) => x.bank).join('')}${pond?.bank ?? ''}${parts.map((x) => x.water).join('')}${pond?.water ?? ''}${parts.map((x) => x.waves).join('')}${rocks}${pads}`;
+    river = `${parts.map((x) => x.bank).join('')}${pond?.bank ?? ''}${parts.map((x) => x.water).join('')}${pond?.water ?? ''}${parts.map((x) => x.waves).join('')}${pads}`;
     if (k.id === 'rL') for (const p of [[26, 70], [30, 72], [73, 68], [69, 71]] as Pt[]) sprites.push({ at: p, svg: '<path d="M0 0l-1-7M1 0l1.5-6.5" stroke="#4f7f37" stroke-width="1.2" stroke-linecap="round"/>' });
   }
 
