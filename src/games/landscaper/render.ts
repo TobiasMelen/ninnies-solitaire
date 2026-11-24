@@ -802,15 +802,65 @@ function claimed(k: TileKind, tint: string, cities: City[], roads: Curve[][], ri
 }
 
 const images = new Map<string, string>();
-/**
- * A laid tile as a plain image (sprites already upright for turn `r`): one element to paint
- * instead of hundreds, which keeps a full board quick. `tint` washes its claimed parts.
- */
-export function tileImage(id: string, variant: number, r: number, tint = ''): string {
+/** A laid tile's SVG as an image URL (sprites already upright for turn `r`). */
+function tileImage(id: string, variant: number, r: number, tint: string): string {
   const key = `${id}${variant}@${r}${tint}`;
   let url = images.get(key);
   if (!url) images.set(key, (url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(tileSvg(id, variant, r, tint))}`));
   return url;
+}
+
+const bitmaps = new Map<string, Promise<string>>();
+/**
+ * The tile drawn once onto a canvas, `px` square, and kept as a PNG: the browser then only
+ * scales a picture, instead of drawing every house, wave and blur again each time it paints.
+ */
+function bake(key: string, svg: string, px: number): Promise<string> {
+  let done = bitmaps.get(key);
+  if (done) return done;
+  done = (async () => {
+    const src = new Image();
+    src.src = svg;
+    await src.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = px;
+    canvas.getContext('2d')!.drawImage(src, 0, 0, px, px);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve));
+    if (!blob) throw new Error('tile bitmap');
+    const url = URL.createObjectURL(blob);
+    // Decoded before it's shown, so swapping it in doesn't flash.
+    const ready = new Image();
+    ready.src = url;
+    await ready.decode();
+    return url;
+  })();
+  bitmaps.set(key, done);
+  done.catch(() => bitmaps.delete(key));
+  return done;
+}
+const baked = new Map<string, string>();
+
+/**
+ * Show a laid tile (sprites upright for turn `r`) in `img`, as a bitmap `px` square. Until that's
+ * baked (only the first time a tile looks this way) it shows the SVG. `tint` washes claimed parts.
+ */
+export function paintTile(img: HTMLImageElement, px: number, id: string, variant: number, r: number, tint = '') {
+  const key = `${id}${variant}@${r}${tint}:${px}`;
+  img.dataset.tile = key;
+  const hit = baked.get(key);
+  if (hit) {
+    img.src = hit;
+    return;
+  }
+  const svg = tileImage(id, variant, r, tint);
+  img.src = svg;
+  bake(key, svg, px).then(
+    (url) => {
+      baked.set(key, url);
+      if (img.dataset.tile === key) img.src = url;
+    },
+    () => {},
+  );
 }
 
 // ───────────────────────── where followers stand ─────────────────────────

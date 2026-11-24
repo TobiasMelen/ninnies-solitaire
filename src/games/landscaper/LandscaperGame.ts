@@ -7,7 +7,7 @@ import { settings, updateSettings } from '../../ui/settings';
 import { ADVISOR, LEVELS, STYLES, type Seat, type Style, seatOf, skillOf, styleOf } from './ai';
 import { think } from './think';
 import { KIND } from './tiles';
-import { PLAYER_COLOURS, followerSvg, tileImage, spotOf, tileSvg, turnedSpot } from './render';
+import { PLAYER_COLOURS, followerSvg, paintTile, spotOf, tileSvg, turnedSpot } from './render';
 import { type LandscaperState, type Move, type Part, analyse, followerSpots, leaders, owners, newGame, placements, play } from './rules';
 
 /** The tile in hand on the board: where, which way, and whether it's an opponent's (hover). */
@@ -31,6 +31,8 @@ const STYLE_EMOJI: Record<Style['id'], string> = { builder: 'ðŸ§±', saboteur: 'ð
 const SAVE_KEY = 'ninnies.landscaper.save.v1';
 /** Tile size on screen at zoom 1. */
 const TILE = 84;
+/** Laid tiles are kept as bitmaps this many pixels square: sharp when zoomed in a fair way. */
+const BITMAP = Math.round(TILE * 2 * Math.min(window.devicePixelRatio || 1, 2.5));
 
 /** Your turn in two steps: where the tile goes, then whether a follower goes with it. */
 type Stage = { at: 'lay'; ghost: { x: number; y: number; r: number } | null } | { at: 'follow'; x: number; y: number; r: number; pick: { part: Part; i: number; big?: boolean } | null };
@@ -667,8 +669,10 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     el.className = `ls-tile ${cls}`;
     el.style.cssText = `left:${x * TILE}px;top:${y * TILE}px;width:${TILE}px;height:${TILE}px`;
     // The tile in hand turns, so its art stays live; laid tiles are plain images, cheap to paint.
-    const art = cls.includes('ghost') ? tileSvg(k, look) : `<img src="${tileImage(k, look, r)}" alt="" decoding="sync" draggable="false">`;
+    const art = cls.includes('ghost') ? tileSvg(k, look) : '<img alt="" decoding="sync" draggable="false">';
     el.innerHTML = `<div class="ls-face" style="rotate:${r * 90}deg;--deg:${r * 90}">${art}</div>`;
+    const img = el.querySelector('img');
+    if (img) paintTile(img, BITMAP, k, look, r);
     return el;
   }
 
@@ -694,7 +698,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
       if (tint === (this.tints[t] ?? '')) return;
       this.tints[t] = tint;
       const img = this.tileEls[t]?.querySelector('img');
-      if (img) img.src = tileImage(tile.k, this.look(tile.k, t), tile.r, tint);
+      if (img) paintTile(img, BITMAP, tile.k, this.look(tile.k, t), tile.r, tint);
     });
   }
 
@@ -838,7 +842,9 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     this.root.querySelector('.ls-pull')?.remove();
     const el = this.el('ls-pull');
     el.style.cssText = `left:${to.left - box.left}px;top:${to.top - box.top}px;width:${to.width}px;height:${to.height}px`;
-    el.innerHTML = `<div class="ls-card"><div class="ls-card-front">${tileSvg(id, this.look(id))}</div><div class="ls-card-back"></div></div>`;
+    // A bitmap, not live SVG: it's scaled up big and shadowed all the way, which SVG makes heavy.
+    el.innerHTML = `<div class="ls-card"><div class="ls-card-front"><img alt="" decoding="sync" draggable="false"></div><div class="ls-card-back"></div></div>`;
+    paintTile(el.querySelector('img')!, BITMAP, id, this.look(id), 0);
     const from = { x: pile.left + pile.width / 2 - (to.left + to.width / 2), y: pile.top + pile.height / 2 - (to.top + to.height / 2) };
     const mid = { x: box.left + box.width / 2 - (to.left + to.width / 2), y: box.top + box.height * 0.42 - (to.top + to.height / 2) };
     const big = Math.min(2.8, (box.width * 0.42) / to.width);
@@ -872,6 +878,12 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     const card = preview.querySelector<HTMLElement>('.ls-card')!;
     pile.innerHTML = '<i></i>'.repeat(Math.min(4, Math.ceil(s.pile.length / 18)));
 
+    // What the panel shows depends on the moment (see .ls-panel[data-mode] in the CSS): your tile
+    // while you hold it, just the buttons once it's on the board, a word while others play.
+    // Set first: the tile pull below measures the tray, which only shows while you hold.
+    const mode = s.over ? (this.counting ? 'count' : 'over') : s.turn !== 0 ? 'wait' : st.at === 'lay' && !st.ghost ? 'hold' : 'act';
+    this.panel.dataset.mode = mode;
+
     // A new tile: pulled off the pile, flipping face up, then straight in the tray.
     const shown = this.aiShow ? null : s.current;
     const key = `${s.tiles.length}:${shown}`;
@@ -899,10 +911,6 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     preview.style.rotate = `${this.trayDeg}deg`;
     preview.style.setProperty('--deg', String(this.trayDeg));
 
-    // What the panel shows depends on the moment (see .ls-panel[data-mode] in the CSS): your tile
-    // while you hold it, just the buttons once it's on the board, a word while others play.
-    const mode = s.over ? (this.counting ? 'count' : 'over') : s.turn !== 0 ? 'wait' : st.at === 'lay' && !st.ghost ? 'hold' : 'act';
-    this.panel.dataset.mode = mode;
     // How-to lines only on your first turn.
     this.panel.classList.toggle('helping', s.tiles.length - 1 < s.options.players);
     this.panel.querySelector('.ls-left')!.textContent = String(s.pile.length + (s.current ? 1 : 0));

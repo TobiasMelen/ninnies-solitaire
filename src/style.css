@@ -940,7 +940,8 @@ html.large-print [data-deck='pips'] {
 .ls-preview.empty .ls-card {
   visibility: hidden;
 }
-.ls-card-front svg {
+.ls-card-front svg,
+.ls-card-front img {
   display: block;
   width: 100%;
   height: 100%;
