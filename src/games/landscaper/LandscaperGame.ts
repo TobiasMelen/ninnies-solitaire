@@ -6,8 +6,9 @@ import { haptic, sfx, unlockAudio } from '../../ui/feedback';
 import { settings, updateSettings } from '../../ui/settings';
 import { ADVISOR, LEVELS, STYLES, type Seat, type Style, seatOf, skillOf, styleOf } from './ai';
 import { think } from './think';
+import { KIND } from './tiles';
 import { PLAYER_COLOURS, followerSvg, tileImage, spotOf, tileSvg, turnedSpot } from './render';
-import { type LandscaperState, type Move, type Part, analyse, followerSpots, leaders, newGame, placements, play } from './rules';
+import { type LandscaperState, type Move, type Part, analyse, followerSpots, leaders, owners, newGame, placements, play } from './rules';
 
 /** The tile in hand on the board: where, which way, and whether it's an opponent's (hover). */
 interface Lift {
@@ -54,6 +55,8 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   private aiShow: { m: Move; r: number } | null = null;
   /** Tiles already on the board, by index, so new ones can animate in. */
   private tileEls: HTMLElement[] = [];
+  /** Each laid tile's wash of claimed colour, as last drawn. */
+  private tints: string[] = [];
   /** Followers shown last time (by tile index), to pop in new ones and float off scored ones. */
   private shownFollowers = new Map<number, { x: number; y: number; html: string; big?: boolean }>();
   /** Which tile the panel last drew, so a newly drawn one flips in. */
@@ -669,6 +672,30 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     return el;
   }
 
+  /** Wash claimed cities, roads and fields faintly in their holders' colours. */
+  private tintClaims() {
+    const s = this.state;
+    const a = analyse(s);
+    const parts = ['city', 'road', 'field'] as const;
+    s.tiles.forEach((tile, t) => {
+      const k = KIND[tile.k];
+      const tint = parts
+        .flatMap((part) =>
+          k[part === 'city' ? 'cities' : part === 'road' ? 'roads' : 'fields'].map((_, i) => {
+            const f = a.features[a.of.get(`${t}:${part}:${i}`) ?? -1];
+            const who = f ? owners(f, s.options.players) : [];
+            return who.length ? `${part}${i}=${who.map((p) => PLAYER_COLOURS[p]).join('+')}` : '';
+          }),
+        )
+        .filter(Boolean)
+        .join(';');
+      if (tint === (this.tints[t] ?? '')) return;
+      this.tints[t] = tint;
+      const img = this.tileEls[t]?.querySelector('img');
+      if (img) img.src = tileImage(tile.k, this.look(tile.k, t), tile.r, tint);
+    });
+  }
+
   /** Animate a tile in: flying from the panel if it came from there, else dropping into place. */
   private arrive(el: HTMLElement, x: number, y: number) {
     el.addEventListener('animationend', () => el.classList.remove('fly', 'drop'), { once: true });
@@ -691,6 +718,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     if (this.tileEls.length > s.tiles.length || !animate) {
       this.tilesEl.innerHTML = '';
       this.tileEls = [];
+      this.tints = [];
       this.shownFollowers.clear();
     }
     for (let i = this.tileEls.length; i < s.tiles.length; i++) {
@@ -701,6 +729,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
       this.tileEls.push(el);
     }
     this.tileEls.forEach((el, i) => el.classList.toggle('latest', i === s.tiles.length - 1 && i > 0));
+    this.tintClaims();
 
     // Followers: new ones pop in; ones that scored float away.
     const now = new Map<number, { x: number; y: number; html: string; big?: boolean }>();

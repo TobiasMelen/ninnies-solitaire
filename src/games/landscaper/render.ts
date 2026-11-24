@@ -362,8 +362,8 @@ function rng(seed: string) {
  * wobble). Its sprites turn upright live with `--deg`; or, given `fixed`, are drawn upright for a
  * tile laid with that turn.
  */
-export function tileSvg(id: string, variant = 0, fixed?: number): string {
-  const key = `${id}${variant}${fixed ?? ''}`;
+export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): string {
+  const key = `${id}${variant}${fixed ?? ''}${tint}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const k = KIND[id];
@@ -556,10 +556,11 @@ export function tileSvg(id: string, variant = 0, fixed?: number): string {
     sprites.push(k.rivers ? { at: [x, y + 6], svg: CHAPEL, scale: 0.62 } : { at: [x, y + 10], svg: CHAPEL });
   }
 
+  const glow = `<circle cx="${f1(20 + rand() * 60)}" cy="${f1(20 + rand() * 60)}" r="38" fill="${COL.fieldLight}" opacity=".45"/>`;
+  const claims = tint ? claimed(k, tint, cities, roads, rivers) : { fields: '', rest: '' };
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">
   <rect width="100" height="100" fill="${COL.field}"/>
-  <circle cx="${f1(20 + rand() * 60)}" cy="${f1(20 + rand() * 60)}" r="38" fill="${COL.fieldLight}" opacity=".45"/>
-  ${ground}${river}${road}${bridgeSvg}${cityGround}${spritesSvg(sprites, fixed)}
+  ${glow}${ground}${claims.fields}${river}${road}${bridgeSvg}${cityGround}${claims.rest}${spritesSvg(sprites, fixed)}
   <radialGradient id="lv"><stop offset=".62" stop-color="#2a1d0e" stop-opacity="0"/><stop offset="1" stop-color="#2a1d0e" stop-opacity=".2"/></radialGradient>
   <rect width="100" height="100" fill="url(#lv)"/>
   <rect x=".6" y=".6" width="98.8" height="98.8" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="1.2"/>
@@ -569,15 +570,112 @@ export function tileSvg(id: string, variant = 0, fixed?: number): string {
   return svg;
 }
 
+// ───────────────────────── claimed ground ─────────────────────────
+
+/**
+ * Who holds what on a tile, for a faint wash of their colour: parts as `city0`, `road1`,
+ * `field0`, each with its holders' colours (more than one when they're tied), e.g.
+ * `city0=#f2c94c;field1=#e67e22+#8e6bbf`.
+ */
+function parseTint(tint: string): Map<string, string[]> {
+  return new Map(tint.split(';').filter(Boolean).map((x) => {
+    const [part, colours] = x.split('=');
+    return [part, colours.split('+')];
+  }));
+}
+
+/**
+ * The washes for a tile's claimed parts: fields go under the roads, rivers and cities (so they
+ * only need to reach roughly up to them); cities and roads go over their paving, under the
+ * houses. Fields are found by filling outward from their edge halves on a fine grid, stopping at
+ * walls, roads and rivers.
+ */
+function claimed(k: TileKind, tint: string, cities: City[], roads: Curve[][], rivers: Curve[][]): { fields: string; rest: string } {
+  const by = parseTint(tint);
+  const defs: string[] = [];
+  const paint = (colours: string[]) => {
+    if (colours.length === 1) return colours[0];
+    // Tied: their colours shading into each other across the tile.
+    const id = `tie${defs.length}`;
+    defs.push(`<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="20" y1="20" x2="80" y2="80">${colours.map((c, i) => `<stop offset="${f1((i / (colours.length - 1)) * 100)}%" stop-color="${c}"/>`).join('')}</linearGradient>`);
+    return `url(#${id})`;
+  };
+
+  let fields = '';
+  if (k.fields.some((_, j) => by.has(`field${j}`))) {
+    const N = 50;
+    const C = 100 / N;
+    const lines = [...roads, ...rivers].flatMap((c) => along(c, 40));
+    const grid = new Int8Array(N * N).fill(-1);
+    for (let gy = 0; gy < N; gy++) {
+      for (let gx = 0; gx < N; gx++) {
+        const p: Pt = [(gx + 0.5) * C, (gy + 0.5) * C];
+        if (cities.some((c) => inside(p, c.poly)) || lines.some((q) => Math.hypot(p[0] - q[0], p[1] - q[1]) < 5)) grid[gy * N + gx] = -2;
+      }
+    }
+    const queue: number[] = [];
+    k.fields.forEach((f, j) => {
+      for (const h of f.halves) {
+        for (const amount of [0.04, 0.12, 0.2, 0.3]) {
+          const [x, y] = toward(HALF_AT[h], amount);
+          const cell = Math.min(N - 1, Math.floor(y / C)) * N + Math.min(N - 1, Math.floor(x / C));
+          if (grid[cell] === -1) {
+            grid[cell] = j;
+            queue.push(cell);
+            break;
+          }
+          if (grid[cell] !== -2) break;
+        }
+      }
+    });
+    for (let q = 0; q < queue.length; q++) {
+      const cell = queue[q];
+      const gx = cell % N;
+      for (const next of [gx > 0 ? cell - 1 : -1, gx < N - 1 ? cell + 1 : -1, cell - N, cell + N]) {
+        if (next < 0 || next >= N * N || grid[next] !== -1) continue;
+        grid[next] = grid[cell];
+        queue.push(next);
+      }
+    }
+    k.fields.forEach((_, j) => {
+      const colours = by.get(`field${j}`);
+      if (!colours) return;
+      // Each row's runs of the field's cells, a touch overlapped so no seams show.
+      let d = '';
+      for (let gy = 0; gy < N; gy++) {
+        for (let gx = 0; gx < N; gx++) {
+          if (grid[gy * N + gx] !== j) continue;
+          const start = gx;
+          while (gx + 1 < N && grid[gy * N + gx + 1] === j) gx++;
+          d += `M${f1(start * C)} ${f1(gy * C)}h${f1((gx - start + 1) * C)}v${f1(C + 0.3)}h${f1(-(gx - start + 1) * C)}z`;
+        }
+      }
+      fields += `<path d="${d}" fill="${paint(colours)}" opacity=".24" filter="url(#soft)"/>`;
+    });
+  }
+
+  let rest = '';
+  k.cities.forEach((_, i) => {
+    const colours = by.get(`city${i}`);
+    if (colours) rest += `<polygon points="${cities[i].poly.map((p) => `${f1(p[0])} ${f1(p[1])}`).join(' ')}" fill="${paint(colours)}" opacity=".3"/>`;
+  });
+  k.roads.forEach((_, i) => {
+    const colours = by.get(`road${i}`);
+    if (colours) rest += `<path d="${courseD(roads[i])}" fill="none" stroke="${paint(colours)}" stroke-width="10" stroke-linecap="round" opacity=".38"/>`;
+  });
+  const filter = fields ? '<filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.6"/></filter>' : '';
+  return { fields: `${defs.length || filter ? `<defs>${filter}${defs.join('')}</defs>` : ''}${fields}`, rest };
+}
+
 const images = new Map<string, string>();
 /**
  * A laid tile as a plain image (sprites already upright for turn `r`): one element to paint
- * instead of hundreds, which keeps a full board quick.
+ * instead of hundreds, which keeps a full board quick. `tint` washes its claimed parts.
  */
-export function tileImage(id: string, variant: number, r: number): string {
-  const key = `${id}${variant}@${r}`;
+export function tileImage(id: string, variant: number, r: number, tint = ''): string {
+  const key = `${id}${variant}@${r}${tint}`;
   let url = images.get(key);
-  if (!url) images.set(key, (url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(tileSvg(id, variant, r))}`));
+  if (!url) images.set(key, (url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(tileSvg(id, variant, r, tint))}`));
   return url;
 }
 
