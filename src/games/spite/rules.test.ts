@@ -73,7 +73,9 @@ describe('AI', () => {
   // Plays whole games, so give it room on slow CI runners.
   it('only makes legal moves and finishes games', { timeout: 60_000 }, () => {
     let finished = 0;
-    for (let seed = 1; seed <= 8; seed++) {
+    // Two games normally; eight with `npm run test:strength`.
+    const games = STRENGTH ? 8 : 2;
+    for (let seed = 1; seed <= games; seed++) {
       const s = newGame(seed, { goalSize: 13 });
       const rand = mulberry32(seed);
       for (let turn = 0; turn < 600 && s.winner === null && !s.stalemate; turn++) playTurn(s, rand);
@@ -81,7 +83,7 @@ describe('AI', () => {
       const total = s.stock.length + s.spent.length + s.builds.flat().length + s.seats.flatMap((x) => [...x.goal, ...x.hand, ...x.discards.flat()]).length;
       expect(total).toBe(108);
     }
-    expect(finished).toBeGreaterThanOrEqual(7);
+    expect(finished).toBeGreaterThanOrEqual(games - 1);
   });
 
   it.runIf(STRENGTH)('hard beats easy more often than not', { timeout: 120_000 }, () => {

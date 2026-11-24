@@ -3,6 +3,9 @@ import type { Card, Suit } from '../../core/cards';
 import { type FreeCellState, applyMove, autoPlay, canMove, isWon, maxMove, newGame, replay, runLength } from './rules';
 import { solve } from './solver';
 
+/** Slow, thorough runs happen with `npm run test:strength`. */
+const STRENGTH = !!import.meta.env.STRENGTH;
+
 let nextId = 500;
 const c = (rank: number, suit: Suit): Card => ({ id: nextId++, rank, suit, faceUp: true });
 
@@ -49,7 +52,8 @@ describe('moves', () => {
 
 describe('solver', () => {
   it('finds a legal, winning line for real deals', () => {
-    for (const seed of [11, 22, 33]) {
+    // One deal normally; the full set with `npm run test:strength`.
+    for (const seed of STRENGTH ? [11, 22, 33] : [11]) {
       const s = newGame(seed);
       autoPlay(s);
       const line = solve(s);
