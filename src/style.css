@@ -859,7 +859,8 @@ html.large-print [data-deck='pips'] {
 .ls-panel > * {
   pointer-events: auto;
 }
-/* Only what the moment needs: your tile while you hold it, buttons once it's on the board. */
+/* Only what the moment needs: your tile while you hold it, buttons once it's on the board, and an
+   opponent's tile drawn into the tray while they think. */
 .ls-tray {
   display: flex;
   align-items: center;
@@ -872,7 +873,7 @@ html.large-print [data-deck='pips'] {
 .ls-tray {
   order: 1;
 }
-.ls-panel:not([data-mode='hold']) .ls-tray {
+.ls-panel:not([data-mode='hold'], [data-mode='wait']) .ls-tray {
   display: none;
 }
 .ls-left {
