@@ -28,7 +28,7 @@ const COL = {
   line: '#5a452c',
   roofs: ['#a4553a', '#8f4a36', '#6d7480', '#86705a', '#b07a45', '#9a5a3c', '#64705d'],
   walls: ['#efe3c4', '#e6d6b0', '#f3ecd9', '#dccaa4'],
-  shield: '#2e5aa6',
+  shield: '#34508a',
 };
 
 type Pt = [number, number];
@@ -283,7 +283,8 @@ function windmill(rand: () => number): string {
 }
 
 function shield(): string {
-  return `<path d="M-5 -13h10v6c0 4.2-5 7-5 7s-5-2.8-5-7z" fill="${COL.shield}" stroke="#e8c45a" stroke-width="1.3"/><path d="M-4.2 -8.2L4.2 -11.6V-9.6L-4.2 -6.2Z" fill="#fff" opacity=".85"/>`;
+  // Gold with a blue bend, on a post, casting a shadow.
+  return `${shadow(8, 2.6)}<g stroke="${COL.shield}" stroke-linejoin="round"><path d="M0 0v-4" stroke="${COL.wall}" stroke-width="1.4"/><path d="M-7.5 -21h15v9c0 6.2-7.5 10.5-7.5 10.5s-7.5-4.3-7.5-10.5z" fill="#ecc75a" stroke-width="1.5"/><path d="M0 -21h7.5v9c0 6.2-7.5 10.5-7.5 10.5z" fill="${SHADE}" stroke="none"/><path d="M-6.6 -12.6L6.6 -18.4V-15.2L-6.6 -9.4Z" fill="${COL.shield}" stroke="none"/><path d="M-6 -20h5" stroke="#fff6d8" stroke-width="1" opacity=".8"/></g>`;
 }
 
 /** The chapel: nave, bell tower, cross, and a vegetable garden; stands on (50, 60). */
@@ -534,9 +535,9 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
       taken.push([at, 9]);
     }
     if (kc.shield) {
-      const at: Pt = [middle[0] + 10, middle[1] + 12];
+      const at: Pt = [middle[0] + 10, middle[1] + 14];
       sprites.push({ at, svg: shield() });
-      taken.push([at, 7]);
+      taken.push([at, 11], [[at[0], at[1] - 10], 9]);
     }
     // Followers stand at the middle; leave them room.
     taken.push([middle, 6]);
@@ -637,31 +638,55 @@ function claimed(k: TileKind, tint: string, cities: City[], roads: Curve[][], ri
         queue.push(next);
       }
     }
-    k.fields.forEach((_, j) => {
-      const colours = by.get(`field${j}`);
-      if (!colours) return;
-      // Each row's runs of the field's cells, a touch overlapped so no seams show.
+    // How far each cell is from a road, river or wall, so a field's border can be drawn bolder.
+    const far = new Int8Array(N * N).fill(99);
+    const near: number[] = [];
+    grid.forEach((g, cell) => g === -2 && (far[cell] = 0, near.push(cell)));
+    for (let q = 0; q < near.length; q++) {
+      const cell = near[q];
+      const gx = cell % N;
+      for (const next of [gx > 0 ? cell - 1 : -1, gx < N - 1 ? cell + 1 : -1, cell - N, cell + N]) {
+        if (next < 0 || next >= N * N || far[next] <= far[cell] + 1) continue;
+        far[next] = far[cell] + 1;
+        near.push(next);
+      }
+    }
+    // Each row's runs of a field's cells, a touch overlapped so no seams show.
+    const runs = (keep: (cell: number) => boolean) => {
       let d = '';
       for (let gy = 0; gy < N; gy++) {
         for (let gx = 0; gx < N; gx++) {
-          if (grid[gy * N + gx] !== j) continue;
+          if (!keep(gy * N + gx)) continue;
           const start = gx;
-          while (gx + 1 < N && grid[gy * N + gx + 1] === j) gx++;
+          while (gx + 1 < N && keep(gy * N + gx + 1)) gx++;
           d += `M${f1(start * C)} ${f1(gy * C)}h${f1((gx - start + 1) * C)}v${f1(C + 0.3)}h${f1(-(gx - start + 1) * C)}z`;
         }
       }
-      fields += `<path d="${d}" fill="${paint(colours)}" opacity=".24" filter="url(#soft)"/>`;
+      return d;
+    };
+    k.fields.forEach((_, j) => {
+      const colours = by.get(`field${j}`);
+      if (!colours) return;
+      const fill = paint(colours);
+      // A light wash over the whole field, and a stronger band along its borders.
+      fields += `<path d="${runs((c) => grid[c] === j)}" fill="${fill}" opacity=".22" filter="url(#soft)"/>`;
+      fields += `<path d="${runs((c) => grid[c] === j && far[c] <= 4)}" fill="${fill}" opacity=".6" filter="url(#soft)"/>`;
     });
   }
 
   let rest = '';
   k.cities.forEach((_, i) => {
     const colours = by.get(`city${i}`);
-    if (colours) rest += `<polygon points="${cities[i].poly.map((p) => `${f1(p[0])} ${f1(p[1])}`).join(' ')}" fill="${paint(colours)}" opacity=".3"/>`;
+    if (!colours) return;
+    // A wash over the paving, and the wall tops in their colours like banners.
+    const fill = paint(colours);
+    const wallD = cities[i].walls.map((w) => `M${w.map((p) => `${f1(p[0])} ${f1(p[1])}`).join('L')}`).join('');
+    rest += `<polygon points="${cities[i].poly.map((p) => `${f1(p[0])} ${f1(p[1])}`).join(' ')}" fill="${fill}" opacity=".3"/>`;
+    if (wallD) rest += `<path d="${wallD}" fill="none" stroke="${fill}" stroke-width="4.3" stroke-linejoin="round" stroke-dasharray="2.4 2.2" opacity=".85"/>`;
   });
   k.roads.forEach((_, i) => {
     const colours = by.get(`road${i}`);
-    if (colours) rest += `<path d="${courseD(roads[i])}" fill="none" stroke="${paint(colours)}" stroke-width="10" stroke-linecap="round" opacity=".38"/>`;
+    if (colours) rest += `<path d="${courseD(roads[i])}" fill="none" stroke="${paint(colours)}" stroke-width="10" stroke-linecap="round" opacity=".3"/><path d="${courseD(roads[i])}" fill="none" stroke="${paint(colours)}" stroke-width="3.2" stroke-linecap="round" opacity=".85"/>`;
   });
   const filter = fields ? '<filter id="soft" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.6"/></filter>' : '';
   return { fields: `${defs.length || filter ? `<defs>${filter}${defs.join('')}</defs>` : ''}${fields}`, rest };
