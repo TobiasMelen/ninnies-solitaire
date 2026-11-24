@@ -126,15 +126,15 @@ function along(c: Curve[], n: number): Pt[] {
   });
 }
 
-/** Where a road ending on this tile stops: at the cloister, the city, or the junction in the middle. */
+/** Where a road ending on this tile stops: at the cloister, the city, or the hamlet at a junction. */
 function roadStop(edge: number, k: TileKind): Pt {
   const [x, y] = MID[edge];
-  const stop = k.cloister ? (k.rivers ? 0.28 : 0.7) : k.roads.length === 1 ? 0.5 : 1;
+  const stop = k.cloister ? (k.rivers ? 0.45 : 0.7) : k.roads.length === 1 ? 0.5 : k.roads.length > 2 ? 0.66 : 1;
   return [x + (50 - x) * stop, y + (50 - y) * stop];
 }
 
 /** Where the chapel stands: the middle, or beside the river on a riverside cloister. */
-const chapelAt = (k: TileKind): Pt => (k.rivers ? [27, 50] : [50, 50]);
+const chapelAt = (k: TileKind): Pt => (k.rivers ? [30, 50] : [50, 50]);
 
 // ───────────────────────── cities ─────────────────────────
 
@@ -326,8 +326,6 @@ const CATHEDRAL = `${shadow(15, 4.5)}<g stroke="${COL.wall}" stroke-width=".6" s
   <path d="M-2.2 0v-3.2a2.2 2.2 0 0 1 4.4 0V0z" fill="#5a3e24"/>
   <rect x="-10.6" y="-19" width="1.6" height="2.6" rx=".8" fill="#7fb0d9"/><rect x="9" y="-19" width="1.6" height="2.6" rx=".8" fill="#7fb0d9"/></g>`;
 
-/** A stone well where three or four roads meet. */
-const WELL = `${shadow(8, 3)}<g stroke="${COL.wall}" stroke-width=".8"><rect x="-6.5" y="-6.5" width="13" height="7" rx="2" fill="#bfb6a3"/><ellipse cx="0" cy="-6.5" rx="6.5" ry="2.4" fill="#3d6f9e"/><path d="M-6 -6.5V-14.5M6 -6.5V-14.5" fill="none" stroke-width="1.2"/><path d="M-8 -13.5L0 -19L8 -13.5Z" fill="${COL.roofs[1]}" stroke-linejoin="round"/></g>`;
 
 interface Sprite {
   at: Pt;
@@ -387,7 +385,8 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
     if (r.edges.length === 1) return course(r.edges, [x + (50 - x) * 0.8, y + (50 - y) * 0.8], rand, 5);
     // Meanders: a few swings on the straight, two on a bend; past the chapel, just a gentle wave.
     if (bridge) return course(r.edges, null, rand, 9, 3, true);
-    if (k.cloister) return course(r.edges, null, rand, 4, 2);
+    // Bowing away east to leave the chapel room.
+    if (k.cloister) return course(r.edges, null, rand, 4, 2).map((c) => c.map(([x, y]) => [x + 18 * Math.sin((Math.PI * y) / 100), y]) as Curve);
     // Squeezed between city walls, it has less room to wander.
     return turning(r.edges) ? course(r.edges, null, rand, 9, 2) : course(r.edges, null, rand, k.cities.length ? 6 : 11, 3);
   });
@@ -395,8 +394,8 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
 
   // What's already taken, so trees and sheep keep to open ground.
   const busy: [Pt, number][] = [...roads.flatMap((c) => along(c, 22).map((p) => [p, 9] as [Pt, number])), ...rivers.flatMap((c) => along(c, 22).map((p) => [p, 12] as [Pt, number]))];
-  if (k.cloister) busy.push([chapelAt(k), k.rivers ? 18 : 30]);
-  if (k.roads.length > 2) busy.push([[50, 50], 11]);
+  if (k.cloister) busy.push([chapelAt(k), k.rivers ? 24 : 30]);
+  if (k.roads.length > 2) busy.push([[50, 50], 24]);
   if (k.id === 'rL') busy.push([[50, 56], 36]);
   else if (k.rivers?.some((r) => r.edges.length === 1)) busy.push([[50, 50], 16]);
   const open = (p: Pt) => busy.every(([q, r]) => Math.hypot(p[0] - q[0], p[1] - q[1]) > r) && cities.every((c) => !inside(p, c.poly) && !wellInside(p, c.poly, 7));
@@ -495,6 +494,10 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
       .join('');
     road = `${layer('rgba(70,110,40,.3)', 19)}${layer(COL.roadEdge, 15)}${layer(COL.road, 11)}${layer(COL.rut, 1.1, ' stroke-dasharray="2.4 3"')}${pebbles}`;
   }
+  const plaza =
+    k.roads.length > 2
+      ? `<circle cx="50" cy="52" r="20" fill="${COL.roadEdge}"/><circle cx="50" cy="52" r="18.4" fill="${COL.city}"/>${Array.from({ length: 14 }, () => `<rect x="${f1(36 + rand() * 26)}" y="${f1(38 + rand() * 26)}" width="3" height="2" rx=".8" fill="${COL.cobble}" opacity=".7"/>`).join('')}`
+      : '';
   const bridgeSvg = bridge
     ? `<g transform="rotate(${k.roads[0].edges.includes(1) ? 0 : 90} 50 50)" stroke="#5a3e24" stroke-linecap="round"><path d="M37 42.5H63M37 57.5H63" stroke-width="2.4"/>${[39, 45, 51, 57, 61].map((x) => `<path d="M${x} 42.5v-2.2M${x} 57.5v2.2" stroke-width="1.4"/>`).join('')}<path d="M40 46H60M40 50H60M40 54H60" stroke="#c8a873" stroke-width=".7" opacity=".9"/></g>`
     : '';
@@ -551,17 +554,20 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
     }
   });
 
-  if (k.roads.length > 2) sprites.push({ at: [50, 56], svg: WELL });
+  // Where three or four roads meet, they end at a hamlet: a little square closed in by houses.
+  if (k.roads.length > 2) {
+    for (const [at, scale] of [[[41, 47], 1.5], [[59, 46], 1.45], [[50, 52], 1.6], [[42, 61], 1.35], [[59, 61], 1.4]] as [Pt, number][]) sprites.push({ at, svg: house(rand), scale });
+  }
   if (k.cloister) {
     const [x, y] = chapelAt(k);
-    sprites.push(k.rivers ? { at: [x, y + 6], svg: CHAPEL, scale: 0.62 } : { at: [x, y + 10], svg: CHAPEL });
+    sprites.push({ at: [x, y + 10], svg: CHAPEL });
   }
 
   const glow = `<circle cx="${f1(20 + rand() * 60)}" cy="${f1(20 + rand() * 60)}" r="38" fill="${COL.fieldLight}" opacity=".45"/>`;
   const claims = tint ? claimed(k, tint, cities, roads, rivers) : { fields: '', rest: '' };
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" aria-hidden="true">
   <rect width="100" height="100" fill="${COL.field}"/>
-  ${glow}${ground}${claims.fields}${river}${road}${bridgeSvg}${cityGround}${claims.rest}${spritesSvg(sprites, fixed)}
+  ${glow}${ground}${claims.fields}${river}${road}${plaza}${bridgeSvg}${cityGround}${claims.rest}${spritesSvg(sprites, fixed)}
   <radialGradient id="lv"><stop offset=".62" stop-color="#2a1d0e" stop-opacity="0"/><stop offset="1" stop-color="#2a1d0e" stop-opacity=".2"/></radialGradient>
   <rect width="100" height="100" fill="url(#lv)"/>
   <rect x=".6" y=".6" width="98.8" height="98.8" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="1.2"/>
