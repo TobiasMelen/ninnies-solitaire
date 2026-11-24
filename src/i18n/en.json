@@ -222,6 +222,8 @@
   "opt.landscaperFarmers.hint": "Followers can lie in fields; at the end they score 3 for each finished city their field borders",
   "opt.landscaperFast": "Quick opponents",
   "opt.landscaperFast.hint": "Opponents take their turns faster",
+  "opt.landscaperClaims": "Show who holds what",
+  "opt.landscaperClaims.hint": "Claimed cities, roads and fields take on their holder's colour",
   "opt.landscaperRiver": "The river",
   "opt.landscaperRiver.hint": "Start with the river: it winds out from its spring to a lake before the rest of the map grows",
   "landscaper.bigBoy": "Big boy",

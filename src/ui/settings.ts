@@ -58,6 +58,8 @@ export interface Settings {
   landscaperRiver: boolean;
   landscaperInns: boolean;
   landscaperBigBoy: boolean;
+  /** Wash claimed cities, roads and fields in their holders' colours. */
+  landscaperClaims: boolean;
   /** Your last Landscaper opponents (style and level each), the starting point for the next game. */
   landscaperLineup: { style: string; level: number }[] | null;
   /** 'auto' follows the device's language. */
@@ -100,6 +102,7 @@ const DEFAULTS: Settings = {
   landscaperRiver: true,
   landscaperInns: true,
   landscaperBigBoy: true,
+  landscaperClaims: true,
   landscaperLineup: null,
   lang: 'auto',
   rememberSpider: false,

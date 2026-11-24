@@ -176,14 +176,33 @@ function riverParts(c: Curve[], rand: () => number) {
     .map((p) => {
       const [nx, ny] = normal(pts.indexOf(p));
       const side = rand() < 0.5 ? 1 : -1;
-      const d = side * (9.5 + rand() * 1.5);
+      const d = side * (8.2 + rand() * 1.2);
       return `<ellipse cx="${f1(p[0] + nx * d)}" cy="${f1(p[1] + ny * d)}" rx="${f1(1 + rand() * 0.8)}" ry="${f1(0.7 + rand() * 0.4)}" fill="#b9b2a2" stroke="#8a8372" stroke-width=".35"/>`;
     })
     .join('');
   return {
-    bank: `<path d="${outline(4.5)}" fill="#6f9a4a"/><path d="${outline(2.4)}" fill="#cdbb8a"/>${stones}`,
+    bank: `<path d="${outline(2.6)}" fill="#7aa553" opacity=".7"/><path d="${outline(1.2)}" fill="#c9bb8c" opacity=".75"/>${stones}`,
     water: `<path d="${outline(0)}" fill="#4f8fc0"/><path d="${outline(-2.2, 0.8)}" fill="#6aa7d4"/><path d="${outline(-5)}" fill="#8cc2e4" opacity=".75"/>`,
     waves: `<g fill="none" stroke="#f4fbff" stroke-width=".75" stroke-linecap="round" opacity=".75">${waves}</g>`,
+  };
+}
+
+/**
+ * Still water in the river's style: an uneven round pond (the spring, or the lake the river ends
+ * in) with the same soft grass edge, sandy shore and paler middle.
+ */
+function pondParts([cx, cy]: Pt, rx: number, ry: number, rand: () => number) {
+  const a = rand() * 6.3;
+  const b = rand() * 6.3;
+  const shape = (grow: number, k = 1) =>
+    `M${Array.from({ length: 48 }, (_, i) => {
+      const th = (i / 48) * Math.PI * 2;
+      const w = 1 + 0.08 * Math.sin(3 * th + a) + 0.05 * Math.sin(5 * th + b);
+      return `${f1(cx + Math.cos(th) * (rx * w * k + grow))} ${f1(cy + Math.sin(th) * (ry * w * k + grow))}`;
+    }).join('L')}Z`;
+  return {
+    bank: `<path d="${shape(2.6)}" fill="#7aa553" opacity=".7"/><path d="${shape(1.2)}" fill="#c9bb8c" opacity=".75"/>`,
+    water: `<path d="${shape(0)}" fill="#4f8fc0"/><path d="${shape(-2.2)}" fill="#6aa7d4"/><path d="${shape(0, 0.55)}" fill="#8cc2e4" opacity=".75"/>`,
   };
 }
 
@@ -195,7 +214,7 @@ function roadStop(edge: number, k: TileKind): Pt {
 }
 
 /** Where the chapel stands: the middle, or beside the river on a riverside cloister. */
-const chapelAt = (k: TileKind): Pt => (k.rivers ? [30, 50] : [50, 50]);
+const chapelAt = (k: TileKind): Pt => (k.rivers ? [42, 48] : [50, 50]);
 
 // ───────────────────────── cities ─────────────────────────
 
@@ -447,7 +466,7 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
     // Meanders: a few swings on the straight, two on a bend; past the chapel, just a gentle wave.
     if (bridge) return course(r.edges, null, rand, 9, 3, true);
     // Bowing away east to leave the chapel room.
-    if (k.cloister) return course(r.edges, null, rand, 4, 2).map((c) => c.map(([x, y]) => [x + 18 * Math.sin((Math.PI * y) / 100), y]) as Curve);
+    if (k.cloister) return course(r.edges, null, rand, 4, 2).map((c) => c.map(([x, y]) => [x + 28 * Math.sin((Math.PI * y) / 100), y]) as Curve);
     // Squeezed between city walls, it has less room to wander.
     return turning(r.edges) ? course(r.edges, null, rand, 9, 2) : course(r.edges, null, rand, k.cities.length ? 6 : 11, 3);
   });
@@ -455,10 +474,10 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
 
   // What's already taken, so trees and sheep keep to open ground.
   const busy: [Pt, number][] = [...roads.flatMap((c) => along(c, 22).map((p) => [p, 9] as [Pt, number])), ...rivers.flatMap((c) => along(c, 22).map((p) => [p, 12] as [Pt, number]))];
-  if (k.cloister) busy.push([chapelAt(k), k.rivers ? 24 : 30]);
+  if (k.cloister) busy.push([chapelAt(k), k.rivers ? 28 : 30]);
   if (k.roads.length > 2) busy.push([[50, 50], 24]);
   if (k.id === 'rL') busy.push([[50, 56], 36]);
-  else if (k.rivers?.some((r) => r.edges.length === 1)) busy.push([[50, 50], 16]);
+  else if (k.rivers?.some((r) => r.edges.length === 1)) busy.push([[50, 46], 22]);
   const open = (p: Pt) => busy.every(([q, r]) => Math.hypot(p[0] - q[0], p[1] - q[1]) > r) && cities.every((c) => !inside(p, c.poly) && !wellInside(p, c.poly, 7));
   const spot = (margin = 10): Pt | null => {
     for (let i = 0; i < 12; i++) {
@@ -501,7 +520,8 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
       busy.push([p, 14]);
     }
   }
-  if (rand() < 0.16) {
+  // A pond of its own would muddle a river tile.
+  if (rand() < 0.16 && !k.rivers) {
     const p = spot(20);
     if (p) {
       ground += `<g><ellipse cx="${f1(p[0])}" cy="${f1(p[1])}" rx="9" ry="5.5" fill="#6ea1c4" stroke="#5a8a4a" stroke-width="1.4"/><ellipse cx="${f1(p[0] - 2.5)}" cy="${f1(p[1] - 1.5)}" rx="4" ry="1.4" fill="#a9d0e8" opacity=".8"/></g>`;
@@ -525,13 +545,12 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
   // The river: banks, water, ripples; a spring or a lake; lily pads and the odd duck.
   let river = '';
   if (rivers.length) {
-    let pool = '';
-    if (k.id === 'rL') {
-      pool = `<g><ellipse cx="50" cy="56" rx="34" ry="27" fill="#6d8f4c" opacity=".55"/><ellipse cx="50" cy="56" rx="31" ry="24" fill="#5c9cc9"/><ellipse cx="45" cy="52" rx="20" ry="12" fill="#8cc2e4" opacity=".7"/>
-        <circle cx="62" cy="62" r="2.6" fill="#5c8f3d"/><circle cx="38" cy="47" r="2.2" fill="#5c8f3d"/></g>`;
-    } else if (k.rivers!.some((r) => r.edges.length === 1)) {
-      pool = `<g><circle cx="50" cy="50" r="12" fill="#6d8f4c" opacity=".5"/><circle cx="50" cy="50" r="10" fill="#5c9cc9"/><circle cx="47" cy="47" r="5" fill="#8cc2e4" opacity=".8"/>${[0, 1, 2, 3, 4, 5].map((i) => `<circle cx="${f1(50 + Math.cos(i * 1.05) * 11)}" cy="${f1(50 + Math.sin(i * 1.05) * 11)}" r="2.2" fill="#b9b2a2" stroke="#7f7867" stroke-width=".5"/>`).join('')}</g>`;
-    }
+    // The river's start (a spring: a little pond fed from the rocks) or its end (a lake).
+    const pond = k.id === 'rL' ? pondParts([50, 56], 31, 24, rand) : k.rivers!.some((r) => r.edges.length === 1) ? pondParts([50, 48], 17, 13, rand) : null;
+    const rocks =
+      pond && k.id !== 'rL'
+        ? [[36, 42, 3.6], [41, 36.5, 2.8], [49, 34.5, 3.4], [57, 35.5, 2.6], [63.5, 40, 3.2], [33, 49, 2.4]].map(([x, y, r]) => `<ellipse cx="${x}" cy="${y}" rx="${r}" ry="${f1(r * 0.75)}" fill="#a8a192" stroke="#7a7466" stroke-width=".5"/><ellipse cx="${f1(x - r * 0.3)}" cy="${f1(y - r * 0.3)}" rx="${f1(r * 0.4)}" ry="${f1(r * 0.25)}" fill="#c9c3b5"/>`).join('')
+        : '';
     const pts = rivers.flatMap((c) => along(c, 5));
     const pads = pts
       .filter(() => rand() < 0.35)
@@ -539,7 +558,7 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
       .join('');
     if (rand() < 0.45 && !bridge) sprites.push({ at: pick(rand, pts), svg: DUCK });
     const parts = rivers.map((c) => riverParts(c, rand));
-    river = `${parts.map((x) => x.bank).join('')}${parts.map((x) => x.water).join('')}${parts.map((x) => x.waves).join('')}${pool}${pads}`;
+    river = `${parts.map((x) => x.bank).join('')}${pond?.bank ?? ''}${parts.map((x) => x.water).join('')}${pond?.water ?? ''}${parts.map((x) => x.waves).join('')}${rocks}${pads}`;
     if (k.id === 'rL') for (const p of [[26, 70], [30, 72], [73, 68], [69, 71]] as Pt[]) sprites.push({ at: p, svg: '<path d="M0 0l-1-7M1 0l1.5-6.5" stroke="#4f7f37" stroke-width="1.2" stroke-linecap="round"/>' });
   }
 
@@ -620,7 +639,8 @@ export function tileSvg(id: string, variant = 0, fixed?: number, tint = ''): str
   }
   if (k.cloister) {
     const [x, y] = chapelAt(k);
-    sprites.push({ at: [x, y + 10], svg: CHAPEL });
+    // By the river it stands a little off the middle, a touch smaller, so it stays on the tile whichever way that turns.
+    sprites.push(k.rivers ? { at: [x, y + 10], svg: CHAPEL, scale: 0.92 } : { at: [x, y + 10], svg: CHAPEL });
   }
 
   const glow = `<circle cx="${f1(20 + rand() * 60)}" cy="${f1(20 + rand() * 60)}" r="38" fill="${COL.fieldLight}" opacity=".45"/>`;

@@ -679,16 +679,18 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     const parts = ['city', 'road', 'field'] as const;
     s.tiles.forEach((tile, t) => {
       const k = KIND[tile.k];
-      const tint = parts
-        .flatMap((part) =>
-          k[part === 'city' ? 'cities' : part === 'road' ? 'roads' : 'fields'].map((_, i) => {
-            const f = a.features[a.of.get(`${t}:${part}:${i}`) ?? -1];
-            const who = f ? owners(f, s.options.players) : [];
-            return who.length ? `${part}${i}=${who.map((p) => PLAYER_COLOURS[p]).join('+')}` : '';
-          }),
-        )
-        .filter(Boolean)
-        .join(';');
+      const tint = !settings.landscaperClaims
+        ? ''
+        : parts
+            .flatMap((part) =>
+              k[part === 'city' ? 'cities' : part === 'road' ? 'roads' : 'fields'].map((_, i) => {
+                const f = a.features[a.of.get(`${t}:${part}:${i}`) ?? -1];
+                const who = f ? owners(f, s.options.players) : [];
+                return who.length ? `${part}${i}=${who.map((p) => PLAYER_COLOURS[p]).join('+')}` : '';
+              }),
+            )
+            .filter(Boolean)
+            .join(';');
       if (tint === (this.tints[t] ?? '')) return;
       this.tints[t] = tint;
       const img = this.tileEls[t]?.querySelector('img');

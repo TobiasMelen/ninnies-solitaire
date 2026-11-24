@@ -613,6 +613,7 @@ const TOGGLES: Toggle[] = [
   { key: 'landscaperBigBoy', group: 'play', games: ['landscaper'] },
   { key: 'landscaperFarmers', group: 'play', games: ['landscaper'] },
   { key: 'landscaperFast', group: 'play', games: ['landscaper'] },
+  { key: 'landscaperClaims', group: 'play', games: ['landscaper'] },
   { key: 'fourColour', group: 'cards' },
   { key: 'largePrint', group: 'cards' },
   { key: 'sound', group: 'feel' },

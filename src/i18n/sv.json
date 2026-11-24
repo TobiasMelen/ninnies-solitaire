@@ -222,6 +222,8 @@
   "opt.landscaperFarmers.hint": "Följare kan ligga på fält; i slutet får de 3 poäng per färdig stad som fältet gränsar till",
   "opt.landscaperFast": "Snabba motståndare",
   "opt.landscaperFast.hint": "Motståndarna gör sina drag snabbare",
+  "opt.landscaperClaims": "Visa vem som äger vad",
+  "opt.landscaperClaims.hint": "Tagna städer, vägar och åkrar får ägarens färg",
   "opt.landscaperRiver": "Floden",
   "opt.landscaperRiver.hint": "Börja med floden: den slingrar sig från källan till en sjö innan resten av kartan växer",
   "landscaper.bigBoy": "Big boy",
