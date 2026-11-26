@@ -31,6 +31,8 @@ const STYLE_EMOJI: Record<Style['id'], string> = { builder: 'ðŸ§±', saboteur: 'ð
 const SAVE_KEY = 'ninnies.landscaper.save.v1';
 /** Tile size on screen at zoom 1. */
 const TILE = 84;
+/** How long the board takes to glide to a tile that's off screen (as .ls-world.gliding). */
+const GLIDE = 450;
 /** Laid tiles are kept as bitmaps this many pixels square: sharp when zoomed in a fair way. */
 const BITMAP = Math.round(TILE * 2 * Math.min(window.devicePixelRatio || 1, 2.5));
 
@@ -230,6 +232,10 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   }
 
   private showHint(m: Move) {
+    // Off screen? Glide over to it first, so you see the bunny's tile land.
+    const s = this.state;
+    const at = s.tiles.length;
+    if (this.reveal(m.x, m.y)) return this.after('hint', GLIDE, () => this.state === s && s.tiles.length === at && this.stage.at === 'lay' && this.showHint(m));
     this.stage = { at: 'lay', ghost: { x: m.x, y: m.y, r: m.r } };
     this.render();
     const p = this.toScreen(m.x + 0.5, m.y + 0.5);
@@ -291,10 +297,11 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   private ticket = 0;
 
   private showAiMove(m: Move) {
+    // Off screen? Glide over to its spot first, so you see the tile come in.
+    if (this.reveal(m.x, m.y)) return this.after('ai-glide', GLIDE, () => this.showAiMove(m));
     // Out of the panel to hover over its spot, turning into place...
     this.flyFrom = this.panelSpot();
     this.aiShow = { m, r: 0 };
-    this.reveal(m.x, m.y);
     this.render();
     this.after('ai-turn', 820, () => {
       if (!this.aiShow) return;
@@ -541,6 +548,7 @@ export class LandscaperGame extends TableGame<LandscaperState> {
   private onDown(e: PointerEvent) {
     if ((e.target as HTMLElement).closest('.ls-panel')) return;
     unlockAudio();
+    this.world.classList.remove('gliding');
     this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, startX: e.clientX, startY: e.clientY });
     try {
       this.root.setPointerCapture(e.pointerId);
@@ -632,17 +640,22 @@ export class LandscaperGame extends TableGame<LandscaperState> {
     return (this.root.clientHeight - this.panel.offsetHeight) / 2;
   }
 
-  /** Pan so tile (x, y) is on screen, if it isn't. */
+  /** Pan so tile (x, y) is on screen, if it isn't, gliding there so you see where. Says whether it moved. */
   private reveal(x: number, y: number) {
     const p = this.toScreen(x + 0.5, y + 0.5);
     const W = this.root.clientWidth;
     const H = this.root.clientHeight - this.panel.offsetHeight;
     const m = TILE * this.view.zoom;
-    if (p.x > m && p.x < W - m && p.y > m && p.y < H - m) return;
+    if (p.x > m && p.x < W - m && p.y > m && p.y < H - m) return false;
     this.view.x += W / 2 - p.x;
     this.view.y += H / 2 - p.y;
+    this.world.classList.add('gliding');
     this.applyView();
+    window.clearTimeout(this.glideTimer);
+    this.glideTimer = window.setTimeout(() => this.world.classList.remove('gliding'), GLIDE);
+    return true;
   }
+  private glideTimer = 0;
 
   private applyView() {
     this.world.style.transform = `translate(${this.root.clientWidth / 2 + this.view.x}px, ${this.boardMid() + this.view.y}px) scale(${this.view.zoom})`;

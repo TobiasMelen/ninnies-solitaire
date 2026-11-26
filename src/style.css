@@ -629,6 +629,10 @@ html.large-print [data-deck='pips'] {
   top: 0;
   transform-origin: 0 0;
 }
+/* Panning over to a tile that's off screen: an opponent's, or the bunny's hint. */
+.ls-world.gliding {
+  transition: transform 450ms cubic-bezier(0.3, 0.8, 0.3, 1);
+}
 .ls-tile,
 .ls-open {
   position: absolute;
@@ -902,7 +906,10 @@ html.large-print [data-deck='pips'] {
   width: 28px;
   height: 28px;
   border-radius: 4px;
-  background: linear-gradient(135deg, #6f8f4d, #4d6b33);
+  background:
+    repeating-linear-gradient(45deg, var(--back-line) 0 1.5px, transparent 1.5px 5px),
+    repeating-linear-gradient(-45deg, var(--back-line) 0 1.5px, transparent 1.5px 5px),
+    linear-gradient(135deg, var(--back-a, #6f8f4d), var(--back-b, #4d6b33));
   box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.25), 0 1px 2px rgba(0, 0, 0, 0.35);
 }
 .ls-pile i:nth-child(1) { top: 34px; }
@@ -935,7 +942,10 @@ html.large-print [data-deck='pips'] {
 }
 .ls-card-back {
   transform: rotateY(180deg);
-  background: linear-gradient(135deg, #6f8f4d, #4d6b33);
+  background:
+    repeating-linear-gradient(45deg, var(--back-line) 0 1.5px, transparent 1.5px 5px),
+    repeating-linear-gradient(-45deg, var(--back-line) 0 1.5px, transparent 1.5px 5px),
+    linear-gradient(135deg, var(--back-a, #6f8f4d), var(--back-b, #4d6b33));
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.25), 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 .ls-preview.empty .ls-card {
